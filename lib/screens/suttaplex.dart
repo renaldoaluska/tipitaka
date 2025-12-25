@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/sutta.dart';
 import 'sutta_detail.dart';
 
+const Color kLockedColor = Colors.grey;
+
 class Suttaplex extends StatefulWidget {
   final String uid;
   const Suttaplex({super.key, required this.uid});
@@ -13,6 +15,7 @@ class Suttaplex extends StatefulWidget {
 class _SuttaplexState extends State<Suttaplex> {
   Map<String, dynamic>? _sutta;
   bool _loading = true;
+  bool _fetchingText = false;
 
   @override
   void initState() {
@@ -24,6 +27,7 @@ class _SuttaplexState extends State<Suttaplex> {
     try {
       final raw = await SuttaService.fetchSuttaplex(widget.uid, language: "id");
       final data = (raw is List && raw.isNotEmpty) ? raw[0] : null;
+
       if (data == null) {
         setState(() {
           _sutta = null;
@@ -32,13 +36,12 @@ class _SuttaplexState extends State<Suttaplex> {
         return;
       }
 
-      final translations = List<Map<String, dynamic>>.from(
-        data["translations"] ?? [],
-      );
+      final List<Map<String, dynamic>> translations =
+          List<Map<String, dynamic>>.from(data["translations"] ?? []);
 
       final langs = translations.map((t) => t["lang"]).toSet();
 
-      // ✅ Ensure Pāli option exists
+      // ensure pali exists
       if (!langs.contains("pli")) {
         translations.insert(0, {
           "lang": "pli",
@@ -48,11 +51,11 @@ class _SuttaplexState extends State<Suttaplex> {
         });
       }
 
-      // ✅ Ensure Indonesian option exists (dummy if missing)
+      // ensure indonesian exists (disabled if missing)
       if (!langs.contains("id")) {
         translations.add({
           "lang": "id",
-          "author": "Belum ada terjemahan Indonesia",
+          "author": "Belum tersedia",
           "author_uid": "",
           "segmented": false,
           "disabled": true,
@@ -63,7 +66,6 @@ class _SuttaplexState extends State<Suttaplex> {
           .where((t) => ["id", "en", "pli"].contains(t["lang"]))
           .toList();
 
-      // urutkan: pli → id → en
       filtered.sort((a, b) {
         const order = {"pli": 0, "id": 1, "en": 2};
         return (order[a["lang"]] ?? 99).compareTo(order[b["lang"]] ?? 99);
@@ -76,29 +78,31 @@ class _SuttaplexState extends State<Suttaplex> {
         _loading = false;
       });
     } catch (e) {
-      debugPrint("Error fetch suttaplex: $e");
+      debugPrint("error fetch suttaplex: $e");
       setState(() => _loading = false);
     }
   }
 
-  Widget buildTranslationList(List<dynamic> translations) {
-    if (translations.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Text(
-          "Terjemahan belum tersedia dalam bahasa Indonesia, Inggris, atau Pāli.",
-        ),
-      );
-    }
+  // 🔒 helpers (single source of truth)
+  Widget lockIcon() {
+    return const Icon(Icons.lock_outline, size: 18, color: kLockedColor);
+  }
 
+  Text lockedText(String text, {FontWeight? weight}) {
+    return Text(
+      text,
+      style: TextStyle(color: kLockedColor, fontWeight: weight),
+    );
+  }
+
+  Widget buildTranslationList(List<dynamic> translations) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: translations.map((t) {
-        final String lang = (t["lang"] ?? "") as String;
-        final String author = (t["author"] ?? "") as String;
-        final String authorUid = (t["author_uid"] ?? "") as String;
-        final bool segmented = (t["segmented"] ?? false) as bool;
-        final bool disabled = (t["disabled"] ?? false) as bool;
+        final String lang = t["lang"] ?? "";
+        final String author = t["author"] ?? "";
+        final String authorUid = t["author_uid"] ?? "";
+        final bool segmented = t["segmented"] ?? false;
+        final bool disabled = t["disabled"] ?? false;
 
         final label = lang == "id"
             ? "Bahasa Indonesia"
@@ -106,32 +110,31 @@ class _SuttaplexState extends State<Suttaplex> {
             ? "Bahasa Inggris"
             : "Bahasa Pāli";
 
-        // ✅ Icon berbeda untuk Pāli
         final icon = lang == "pli" ? Icons.menu_book : Icons.translate;
 
         return ListTile(
-          leading: Icon(icon),
-          title: Text(
-            label,
-            style: TextStyle(color: disabled ? Colors.grey : Colors.black),
-          ),
-          subtitle: Text(
-            author,
-            style: TextStyle(color: disabled ? Colors.grey : Colors.black54),
-          ),
-          enabled: !disabled,
-          onTap: disabled
+          leading: Icon(icon, color: disabled ? kLockedColor : null),
+          title: disabled ? lockedText(label) : Text(label),
+          subtitle: disabled ? lockedText(author) : Text(author),
+          trailing: disabled ? lockIcon() : null,
+          enabled: !disabled && !_fetchingText,
+          onTap: disabled || _fetchingText
               ? null
               : () async {
+                  final safeAuthorUid = authorUid.isNotEmpty ? authorUid : "ms";
+
+                  setState(() => _fetchingText = true);
+
                   try {
                     final textData = await SuttaService.fetchTextForTranslation(
                       uid: _sutta?["uid"] ?? widget.uid,
-                      authorUid: authorUid.isNotEmpty ? authorUid : "ms",
+                      authorUid: safeAuthorUid,
                       lang: lang,
                       segmented: segmented,
                     );
 
                     if (!mounted) return;
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -142,15 +145,27 @@ class _SuttaplexState extends State<Suttaplex> {
                         ),
                       ),
                     );
-                  } catch (e) {
+                  } catch (_) {
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Gagal memuat teks untuk $label")),
+                      SnackBar(content: Text("gagal memuat teks $label")),
                     );
+                  } finally {
+                    if (mounted) setState(() => _fetchingText = false);
                   }
                 },
         );
       }).toList(),
+    );
+  }
+
+  Widget lockedSection({required String title, required String subtitle}) {
+    return ListTile(
+      leading: const Icon(Icons.menu_book, color: kLockedColor),
+      title: lockedText(title, weight: FontWeight.w600),
+      subtitle: lockedText(subtitle),
+      trailing: lockIcon(),
+      enabled: false,
     );
   }
 
@@ -160,14 +175,13 @@ class _SuttaplexState extends State<Suttaplex> {
         _sutta?["translated_title"] ?? _sutta?["original_title"] ?? widget.uid;
     final blurb = _sutta?["blurb"] ?? "";
     final translations = _sutta?["filtered_translations"] ?? [];
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.uid.toUpperCase()),
         leading: IconButton(
-          icon: const Icon(Icons.close), // atau Icons.arrow_back
-          onPressed: () {
-            Navigator.of(context).pop(); // nutup bottom sheet / page
-          },
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: _loading
@@ -188,61 +202,28 @@ class _SuttaplexState extends State<Suttaplex> {
                   ),
                   const SizedBox(height: 8),
                   Text(blurb),
+
                   const Divider(height: 32),
+
                   const Text(
                     "Pilih Bahasa:",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   buildTranslationList(translations),
 
-                  const SizedBox(height: 24),
+                  const Divider(height: 32),
+
                   const Text(
-                    "Tafsiran Aṭṭhakathā:",
+                    "Tafsiran (Coming Soon)",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.menu_book),
-                    title: const Text("Bahasa Pāli"),
-                    subtitle: const Text(
-                      "Buddhaghosa",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    enabled: false,
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.menu_book),
-                    title: const Text("Bahasa Indonesia"),
-                    subtitle: const Text(
-                      "Belum ada terjemahan Indonesia",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    enabled: false,
                   ),
 
-                  // 👉 Tambahan baru di bawah Tafsiran Ṭīkā
-                  const SizedBox(height: 24),
-                  const Text(
-                    "Tafsiran Ṭīkā:",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  lockedSection(
+                    title: "Aṭṭhakathā",
+                    subtitle: "Belum tersedia",
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.menu_book),
-                    title: const Text("Bahasa Pāli"),
-                    subtitle: const Text(
-                      "Dhammapāla",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    enabled: false,
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.menu_book),
-                    title: const Text("Bahasa Indonesia"),
-                    subtitle: const Text(
-                      "Belum ada terjemahan Indonesia",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    enabled: false,
-                  ),
+
+                  lockedSection(title: "Ṭīkā", subtitle: "Belum tersedia"),
                 ],
               ),
             ),
