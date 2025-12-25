@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:flutter_html/flutter_html.dart';
 import '../services/downloader.dart';
 import '../services/db_helper.dart';
 
@@ -139,10 +139,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               const Divider(),
-                              // Menampilkan Konten HTML
-                              HtmlWidget(
-                                item['content'] ?? '<p>Kosong</p>',
-                                textStyle: const TextStyle(fontSize: 16),
+                              // Menampilkan Konten HTML pakai flutter_html
+                              Html(
+                                data: item['content'] ?? '<p>Kosong</p>',
+                                style: {"body": Style(fontSize: FontSize(16))},
                               ),
                             ],
                           ),
