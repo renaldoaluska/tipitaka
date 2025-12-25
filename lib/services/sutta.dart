@@ -1,31 +1,31 @@
-// lib/services/sutta.dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'api.dart';
 
 class SuttaService {
-  static const String baseUrl = "https://suttacentral.net/api";
-
-  /// Ambil daftar menu untuk sebuah sutta
-  static Future<dynamic> fetchMenu(String uid, {String language = "id"}) async {
-    final url = Uri.parse("$baseUrl/menu/$uid?language=$language");
-    final res = await http.get(url);
-    if (res.statusCode == 200) return json.decode(res.body);
-    throw Exception("Gagal memuat menu untuk $uid");
+  /// =========================
+  /// MENU
+  /// =========================
+  static Future<dynamic> fetchMenu(String uid, {String language = "id"}) {
+    return Api.get(
+      "menu/$uid",
+      query: {"language": language},
+      ttl: const Duration(minutes: 30),
+    );
   }
 
-  /// Ambil metadata suttaplex (judul, info singkat, dll.)
-  static Future<dynamic> fetchSuttaplex(
-    String uid, {
-    String language = "id",
-  }) async {
-    final url = Uri.parse("$baseUrl/suttaplex/$uid?language=$language");
-    final res = await http.get(url);
-    if (res.statusCode == 200) return json.decode(res.body); // List
-    throw Exception("Gagal memuat detail sutta untuk $uid");
+  /// =========================
+  /// SUTTAPLEX (metadata)
+  /// =========================
+  static Future<dynamic> fetchSuttaplex(String uid, {String language = "id"}) {
+    return Api.get(
+      "suttaplex/$uid",
+      query: {"language": language},
+      ttl: const Duration(minutes: 30),
+    );
   }
 
-  /// Ambil teks sutta sesuai translator.
-  /// segmented = true → bilarasuttas, else → suttas
+  /// =========================
+  /// TEXT / TRANSLATION
+  /// =========================
   static Future<Map<String, dynamic>> fetchTextForTranslation({
     required String uid,
     required String authorUid,
@@ -33,40 +33,31 @@ class SuttaService {
     required bool segmented,
     String siteLanguage = "id",
   }) async {
-    final Uri url = segmented
-        ? Uri.parse("$baseUrl/bilarasuttas/$uid/$authorUid?lang=$lang")
-        : Uri.parse(
-            "$baseUrl/suttas/$uid/$authorUid?lang=$lang&siteLanguage=$siteLanguage",
-          );
+    final raw = await Api.get(
+      segmented ? "bilarasuttas/$uid/$authorUid" : "suttas/$uid/$authorUid",
+      query: segmented
+          ? {"lang": lang}
+          : {"lang": lang, "siteLanguage": siteLanguage},
+      ttl: const Duration(hours: 6),
+    );
 
-    final res = await http.get(url);
-    if (res.statusCode != 200) {
-      throw Exception("Gagal memuat teks ($uid, $authorUid, $lang)");
+    final data = Map<String, dynamic>.from(raw);
+
+    // flatten segments biar UI gampang
+    if (data.containsKey("translation_text")) {
+      data["segments"] = data["translation_text"];
+    } else if (data.containsKey("comment_text")) {
+      data["segments"] = data["comment_text"];
+    } else if (data.containsKey("translation") &&
+        data["translation"] is Map &&
+        data["translation"].containsKey("segments")) {
+      data["segments"] = data["translation"]["segments"];
+    } else if (data.containsKey("root_text") &&
+        data["root_text"] is Map &&
+        data["root_text"].containsKey("segments")) {
+      data["segments"] = data["root_text"]["segments"];
     }
 
-    final raw = json.decode(res.body);
-
-    // ✅ Flatten agar mudah dipakai di model/UI
-    if (raw is Map<String, dynamic>) {
-      if (raw.containsKey("translation_text")) {
-        // Bilara terjemahan (Sujato, dll.)
-        raw["segments"] = raw["translation_text"];
-      } else if (raw.containsKey("comment_text")) {
-        // Catatan modern Sujato (bukan Atthakathā/Tīkā klasik)
-        raw["segments"] = raw["comment_text"];
-      } else if (raw.containsKey("translation") &&
-          raw["translation"] is Map &&
-          raw["translation"].containsKey("segments")) {
-        // Legacy translation
-        raw["segments"] = raw["translation"]["segments"];
-      } else if (raw.containsKey("root_text") &&
-          raw["root_text"] is Map &&
-          raw["root_text"].containsKey("segments")) {
-        // Pāli root text
-        raw["segments"] = raw["root_text"]["segments"];
-      }
-    }
-
-    return Map<String, dynamic>.from(raw);
+    return data;
   }
 }

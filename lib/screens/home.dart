@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'menu_page.dart';
+import '../styles/nikaya_style.dart'; // import style nikaya
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -39,122 +40,122 @@ class _HomeState extends State<Home> with TickerProviderStateMixin {
     },
     {
       "acronym": "Kp",
-      "name": "Khuddakapāṭha",
-      "desc": "Kumpulan Kecil – Petikan Pendek",
+      "name": "Khuddakanikāya\nKhuddakapāṭha",
+      "desc": "Kumpulan Kecil\nPetikan Pendek",
       "range": "Kp 1–9",
     },
     {
       "acronym": "Dhp",
-      "name": "Dhammapada",
-      "desc": "Kumpulan Kecil – Bait Kebenaran",
+      "name": "Khuddakanikāya\nDhammapada",
+      "desc": "Kumpulan Kecil\nBait Kebenaran",
       "range": "Dhp 1–423",
     },
     {
       "acronym": "Ud",
-      "name": "Udāna",
-      "desc": "Kumpulan Kecil – Seruan Luhur",
+      "name": "Khuddakanikāya\nUdāna",
+      "desc": "Kumpulan Kecil\nSeruan Luhur",
       "range": "Ud 1–8",
     },
     {
       "acronym": "Iti",
-      "name": "Itivuttaka",
-      "desc": "Kumpulan Kecil – Sedemikian Dikatakan",
+      "name": "Khuddakanikāya\nItivuttaka",
+      "desc": "Kumpulan Kecil\nSedemikian Dikatakan",
       "range": "Iti 1–112",
     },
     {
       "acronym": "Snp",
-      "name": "Suttanipāta",
-      "desc": "Kumpulan Kecil – Koleksi Diskursus",
+      "name": "Khuddakanikāya\nSuttanipāta",
+      "desc": "Kumpulan Kecil\nKoleksi Diskursus",
       "range": "Snp 1–5",
     },
     {
       "acronym": "Vv",
-      "name": "Vimānavatthu",
-      "desc": "Kumpulan Kecil – Cerita Wisma",
+      "name": "Khuddakanikāya\nVimānavatthu",
+      "desc": "Kumpulan Kecil\nCerita Wisma",
       "range": "Vv 1–85",
     },
     {
       "acronym": "Pv",
-      "name": "Petavatthu",
-      "desc": "Kumpulan Kecil – Cerita Hantu",
+      "name": "Khuddakanikāya\nPetavatthu",
+      "desc": "Kumpulan Kecil\nCerita Hantu",
       "range": "Pv 1–51",
     },
     {
       "acronym": "Thag",
-      "name": "Theragāthā",
-      "desc": "Kumpulan Kecil – Syair Thera",
+      "name": "Khuddakanikāya\nTheragāthā",
+      "desc": "Kumpulan Kecil\nSyair Thera",
       "range": "Thag 1–21",
     },
     {
       "acronym": "Thig",
-      "name": "Therīgāthā",
-      "desc": "Kumpulan Kecil – Syair Therī",
+      "name": "Khuddakanikāya\nTherīgāthā",
+      "desc": "Kumpulan Kecil\nSyair Therī",
       "range": "Thig 1–16",
     },
     {
-      "acronym": "ThaAp",
-      "name": "Therāpadāna",
-      "desc": "Kumpulan Kecil – Legenda Thera",
+      "acronym": "Tha-Ap",
+      "name": "Khuddakanikāya\nTherāpadāna",
+      "desc": "Kumpulan Kecil\nLegenda Thera",
       "range": "Tha Ap 1–563",
     },
     {
-      "acronym": "ThiAp",
-      "name": "Therīapadāna",
-      "desc": "Kumpulan Kecil – Legenda Therī",
+      "acronym": "Thi-Ap",
+      "name": "Khuddakanikāya\nTherīapadāna",
+      "desc": "Kumpulan Kecil\nLegenda Therī",
       "range": "Thi Ap 1–40",
     },
     {
       "acronym": "Bv",
-      "name": "Buddhavaṁsa",
-      "desc": "Kumpulan Kecil – Wangsa Buddha",
+      "name": "Khuddakanikāya\nBuddhavaṁsa",
+      "desc": "Kumpulan Kecil\nWangsa Buddha",
       "range": "Bv 1–29",
     },
     {
       "acronym": "Cp",
-      "name": "Cariyāpiṭaka",
-      "desc": "Kumpulan Kecil – Keranjang Perilaku",
+      "name": "Khuddakanikāya\nCariyāpiṭaka",
+      "desc": "Kumpulan Kecil\nKeranjang Perilaku",
       "range": "Cp 1–35",
     },
     {
       "acronym": "Ja",
-      "name": "Jātaka",
-      "desc": "Kumpulan Kecil – Kisah Kelahiran",
+      "name": "Khuddakanikāya\nJātaka",
+      "desc": "Kumpulan Kecil\nKisah Kelahiran",
       "range": "Ja 1–547",
     },
     {
       "acronym": "Mnd",
-      "name": "Mahāniddesa",
-      "desc": "Kumpulan Kecil – Eksposisi Besar",
+      "name": "Khuddakanikāya\nMahāniddesa",
+      "desc": "Kumpulan Kecil\nEksposisi Besar",
       "range": "Mnd 1–16",
     },
     {
       "acronym": "Cnd",
-      "name": "Cūḷaniddesa",
-      "desc": "Kumpulan Kecil – Eksposisi Kecil",
+      "name": "Khuddakanikāya\nCūḷaniddesa",
+      "desc": "Kumpulan Kecil\nEksposisi Kecil",
       "range": "Cnd 1–23",
     },
     {
       "acronym": "Ps",
-      "name": "Paṭisambhidāmagga",
-      "desc": "Kumpulan Kecil – Jalan Analitis",
+      "name": "Khuddakanikāya\nPaṭisambhidāmagga",
+      "desc": "Kumpulan Kecil\nJalan Analitis",
       "range": "Ps 1–3",
     },
     {
       "acronym": "Ne",
-      "name": "Netti",
-      "desc": "Kumpulan Kecil – Panduan",
+      "name": "Khuddakanikāya\nNetti",
+      "desc": "Kumpulan Kecil\nPanduan",
       "range": "Ne 1–37",
     },
     {
       "acronym": "Pe",
-      "name": "Peṭakopadesa",
-      "desc": "Kumpulan Kecil – Wilayah Keranjang",
+      "name": "Khuddakanikāya\nPeṭakopadesa",
+      "desc": "Kumpulan Kecil\nWilayah Keranjang",
       "range": "Pe 1–9",
     },
     {
       "acronym": "Mil",
-      "name": "Milindapañha",
-      "desc": "Kumpulan Kecil – Pertanyaan Milinda",
+      "name": "Khuddakanikāya\nMilindapañha",
+      "desc": "Kumpulan Kecil\nPertanyaan Milinda",
       "range": "Mil 1–8",
     },
   ];
@@ -171,34 +172,33 @@ class _HomeState extends State<Home> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  Widget buildKitabIcon(String acronym) {
-    return CircleAvatar(
-      backgroundColor: Colors.deepPurple,
-      child: Text(
-        acronym,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
   Widget buildKitabList(List<Map<String, String>> kitabs) {
     return ListView.builder(
       itemCount: kitabs.length,
       itemBuilder: (context, index) {
         final kitab = kitabs[index];
         final uid = kitab["acronym"]!.toLowerCase();
+        final displayAcronym = normalizeNikayaAcronym(kitab["acronym"]!);
 
         return ListTile(
-          leading: buildKitabIcon(kitab["acronym"]!),
+          leading: buildNikayaAvatar(kitab["acronym"]!),
           title: Text(kitab["name"]!),
-          subtitle: Text("${kitab["desc"]}\n${kitab["range"]}"),
+          subtitle: Text(kitab["desc"]!),
+          trailing: Text(
+            kitab["range"]!,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: getNikayaColor(displayAcronym),
+            ),
+          ),
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => MenuPage(uid: uid)),
+              MaterialPageRoute(
+                builder: (_) =>
+                    MenuPage(uid: uid, parentAcronym: displayAcronym),
+              ),
             );
           },
         );
@@ -208,19 +208,63 @@ class _HomeState extends State<Home> with TickerProviderStateMixin {
 
   Widget buildSliderGreeting() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.orange.shade100,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      //color: const Color(0xFFFFE0B2), // oranye terang
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            "Sotthi Hotu, Namo Ratanattayā",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        children: [
+          Row(
+            children: const [
+              Expanded(
+                child: Text(
+                  "Sotthi Hotu, Namo Ratanattayā",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Text("2025 M / 2568–2569 TB", style: TextStyle(fontSize: 14)),
+            ],
           ),
-          SizedBox(height: 4),
-          Text("2025 M / 2568–2569 TB", style: TextStyle(fontSize: 14)),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // Biru Navy/Gelap untuk Paritta
+              buildTopIcon("Paritta", Icons.book, const Color(0xFF283593)),
+
+              // Kuning Terang untuk Ab-sanga
+              buildTopIcon("Ab-saṅgaha", Icons.person, const Color(0xFFFDD835)),
+
+              // Merah/Oranye Gelap untuk Uposatha (ikon bulan)
+              buildTopIcon(
+                "Uposatha",
+                Icons.nightlight_round,
+                const Color(0xFFD84315),
+              ),
+
+              // Oranye Terang untuk Meditasi
+              buildTopIcon(
+                "Meditasi",
+                Icons.self_improvement,
+                const Color(0xFFFF9800),
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+
+  Widget buildTopIcon(String label, IconData icon, Color color) {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: color,
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
     );
   }
 
