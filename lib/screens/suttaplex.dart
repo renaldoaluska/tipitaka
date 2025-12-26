@@ -17,6 +17,9 @@ class _SuttaplexState extends State<Suttaplex> {
   bool _loading = true;
   bool _fetchingText = false;
 
+  bool _showAllTranslations = false;
+  List<Map<String, dynamic>> _extraTranslations = [];
+
   @override
   void initState() {
     super.initState();
@@ -41,29 +44,35 @@ class _SuttaplexState extends State<Suttaplex> {
 
       final langs = translations.map((t) => t["lang"]).toSet();
 
-      // ensure pali exists
       if (!langs.contains("pli")) {
         translations.insert(0, {
           "lang": "pli",
+          "lang_name": "Pāli",
           "author": "Teks Pāli",
           "author_uid": "ms",
           "segmented": true,
+          "is_root": true,
         });
       }
 
-      // ensure indonesian exists (disabled if missing)
       if (!langs.contains("id")) {
         translations.add({
           "lang": "id",
+          "lang_name": "Bahasa Indonesia",
           "author": "Belum tersedia",
           "author_uid": "",
           "segmented": false,
           "disabled": true,
+          "is_root": false,
         });
       }
 
       final filtered = translations
           .where((t) => ["id", "en", "pli"].contains(t["lang"]))
+          .toList();
+
+      final extra = translations
+          .where((t) => !["id", "en", "pli"].contains(t["lang"]))
           .toList();
 
       filtered.sort((a, b) {
@@ -75,6 +84,7 @@ class _SuttaplexState extends State<Suttaplex> {
 
       setState(() {
         _sutta = data;
+        _extraTranslations = extra;
         _loading = false;
       });
     } catch (e) {
@@ -83,7 +93,6 @@ class _SuttaplexState extends State<Suttaplex> {
     }
   }
 
-  // 🔒 helpers (single source of truth)
   Widget lockIcon() {
     return const Icon(Icons.lock_outline, size: 18, color: kLockedColor);
   }
@@ -95,6 +104,47 @@ class _SuttaplexState extends State<Suttaplex> {
     );
   }
 
+  Widget buildTag(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 12)),
+    );
+  }
+
+  // segmented == true → ✓ aligned
+  // segmented == false → legacy
+  // has_comment == true → ✓ annotated
+  // segmented == true → ✓ aligned
+  // segmented == false → legacy
+  // has_comment == true → ✓ annotated
+  Widget buildBadges(Map<String, dynamic> t) {
+    final List<Widget> badges = [];
+
+    final lang = t["lang"];
+    final isRoot = t["is_root"] == true; // Cek flag is_root
+
+    if (isRoot) {
+      // 1. Kalo ini teks asli (Pali MS), labelnya "asli"
+      badges.add(buildTag("asli"));
+    } else if (t["segmented"] == true) {
+      // 2. Kalo terjemahan dan segmented, labelnya "✓ selaras"
+      badges.add(buildTag("✓ selaras"));
+    } else if (lang != "pli") {
+      // 3. Sisanya warisan (legacy)
+      badges.add(buildTag("warisan"));
+    }
+
+    if (t["has_comment"] == true) {
+      badges.add(buildTag("✓ anotasi"));
+    }
+
+    return Wrap(spacing: 6, children: badges);
+  }
+
   Widget buildTranslationList(List<dynamic> translations) {
     return Column(
       children: translations.map((t) {
@@ -104,25 +154,32 @@ class _SuttaplexState extends State<Suttaplex> {
         final bool segmented = t["segmented"] ?? false;
         final bool disabled = t["disabled"] ?? false;
 
-        final label = lang == "id"
-            ? "Bahasa Indonesia"
-            : lang == "en"
-            ? "Bahasa Inggris"
-            : "Bahasa Pāli";
-
+        final label = t["lang_name"] ?? lang.toUpperCase();
         final icon = lang == "pli" ? Icons.menu_book : Icons.translate;
+
+        // tampilkan tahun publikasi di belakang nama author
+        final pubYear = t["publication_date"];
+        final authorWithYear = pubYear != null && pubYear.toString().isNotEmpty
+            ? "$author ($pubYear)"
+            : author;
 
         return ListTile(
           leading: Icon(icon, color: disabled ? kLockedColor : null),
-          title: disabled ? lockedText(label) : Text(label),
-          subtitle: disabled ? lockedText(author) : Text(author),
-          trailing: disabled ? lockIcon() : null,
+          title: disabled
+              ? lockedText(label, weight: FontWeight.w600)
+              : Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+          subtitle: disabled
+              ? lockedText(authorWithYear)
+              : Text(authorWithYear),
+          trailing: disabled ? lockIcon() : buildBadges(t),
           enabled: !disabled && !_fetchingText,
           onTap: disabled || _fetchingText
               ? null
               : () async {
                   final safeAuthorUid = authorUid.isNotEmpty ? authorUid : "ms";
-
                   setState(() => _fetchingText = true);
 
                   try {
@@ -159,13 +216,29 @@ class _SuttaplexState extends State<Suttaplex> {
     );
   }
 
-  Widget lockedSection({required String title, required String subtitle}) {
+  Widget lockedSectionLang(String lang, {String subtitle = "Belum tersedia"}) {
+    final icon = lang == "pli" ? Icons.menu_book : Icons.translate;
+    final label = lang == "pli" ? "Pāli" : "Bahasa Indonesia";
+
     return ListTile(
-      leading: const Icon(Icons.menu_book, color: kLockedColor),
-      title: lockedText(title, weight: FontWeight.w600),
+      leading: Icon(icon, color: kLockedColor),
+      title: lockedText(label, weight: FontWeight.w600),
       subtitle: lockedText(subtitle),
       trailing: lockIcon(),
       enabled: false,
+    );
+  }
+
+  Widget lockedSectionGroup(String title, List<String> langs) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        ...langs.map((lang) => lockedSectionLang(lang)),
+      ],
     );
   }
 
@@ -206,24 +279,35 @@ class _SuttaplexState extends State<Suttaplex> {
                   const Divider(height: 32),
 
                   const Text(
-                    "Pilih Bahasa:",
+                    "Akar (Mūla)",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   buildTranslationList(translations),
 
+                  if (_extraTranslations.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => setState(
+                        () => _showAllTranslations = !_showAllTranslations,
+                      ),
+                      icon: Icon(
+                        _showAllTranslations
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                      ),
+                      label: Text(
+                        _showAllTranslations
+                            ? "Sembunyikan terjemahan lainnya"
+                            : "${_extraTranslations.length} terjemahan bahasa lainnya",
+                      ),
+                    ),
+
+                  if (_showAllTranslations)
+                    buildTranslationList(_extraTranslations),
+
                   const Divider(height: 32),
-
-                  const Text(
-                    "Tafsiran (Coming Soon)",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-
-                  lockedSection(
-                    title: "Aṭṭhakathā",
-                    subtitle: "Belum tersedia",
-                  ),
-
-                  lockedSection(title: "Ṭīkā", subtitle: "Belum tersedia"),
+                  lockedSectionGroup("Tafsiran (Aṭṭhakathā)", ["pli", "id"]),
+                  const Divider(height: 32),
+                  lockedSectionGroup("Subtafsiran (Ṭīkā)", ["pli", "id"]),
                 ],
               ),
             ),

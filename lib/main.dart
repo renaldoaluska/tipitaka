@@ -13,7 +13,8 @@ class TripitakaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Tripitaka Indonesia',
       theme: ThemeData(
-        primarySwatch: Colors.deepPurple,
+        // pakai hex langsung
+        primarySwatch: Colors.deepOrange,
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
       ),
