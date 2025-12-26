@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/sutta.dart';
 import 'sutta_detail.dart';
+import 'package:flutter_html/flutter_html.dart';
+import '../styles/nikaya_style.dart'; // pastikan path sesuai
 
 const Color kLockedColor = Colors.grey;
 
@@ -129,18 +131,32 @@ class _SuttaplexState extends State<Suttaplex> {
 
     if (isRoot) {
       // 1. Kalo ini teks asli (Pali MS), labelnya "asli"
-      badges.add(buildTag("asli"));
+      //badges.add(buildTag("asli"));
     } else if (t["segmented"] == true) {
-      // 2. Kalo terjemahan dan segmented, labelnya "✓ selaras"
-      badges.add(buildTag("✓ selaras"));
+      badges.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.drag_handle,
+            size: 16,
+            color: Colors.deepOrangeAccent,
+          ),
+        ),
+      );
+
+      //buildTag( const Icon(Icons.drag_handle, size: 16, color: Colors.green), ),
     } else if (lang != "pli") {
       // 3. Sisanya warisan (legacy)
-      badges.add(buildTag("warisan"));
+      //badges.add(buildTag("warisan"));
     }
 
-    if (t["has_comment"] == true) {
-      badges.add(buildTag("✓ anotasi"));
-    }
+    //if (t["has_comment"] == true) {
+    //  badges.add(buildTag("✓ anotasi"));
+    // }
 
     return Wrap(spacing: 6, children: badges);
   }
@@ -246,12 +262,14 @@ class _SuttaplexState extends State<Suttaplex> {
   Widget build(BuildContext context) {
     final title =
         _sutta?["translated_title"] ?? _sutta?["original_title"] ?? widget.uid;
+    final paliTitle = _sutta?["original_title"];
+
     final blurb = _sutta?["blurb"] ?? "";
     final translations = _sutta?["filtered_translations"] ?? [];
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.uid.toUpperCase()),
+        title: Text(widget.uid),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -273,8 +291,51 @@ class _SuttaplexState extends State<Suttaplex> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  if (paliTitle != null) ...[
+                    const SizedBox(height: 4),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: "${_sutta?["acronym"] ?? ""} ",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: getNikayaColor(
+                                normalizeNikayaAcronym(
+                                  (_sutta?["acronym"] ?? "").split(" ").first,
+                                ),
+                              ),
+                            ),
+                          ),
+                          TextSpan(
+                            text: paliTitle,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              //fontStyle: FontStyle.italic,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 8),
-                  Text(blurb),
+
+                  Html(
+                    data: blurb,
+                    style: {
+                      "body": Style(
+                        fontSize: FontSize(14.0), // atur ukuran default
+                        margin: Margins.zero, // buang margin bawaan <body>
+                      ),
+                      "p": Style(
+                        fontSize: FontSize(14.0),
+                        margin: .only(bottom: 8),
+                      ),
+                    },
+                  ),
 
                   const Divider(height: 32),
 

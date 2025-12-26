@@ -48,18 +48,22 @@ Color getNikayaColor(String acronym) {
 Widget buildNikayaAvatar(
   String acronym, {
   double radius = 18,
-  double fontSize = 14,
+  double fontSize = 15,
 }) {
   final display = normalizeNikayaAcronym(acronym);
   return CircleAvatar(
     radius: radius,
     backgroundColor: getNikayaColor(display),
-    child: Text(
-      display,
-      style: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-        fontSize: fontSize,
+    child: FittedBox(
+      // <— ini bikin teks nge‑fit ke lingkaran
+      fit: BoxFit.scaleDown,
+      child: Text(
+        display,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: fontSize, // default14
+        ),
       ),
     ),
   );

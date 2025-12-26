@@ -106,13 +106,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
       final verseNumRaw = key.contains(":") ? key.split(":").last : key;
       final verseNum = verseNumRaw.trim();
 
-      // Deteksi Header
-      bool isH1 = verseNum == "0.1";
-      bool isH2 = verseNum == "0.2";
-      bool isH3 =
-          !isH1 &&
-          !isH2 &&
-          (verseNum.endsWith(".0") || verseNum.contains(".0."));
+      // --- DETEKSI HEADER ---
+      bool isH1 = verseNum == "0.1"; // Judul Utama
+      bool isH2 = verseNum == "0.2"; // Sub Judul
+
+      // Regex cocokkan semua "0.x" atau persis "0"
+      final headerRegex = RegExp(r"^0(\.\d+)?$");
+      final isHeader = headerRegex.hasMatch(verseNum);
+
+      // Sisanya dianggap H3
+      bool isH3 = isHeader && !isH1 && !isH2;
 
       if (isH1 || isH2 || isH3) {
         // 3. LOGIC CARI JUDUL (FIX)
@@ -536,13 +539,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
         },
         child: SelectionContainer.disabled(
           child: Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Text(
-              "*",
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: fontSize,
+            padding: const EdgeInsets.only(left: 0),
+            child: Transform.translate(
+              offset: const Offset(0, -6), // geser ke atas
+              child: Text(
+                "[note]", // teks superscript
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: fontSize * 0.5, // kecilkan biar mirip superscript
+                ),
               ),
             ),
           ),
@@ -623,13 +629,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 final verseNum = verseNumRaw.trim();
 
                 // 2. LOGIC DETEKSI HIRARKI HEADER (H1, H2, H3)
+
+                // --- DETEKSI HEADER ---
                 bool isH1 = verseNum == "0.1"; // Judul Utama
                 bool isH2 = verseNum == "0.2"; // Sub Judul
-                // KODE BARU (FIX)
-                bool isH3 =
-                    !isH1 &&
-                    !isH2 &&
-                    (verseNum.endsWith(".0") || verseNum.contains(".0."));
+
+                // Regex cocokkan semua "0.x" atau persis "0"
+                final headerRegex = RegExp(r"^0(\.\d+)?$");
+                final isHeader = headerRegex.hasMatch(verseNum);
+
+                // Sisanya dianggap H3
+                bool isH3 = isHeader && !isH1 && !isH2;
 
                 // 3. Tentukan Style & Padding (Jarak sudah dirapatkan)
                 TextStyle textStyle;
@@ -766,13 +776,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
                     : key;
                 final verseNum = verseNumRaw.trim();
 
-                // Logic Header
-                bool isH1 = verseNum == "0.1";
-                bool isH2 = verseNum == "0.2";
-                bool isH3 =
-                    !isH1 &&
-                    !isH2 &&
-                    (verseNum.endsWith(".0") || verseNum.contains(".0."));
+                // --- DETEKSI HEADER ---
+                bool isH1 = verseNum == "0.1"; // Judul Utama
+                bool isH2 = verseNum == "0.2"; // Sub Judul
+
+                // Regex cocokkan semua "0.x" atau persis "0"
+                final headerRegex = RegExp(r"^0(\.\d+)?$");
+                final isHeader = headerRegex.hasMatch(verseNum);
+
+                // Sisanya dianggap H3
+                bool isH3 = isHeader && !isH1 && !isH2;
 
                 // --- SISIPAN WARNA PALI ---
                 // Cek Tema HP (Gelap/Terang)
@@ -981,12 +994,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 final verseNum = verseNumRaw.trim();
 
                 // 2. LOGIC DETEKSI HIRARKI HEADER (SAMA PERSIS)
-                bool isH1 = verseNum == "0.1";
-                bool isH2 = verseNum == "0.2";
-                bool isH3 =
-                    !isH1 &&
-                    !isH2 &&
-                    (verseNum.endsWith(".0") || verseNum.contains(".0."));
+
+                // --- DETEKSI HEADER ---
+                bool isH1 = verseNum == "0.1"; // Judul Utama
+                bool isH2 = verseNum == "0.2"; // Sub Judul
+
+                // Regex cocokkan semua "0.x" atau persis "0"
+                final headerRegex = RegExp(r"^0(\.\d+)?$");
+                final isHeader = headerRegex.hasMatch(verseNum);
+
+                // Sisanya dianggap H3
+                bool isH3 = isHeader && !isH1 && !isH2;
 
                 // 3. Tentukan Style & Padding (SAMA PERSIS)
                 TextStyle paliStyle;
@@ -1332,12 +1350,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
             final verseNum = verseNumRaw.trim();
 
             // 2. LOGIC DETEKSI HEADING
-            bool isH1 = verseNum == "0.1";
-            bool isH2 = verseNum == "0.2";
-            bool isH3 =
-                !isH1 &&
-                !isH2 &&
-                (verseNum.endsWith(".0") || verseNum.contains(".0."));
+
+            // --- DETEKSI HEADER ---
+            bool isH1 = verseNum == "0.1"; // Judul Utama
+            bool isH2 = verseNum == "0.2"; // Sub Judul
+
+            // Regex cocokkan semua "0.x" atau persis "0"
+            final headerRegex = RegExp(r"^0(\.\d+)?$");
+            final isHeader = headerRegex.hasMatch(verseNum);
+
+            // Sisanya dianggap H3
+            bool isH3 = isHeader && !isH1 && !isH2;
 
             // 3. TENTUKAN STYLE
             TextStyle currentStyle;
@@ -1382,53 +1405,61 @@ class _SuttaDetailState extends State<SuttaDetail> {
               bottomPadding = 8.0;
             }
 
-            // 4. RETURN WIDGET
+            // 4. RETURN WIDGET (SOLUSI COPY-PASTE NYAMBUNG)
             return Padding(
               padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
-              child: SelectableText.rich(
-                TextSpan(
-                  children: [
-                    // Nomor Ayat
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.baseline,
-                      baseline: TextBaseline.alphabetic,
-                      child: Transform.translate(
-                        offset: const Offset(0, 0),
-                        child: Text(
-                          verseNum,
-                          textScaleFactor: 0.75,
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: _fontSize,
-                          ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // NOMOR AYAT: Dibungkus SelectionContainer.disabled supaya tidak bisa di-copy
+                  SelectionContainer.disabled(
+                    child: Padding(
+                      // Kalau mau adjust posisi vertikal (misalnya header H1/H2)
+                      padding: EdgeInsets.only(top: isH1 || isH2 ? 6.0 : 0.0),
+                      child: Text(
+                        verseNum,
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize:
+                              _fontSize *
+                              0.75, // sama dengan textScaleFactor 0.75
+                          height: 1.5,
                         ),
                       ),
                     ),
-                    const TextSpan(text: "  "),
+                  ),
 
-                    // Isi Teks Pali
-                    // Isi Teks Pali (HIGHLIGHT SUPPORT)
-                    TextSpan(
-                      // Ganti 'text' jadi 'children' + _highlightText
-                      children: _highlightText(
-                        pali, // Teksnya
-                        // Style-nya (Pindahkan logic style ke sini)
-                        currentStyle.copyWith(
-                          fontStyle:
-                              (pali == "... pe ..." && !isH1 && !isH2 && !isH3)
-                              ? FontStyle.italic
-                              : FontStyle.normal,
-                          color:
-                              (pali == "... pe ..." && !isH1 && !isH2 && !isH3)
-                              ? Colors.grey
-                              : currentStyle.color,
+                  const SizedBox(width: 8),
+
+                  // TEKS PALI: Expanded biar fleksibel
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: _highlightText(
+                          pali,
+                          currentStyle.copyWith(
+                            fontStyle:
+                                (pali == "... pe ..." &&
+                                    !isH1 &&
+                                    !isH2 &&
+                                    !isH3)
+                                ? FontStyle.italic
+                                : FontStyle.normal,
+                            color:
+                                (pali == "... pe ..." &&
+                                    !isH1 &&
+                                    !isH2 &&
+                                    !isH3)
+                                ? Colors.grey
+                                : currentStyle.color,
+                          ),
+                          index,
+                          0,
                         ),
-                        index, // 3. TAMBAHKAN INI (baris ke berapa)
-                        0, // 4. TAMBAHKAN INI (mulai hitung dari 0)
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -1568,8 +1599,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
             heroTag: "btn_cari",
             label: const Text("Cari"),
             icon: const Icon(Icons.search),
-            backgroundColor: _htmlSegments.isNotEmpty ? Colors.grey[300] : null,
-            foregroundColor: _htmlSegments.isNotEmpty ? Colors.grey : null,
+            backgroundColor: (_htmlSegments.isNotEmpty
+                ? Colors.grey[300]?.withValues(alpha: 0.9) ?? Colors.grey
+                : Theme.of(context).colorScheme.primary.withValues(
+                    alpha: 0.9,
+                  )), // ✅ pakai withValues
+            foregroundColor: _htmlSegments.isNotEmpty
+                ? Colors.grey
+                : Colors.white,
             onPressed: _htmlSegments.isNotEmpty
                 ? null
                 : () {
@@ -1753,6 +1790,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
             heroTag: "btn_tampilan", // Ganti tag biar rapi (opsional)
             label: const Text("Tampilan"), // Ganti Teks
             icon: const Icon(Icons.visibility), // Ganti Ikon Mata
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.9), // ✅ opacity 0.9
+            foregroundColor: Colors.white,
             onPressed: () {
               showModalBottomSheet(
                 context: context,
@@ -1771,7 +1812,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     onPressed: () => setState(
                                       () => _viewMode = ViewMode.lineByLine,
                                     ),
-                                    child: const Text("Baris-per-baris"),
+                                    child: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text("Atas-bawah"),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -1780,7 +1824,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     onPressed: () => setState(
                                       () => _viewMode = ViewMode.sideBySide,
                                     ),
-                                    child: const Text("Kiri-kanan"),
+                                    child: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text("Kiri-kanan"),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -1790,7 +1837,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                       () =>
                                           _viewMode = ViewMode.translationOnly,
                                     ),
-                                    child: const Text("Terjemahan saja"),
+                                    child: const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text("Tanpa Pāli"),
+                                    ),
                                   ),
                                 ),
                               ],

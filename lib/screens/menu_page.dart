@@ -4,6 +4,7 @@ import '../services/sutta.dart';
 import '../models/menu.dart';
 import 'suttaplex.dart';
 import '../styles/nikaya_style.dart';
+import 'package:flutter_html/flutter_html.dart';
 
 class MenuPage extends StatefulWidget {
   final String uid;
@@ -64,17 +65,31 @@ class _MenuPageState extends State<MenuPage> {
         item.translatedTitle.isNotEmpty
             ? item.translatedTitle
             : item.originalTitle,
-      ),
-      subtitle: Text(
-        item.blurb.isNotEmpty ? item.blurb : "",
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500, // agak tebal
+          fontSize: 16, // opsional, biar lebih jelas
+        ),
       ),
+      subtitle: item.blurb.isNotEmpty
+          ? Text(
+              // strip semua tag HTML biar aman
+              item.blurb.replaceAll(RegExp(r'<[^>]*>'), ''),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            )
+          : null,
+
       trailing: isLeaf
           ? Text(
-              item.acronym,
+              // === CASE KHUSUS ===
+              // CASE KHUSUS: ganti "Patthana" jadi "Pat", tapi sisanya tetap
+              item.acronym.replaceFirst("Patthana", "Pat"),
+              // item.acronym.contains("Patthana") ? "Pat" : item.acronym,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: getNikayaColor(displayAcronym),
               ),
@@ -83,7 +98,7 @@ class _MenuPageState extends State<MenuPage> {
                 ? Text(
                     item.childRange,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: getNikayaColor(displayAcronym),
                     ),
@@ -122,8 +137,11 @@ class _MenuPageState extends State<MenuPage> {
 
   @override
   Widget build(BuildContext context) {
+    final rawBlurb = _root?["blurb"] ?? "";
+    final previewBlurb = rawBlurb.replaceAll(RegExp(r'<[^>]*>'), '');
+    final isLong = previewBlurb.length > 60;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.uid.toUpperCase())),
+      appBar: AppBar(title: Text(widget.uid)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
@@ -145,52 +163,60 @@ class _MenuPageState extends State<MenuPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text.rich(
-                          TextSpan(
-                            style: const TextStyle(color: Colors.black87),
-                            children: [
-                              TextSpan(
-                                text: (_root?["blurb"] ?? "").length > 180
-                                    ? (_root?["blurb"] ?? "").substring(
-                                            0,
-                                            180,
-                                          ) +
-                                          "..."
-                                    : (_root?["blurb"] ?? ""),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isLong
+                                  ? previewBlurb.substring(0, 60) + "..."
+                                  : previewBlurb,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black87,
                               ),
-                              if ((_root?["blurb"] ?? "").length > 180)
-                                TextSpan(
-                                  text: " Selengkapnya",
-                                  style: const TextStyle(
+                            ),
+                            if (isLong)
+                              GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: Text(_root?["root_name"] ?? ""),
+                                      content: SingleChildScrollView(
+                                        child: Html(
+                                          data: rawBlurb,
+                                          style: {
+                                            "body": Style(
+                                              fontSize: FontSize(14),
+                                              lineHeight: LineHeight(1.5),
+                                              margin: Margins.zero,
+                                              padding: HtmlPaddings.zero,
+                                              color: Colors.black87,
+                                            ),
+                                          },
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text("Tutup"),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  "Selengkapnya",
+                                  style: TextStyle(
                                     color: Colors.blue,
                                     fontWeight: FontWeight.w500,
                                   ),
-                                  recognizer: TapGestureRecognizer()
-                                    ..onTap = () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) => AlertDialog(
-                                          title: Text(
-                                            _root?["root_name"] ?? "",
-                                          ),
-                                          content: SingleChildScrollView(
-                                            child: Text(_root?["blurb"] ?? ""),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child: const Text("Tutup"),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
                                 ),
-                            ],
-                          ),
+                              ),
+                            const Divider(height: 16),
+                          ],
                         ),
-                        const Divider(height: 16),
                       ],
                     ),
                   ),
