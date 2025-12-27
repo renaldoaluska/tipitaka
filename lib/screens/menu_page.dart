@@ -60,9 +60,9 @@ class _MenuPageState extends State<MenuPage> {
     final displayAcronym = _rootAcronym;
 
     // Cek apakah childRange udah include acronym
-    final childRangeHasAcronym = item.childRange.toUpperCase().contains(
+    /*final childRangeHasAcronym = item.childRange.toUpperCase().contains(
       displayAcronym.toUpperCase(),
-    );
+    );*/
 
     return Card(
       color: Colors.white,

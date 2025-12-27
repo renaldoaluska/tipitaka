@@ -36,20 +36,20 @@ class _SuttaDetailState extends State<SuttaDetail> {
   String? _parentVaggaId; // anchor back ke Vagga/Nikaya aktif
 
   // Tambahin variable di class state (bagian atas)
-  bool _hasNavigated = false; // ✅ Track apakah user pernah next/prev
+  //bool _hasNavigated = false; // ✅ Track apakah user pernah next/prev
   bool _isFirst = false; // disable Prev jika true
   bool _isLast = false; // disable Next jika true
   bool _isLoading = false;
 
   bool _isHtmlParsed = false;
   RegExp? _cachedSearchRegex;
-  String _lastSearchQuery = "";
+  //String _lastSearchQuery = "";
   ViewMode _viewMode = ViewMode.lineByLine;
   double _fontSize = 16.0;
   // List<int> _htmlMatchCounts = []; // Simpan jumlah match per segment HTML
 
   // Fungsi highlight khusus untuk String HTML
-  String _highlightHtml(String htmlContent, int listIndex) {
+  /*String _highlightHtml(String htmlContent, int listIndex) {
     if (_lastSearchQuery.isEmpty || _cachedSearchRegex == null) {
       return htmlContent;
     }
@@ -64,7 +64,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     return htmlContent.replaceAllMapped(_cachedSearchRegex!, (match) {
       return '<span style="background-color: yellow; color: black; font-weight: bold;">${match.group(0)}</span>';
     });
-  }
+  }*/
 
   // --- STATE PENCARIAN ---
   final TextEditingController _searchController = TextEditingController();
@@ -168,13 +168,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     if (query.trim().isEmpty || query.trim().length < 2) {
       _cachedSearchRegex = null;
-      _lastSearchQuery = "";
+      //_lastSearchQuery = "";
       setState(() {});
       return;
     }
 
     final lowerQuery = query.toLowerCase();
-    _lastSearchQuery = lowerQuery;
+    //_lastSearchQuery = lowerQuery;
     _cachedSearchRegex = RegExp(
       RegExp.escape(lowerQuery),
       caseSensitive: false,
@@ -797,12 +797,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   // TODO: ganti ke sumber data kamu
-  Future<_Avail> _checkAvailability(Map<String, dynamic>? nav) async {
+  /*Future<_Avail> _checkAvailability(Map<String, dynamic>? nav) async {
     if (nav == null) return const _Avail("pli", false);
     final lang = nav["lang"]?.toString() ?? "pli";
     final hasTranslation = (lang == "id" || lang == "en");
     return _Avail(lang, hasTranslation);
-  }
+  }*/
 
   /// Helper untuk resolve vagga_uid dari sutta uid
   /// Contoh: mn61 -> cari di menu/mn, ketemu di range MN 51-100 -> return "mn-majjhimapannasa"
@@ -988,7 +988,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     setState(() {
       _isLoading = true;
-      _hasNavigated = true;
+      //_hasNavigated = true;
     });
 
     try {
@@ -2267,11 +2267,11 @@ class SearchMatch {
 }
 
 // Struktur hasil cek
-class _Avail {
+/*class _Avail {
   final String targetLang; // "id" | "en" | "pli"
   final bool hasTranslation; // true untuk id/en
   const _Avail(this.targetLang, this.hasTranslation);
-}
+}*/
 
 // Helper Class kecil biar return-nya rapi (bisa taruh di paling bawah file atau file terpisah)
 class SuttaHeaderConfig {

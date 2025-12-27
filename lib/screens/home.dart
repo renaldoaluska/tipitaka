@@ -403,9 +403,9 @@ class _HomeState extends State<Home> with TickerProviderStateMixin {
         "Mil",
       };
 
-      final knChildren = suttaKitabs
+      /*final knChildren = suttaKitabs
           .where((k) => knChildrenSet.contains(k["acronym"]))
-          .toList();
+          .toList();*/
       final parents = suttaKitabs
           .where((k) => !knChildrenSet.contains(k["acronym"]))
           .toList();
