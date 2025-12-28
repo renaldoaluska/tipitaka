@@ -49,7 +49,7 @@ class SuttaplexModel {
 
   factory SuttaplexModel.fromJson(Map<String, dynamic> json) {
     final trans = (json["translations"] as List? ?? [])
-        .where((t) => t is Map<String, dynamic>) // ✅ filter invalid items
+        .whereType<Map<String, dynamic>>() // ✅ filter invalid items
         .map((t) => Translation.fromJson(t as Map<String, dynamic>))
         .where((t) => t.isValid) // ✅ filter invalid translations
         .toList();

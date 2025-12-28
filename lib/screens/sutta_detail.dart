@@ -74,7 +74,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   final TextEditingController _searchController = TextEditingController();
 
   // GANTI List<int> JADI List<SearchMatch>
-  List<SearchMatch> _allMatches = [];
+  final List<SearchMatch> _allMatches = [];
 
   int _currentMatchIndex = 0; // Posisi aktif (0 sampai total - 1)
   Timer? _debounce;
@@ -86,7 +86,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       ItemPositionsListener.create();
 
   // 2. Variabel nyimpen Daftar Isi
-  List<Map<String, dynamic>> _tocList = [];
+  final List<Map<String, dynamic>> _tocList = [];
 
   // TAMBAHAN: Key buat kontrol Scaffold dari body
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -315,7 +315,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   // --- TAMBAHAN BUAT HTML NON-SEGMENTED ---
-  List<String> _htmlSegments = []; // Nyimpen potongan HTML
+  final List<String> _htmlSegments = []; // Nyimpen potongan HTML
 
   void _parseHtmlAndGenerateTOC(String rawHtml) {
     // Step 1: Tambahkan try-catch
@@ -2470,15 +2470,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                 icon: const Icon(Icons.backspace_outlined),
                                 onPressed: () {
                                   _searchController.clear();
-                                  if (mounted)
+                                  if (mounted) {
                                     setState(() => _allMatches.clear());
+                                  }
                                   if (mounted) setSheetState(() {});
                                 },
                               ),
                             ),
                             onChanged: (val) {
-                              if (_debounce?.isActive ?? false)
+                              if (_debounce?.isActive ?? false) {
                                 _debounce!.cancel();
+                              }
                               _debounce = Timer(
                                 const Duration(milliseconds: 500),
                                 () {
