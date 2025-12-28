@@ -113,7 +113,7 @@ class ExploreTab extends StatelessWidget {
     );
   }
 
-  IconData? _mapIcon(String? name) {
+  /* IconData? _mapIcon(String? name) {
     switch (name) {
       case "apps":
         return Icons.apps_rounded;
@@ -152,4 +152,5 @@ class ExploreTab extends StatelessWidget {
         return null; // fallback ke defaultColor
     }
   }
+*/
 }

@@ -20,7 +20,7 @@ class HeaderDepan extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    //final now = DateTime.now();
 
     return SafeArea(
       bottom: false,
