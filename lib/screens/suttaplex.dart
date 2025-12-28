@@ -17,15 +17,13 @@ class Suttaplex extends StatefulWidget {
   )?
   onSelect;
 
-  //final bool openedFromSuttaDetail; // ✅ GANTI: cuma parameter ini aja
-  final Map<String, dynamic>? initialData; // ✅ TAMBAHIN: terima data awal
+  final Map<String, dynamic>? initialData; // ✅ terima data awal
 
   const Suttaplex({
     super.key,
     required this.uid,
-    this.onSelect, // ✅ tambahkan di constructor
-    // this.openedFromSuttaDetail = false, // ✅ default false
-    this.initialData, // ✅ optional
+    this.onSelect,
+    this.initialData,
   });
   @override
   State<Suttaplex> createState() => _SuttaplexState();

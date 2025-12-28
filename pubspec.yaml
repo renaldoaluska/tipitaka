@@ -36,6 +36,8 @@ dependencies:
   http: ^1.6.0
   html_unescape: ^2.0.0
   scrollable_positioned_list: ^0.3.8
+  flutter_custom_tabs: ^2.4.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -143,16 +143,6 @@ class _MenuPageState extends State<MenuPage> {
     final previewBlurb = rawBlurb.replaceAll(RegExp(r'<[^>]*>'), '');
     final isLong = previewBlurb.length > 60;
 
-    // 👇 TAMBAHIN INI
-    print("========== HEADER DEBUG ==========");
-    print("widget.uid: ${widget.uid}");
-    print("widget.parentAcronym: ${widget.parentAcronym}");
-    print("_rootAcronym: '$_rootAcronym'");
-    print("root_name: '${_root?["root_name"]}'");
-    print("root acronym dari API: '${_root?["acronym"]}'");
-    print("child_range: '${_root?["child_range"]}'");
-    print("==================================");
-
     return Scaffold(
       appBar: null,
       body: _loading
@@ -230,8 +220,7 @@ class _MenuPageState extends State<MenuPage> {
                                           (_root?["root_name"] ?? "")
                                               .trim()
                                               .toUpperCase() &&
-                                      (_root?["child_range"] ?? "")
-                                          .isEmpty) // 👈 TAMBAHIN INI
+                                      (_root?["child_range"] ?? "").isEmpty)
                                     Text(
                                       _rootAcronym,
                                       style: TextStyle(
@@ -279,8 +268,7 @@ class _MenuPageState extends State<MenuPage> {
                                       TextSpan(
                                         text: "Baca selengkapnya",
                                         style: const TextStyle(
-                                          fontSize:
-                                              16, // 👈 tambahin juga biar gak beda
+                                          fontSize: 16, // 👈  biar gak beda
                                           color: Colors.blue,
                                           fontWeight: FontWeight.w500,
                                         ),

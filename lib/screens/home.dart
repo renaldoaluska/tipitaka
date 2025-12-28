@@ -1,690 +1,617 @@
 import 'package:flutter/material.dart';
-import 'menu_page.dart';
-import '../styles/nikaya_style.dart'; // import style nikaya
+import 'dart:math';
+import '../styles/nikaya_style.dart';
+import '../widgets/icon_button_builder.dart';
+import '../widgets/panjang_card_builder.dart';
+import '../widgets/header_depan.dart';
+import '../widgets/explore/explore_tab_app.dart';
+import '../widgets/explore/explore_tab_kamus.dart';
+import '../widgets/explore/explore_tab_forum.dart';
+import '../widgets/explore/explore_tab_info.dart';
+import '../widgets/explore/explore_tab_unduh.dart';
+import '../widgets/explore/explore_tab_ikuti.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Home extends StatefulWidget {
-  const Home({super.key});
+  final bool isDarkMode;
+  final VoidCallback onThemeToggle;
+
+  const Home({
+    super.key,
+    required this.isDarkMode,
+    required this.onThemeToggle,
+  });
 
   @override
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> with TickerProviderStateMixin {
-  late TabController _tabController;
-
-  // 🔎 Data menu Sutta sesuai fragment Android
-  final suttaKitabs = [
+class _HomeState extends State<Home> {
+  // Quote of the Day
+  final List<Map<String, String>> _dhammapadaQuotes = [
     {
-      "acronym": "DN",
-      "name": "Dīghanikāya",
-      "desc": "Kumpulan Panjang",
-      "range": "DN 1–34",
+      "verse": "183",
+      "pali": "Sabbapāpassa akaraṇaṃ, kusalassa upasampadā...",
+      "trans":
+          "Tidak berbuat kejahatan, mengembangkan kebajikan, memurnikan pikiran—inilah ajaran para Buddha.",
     },
     {
-      "acronym": "MN",
-      "name": "Majjhimanikāya",
-      "desc": "Kumpulan Sedang",
-      "range": "MN 1–152",
+      "verse": "1",
+      "pali": "Manopubbaṅgamā dhammā...",
+      "trans":
+          "Pikiran adalah pelopor dari segala hal, pikiran adalah pemimpin, pikiran adalah pembentuk.",
     },
     {
-      "acronym": "SN",
-      "name": "Saṁyuttanikāya",
-      "desc": "Kumpulan Bertaut",
-      "range": "SN 1–56",
+      "verse": "223",
+      "pali": "Akkodhena jine kodhaṃ...",
+      "trans":
+          "Kalahkan amarah dengan tidak marah, kalahkan kejahatan dengan kebaikan.",
     },
     {
-      "acronym": "AN",
-      "name": "Aṅguttaranikāya",
-      "desc": "Kumpulan Berangka",
-      "range": "AN 1–11",
-    },
-    {
-      "acronym": "KN",
-      "name": "Khuddakanikāya",
-      "desc": "Kumpulan Kecil",
-      "range": "KN",
+      "verse": "103",
+      "pali": "Yo sahassaṃ sahassena...",
+      "trans":
+          "Lebih baik menaklukkan diri sendiri daripada menaklukkan ribuan orang dalam pertempuran.",
     },
   ];
+  Map<String, String>? _todayQuote;
 
-  final khuddakaChildren = [
-    {
-      "acronym": "Kp",
-      "name": "Khuddakapāṭha",
-      "desc": "Petikan Pendek",
-      "range": "Kp 1–9",
-    },
-    {
-      "acronym": "Dhp",
-      "name": "Dhammapada",
-      "desc": "Bait Kebenaran",
-      "range": "Dhp 1–423",
-    },
-    {
-      "acronym": "Ud",
-      "name": "Udāna",
-      "desc": "Seruan Luhur",
-      "range": "Ud 1–8",
-    },
-    {
-      "acronym": "Iti",
-      "name": "Itivuttaka",
-      "desc": "Sedemikian Dikatakan",
-      "range": "Iti 1–112",
-    },
-    {
-      "acronym": "Snp",
-      "name": "Suttanipāta",
-      "desc": "Himpunan Pembabaran",
-      "range": "Snp 1–5",
-    },
-    {
-      "acronym": "Vv",
-      "name": "Vimānavatthu",
-      "desc": "Cerita Wisma",
-      "range": "Vv 1–85",
-    },
-    {
-      "acronym": "Pv",
-      "name": "Petavatthu",
-      "desc": "Cerita Hantu",
-      "range": "Pv 1–51",
-    },
-    {
-      "acronym": "Thag",
-      "name": "Theragāthā",
-      "desc": "Syair Thera",
-      "range": "Thag 1–21",
-    },
-    {
-      "acronym": "Thig",
-      "name": "Therīgāthā",
-      "desc": "Syair Therī",
-      "range": "Thig 1–16",
-    },
-    {
-      "acronym": "Tha Ap",
-      "name": "Therāpadāna",
-      "desc": "Legenda Thera",
-      "range": "Tha Ap 1–563",
-      "url": "tha-ap",
-    },
-    {
-      "acronym": "Thi Ap",
-      "name": "Therīapadāna",
-      "desc": "Legenda Therī",
-      "range": "Thi Ap 1–40",
-      "url": "thi-ap",
-    },
-    {
-      "acronym": "Bv",
-      "name": "Buddhavaṁsa",
-      "desc": "Wangsa Buddha",
-      "range": "Bv 1–29",
-    },
-    {
-      "acronym": "Cp",
-      "name": "Cariyāpiṭaka",
-      "desc": "Keranjang Perilaku",
-      "range": "Cp 1–35",
-    },
-    {
-      "acronym": "Ja",
-      "name": "Jātaka",
-      "desc": "Kisah Kelahiran",
-      "range": "Ja 1–547",
-    },
-    {
-      "acronym": "Mnd",
-      "name": "Mahāniddesa",
-      "desc": "Eksposisi Besar",
-      "range": "Mnd 1–16",
-    },
-    {
-      "acronym": "Cnd",
-      "name": "Cūḷaniddesa",
-      "desc": "Eksposisi Kecil",
-      "range": "Cnd 1–23",
-    },
-    {
-      "acronym": "Ps",
-      "name": "Paṭisambhidāmagga",
-      "desc": "Jalan Analitis",
-      "range": "Ps 1–3",
-    },
-    {"acronym": "Ne", "name": "Netti", "desc": "Panduan", "range": "Ne 1–37"},
-    {
-      "acronym": "Pe",
-      "name": "Peṭakopadesa",
-      "desc": "Wilayah Keranjang",
-      "range": "Pe 1–9",
-    },
-    {
-      "acronym": "Mil",
-      "name": "Milindapañha",
-      "desc": "Pertanyaan Milinda",
-      "range": "Mil 1–8",
-    },
+  // User data (dummy - nanti dari storage)
+  // ganti dari Map tunggal jadi List
+  final List<Map<String, String>> _recentlyViewed = [
+    {"uid": "mn1", "title": "MN 1 Mūlapariyāya Sutta", "kitab": "MN"},
+    {"uid": "sn56.11", "title": "SN 56.11 Dhammacakka", "kitab": "SN"},
+    {"uid": "an3.65", "title": "AN 3.65 Kālāma", "kitab": "AN"},
   ];
 
-  final abhidhammaKitabs = [
-    {
-      "acronym": "Ds",
-      "name": "Dhammasaṅgaṇī",
-      "desc": "Ringkasan Fenomena",
-      "range": "Ds 1–2",
-    },
-    {
-      "acronym": "Vb",
-      "name": "Vibhaṅga",
-      "desc": "Kitab Analisis",
-      "range": "Vb 1–18",
-    },
-    {
-      "acronym": "Dt",
-      "name": "Dhātukathā",
-      "desc": "Diskusi Unsur",
-      "range": "Dt 1–2",
-    },
-    {
-      "acronym": "Pp",
-      "name": "Puggalapaññatti",
-      "desc": "Penggolongan Orang",
-      "range": "Pp 1–2",
-    },
-    {
-      "acronym": "Kv",
-      "name": "Kathāvatthu",
-      "desc": "Landasan Diskusi",
-      "range": "Kv 1–23",
-    },
-    {
-      "acronym": "Ya",
-      "name": "Yamaka",
-      "desc": "Berpasangan",
-      "range": "Ya 1–10",
-    },
-    {
-      "acronym": "Pat",
-      "name": "Paṭṭhāna",
-      "desc": "Hubungan Kondisi",
-      "range": "Pat 1–24",
-      "url": "patthana",
-    },
-  ];
-
-  final vinayaKitabs = [
-    {
-      "acronym": "Kd",
-      "name": "Khandhaka",
-      "desc": "Bagian Aturan",
-      "range": "Kd 1–22",
-      "url": "pli-tv-kd",
-    },
-    {
-      "acronym": "Pvr",
-      "name": "Parivāra",
-      "desc": "Ringkasan Aturan",
-      "range": "Pvr 1–21",
-      "url": "pli-tv-pvr",
-    },
-    {
-      "acronym": "Bu",
-      "name": "Suttavibhaṅga\nBhikkhupātimokkha",
-      "desc": "Aturan Bhikkhu",
-      "range": "Bu",
-      "url": "pli-tv-bu-pm",
-    },
-    {
-      "acronym": "Bi",
-      "name": "Suttavibhaṅga\nBhikkhunīpātimokkha",
-      "desc": "Aturan Bhikkhunī",
-      "range": "Bi",
-      "url": "pli-tv-bi-pm",
-    },
-    {
-      "acronym": "Bu Pj",
-      "name": "Suttavibhaṅga\nBhikkhuvibhaṅga\nPārājika",
-      "desc": "Analisis Aturan Bhikkhu Pārājika",
-      "range": "Bu Pj 1–4",
-      "url": "pli-tv-bu-vb-pj",
-    },
-    {
-      "acronym": "Bu Ss",
-      "name": "Suttavibhaṅga\nBhikkhuvibhaṅga\nSaṅghādisesa",
-      "desc": "Analisis Aturan Bhikkhu Saṅghādisesa",
-      "range": "Bu Ss 1–13",
-      "url": "pli-tv-bu-vb-ss",
-    },
-    {
-      "acronym": "Bu Ay",
-      "name": "Suttavibhaṅga\nBhikkhuvibhaṅga\nAniyata",
-      "desc": "Analisis Aturan Bhikkhu Aniyata",
-      "range": "Bu Ay 1–2",
-      "url": "pli-tv-bu-vb-ay",
-    },
-    {
-      "acronym": "Bu Np",
-      "name": "Suttavibhaṅga\nBhikkhuvibhaṅga\nNissaggiya Pācittiya",
-      "desc": "Analisis Aturan Bhikkhu Nissaggiya Pācittiya",
-      "range": "Bu Np 1–30",
-      "url": "pli-tv-bu-vb-np",
-    },
-    {
-      "acronym": "Bu Pc",
-      "name": "Suttavibhaṅga\nBhikkhuvibhaṅga\nPācittiya",
-      "desc": "Analisis Aturan Bhikkhu Pācittiya",
-      "range": "Bu Pc 1–92",
-      "url": "pli-tv-bu-vb-pc",
-    },
-    {
-      "acronym": "Bu Pd",
-      "name": "Suttavibhaṅga\nBhikkhuvibhaṅga\nPāṭidesanīya",
-      "desc": "Analisis Aturan Bhikkhu Pāṭidesanīya",
-      "range": "Bu Pd 1–4",
-      "url": "pli-tv-bu-vb-pd",
-    },
-    {
-      "acronym": "Bu Sk",
-      "name": "Suttavibhaṅga\nBhikkhuvibhaṅga\nSekhiya",
-      "desc": "Analisis Aturan Bhikkhu Sekhiya",
-      "range": "Bu Sk 1–75",
-      "url": "pli-tv-bu-vb-sk",
-    },
-    {
-      "acronym": "Bu As",
-      "name": "Suttavibhaṅga\nBhikkhuvibhaṅga\nAdhikaraṇasamatha",
-      "desc": "Analisis Aturan Bhikkhu Adhikaraṇasamatha",
-      "range": "Bu As 1–7",
-      "url": "pli-tv-bu-vb-as",
-    },
-    {
-      "acronym": "Bi Pj",
-      "name": "Suttavibhaṅga\nBhikkhunīvibhaṅga\nPārājika",
-      "desc": "Analisis Aturan Bhikkhunī Pārājika",
-      "range": "Bi Pj 1–8",
-      "url": "pli-tv-bi-vb-pj",
-    },
-    {
-      "acronym": "Bi Ss",
-      "name": "Suttavibhaṅga\nBhikkhunīvibhaṅga\nSaṅghādisesa",
-      "desc": "Analisis Aturan Bhikkhunī Saṅghādisesa",
-      "range": "Bi Ss 1–17",
-      "url": "pli-tv-bi-vb-ss",
-    },
-    {
-      "acronym": "Bi Np",
-      "name": "Suttavibhaṅga\nBhikkhunīvibhaṅga\nNissaggiya Pācittiya",
-      "desc": "Analisis Aturan Bhikkhunī Nissaggiya Pācittiya",
-      "range": "Bi Np 1–30",
-      "url": "pli-tv-bi-vb-np",
-    },
-    {
-      "acronym": "Bi Pc",
-      "name": "Suttavibhaṅga\nBhikkhunīvibhaṅga\nPācittiya",
-      "desc": "Analisis Aturan Bhikkhunī Pācittiya",
-      "range": "Bi Pc 1–166",
-      "url": "pli-tv-bi-vb-pc",
-    },
-    {
-      "acronym": "Bi Pd",
-      "name": "Suttavibhaṅga\nBhikkhunīvibhaṅga\nPāṭidesanīya",
-      "desc": "Analisis Aturan Bhikkhunī Pāṭidesanīya",
-      "range": "Bi Pd 1–8",
-      "url": "pli-tv-bi-vb-pd",
-    },
-    {
-      "acronym": "Bi Sk",
-      "name": "Suttavibhaṅga\nBhikkhunīvibhaṅga\nSekhiya",
-      "desc": "Analisis Aturan Bhikkhunī Sekhiya",
-      "range": "Bi Sk 1–75",
-      "url": "pli-tv-bi-vb-sk",
-    },
-    {
-      "acronym": "Bi As",
-      "name": "Suttavibhaṅga\nBhikkhunīvibhaṅga\nAdhikaraṇasamatha",
-      "desc": "Analisis Aturan Bhikkhunī Adhikaraṇasamatha",
-      "range": "Bi As 1–7",
-      "url": "pli-tv-bi-vb-as",
-    },
+  final List<Map<String, dynamic>> _bookmarks = [
+    {"uid": "sn56.11", "title": "SN 56.11 Dhammacakka", "kitab": "SN"},
+    {"uid": "an3.65", "title": "AN 3.65 Kālāma", "kitab": "AN"},
+    {"uid": "dhp183", "title": "Dhp 183 Sabbapāpassa", "kitab": "Dhp"},
   ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _loadTodayQuote();
   }
+
+  void _loadTodayQuote() {
+    final seed = DateTime.now().day + DateTime.now().month * 100;
+    final random = Random(seed);
+    setState(() {
+      _todayQuote = _dhammapadaQuotes[random.nextInt(_dhammapadaQuotes.length)];
+    });
+  }
+
+  Color _bgColor(bool dark) => dark ? Colors.grey[900]! : Colors.grey[50]!;
+  Color _cardColor(bool dark) => dark ? Colors.grey[850]! : Colors.white;
+  Color _textColor(bool dark) => dark ? Colors.white : Colors.black;
+  Color _subtextColor(bool dark) =>
+      dark ? Colors.grey[400]! : Colors.grey[600]!;
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Widget buildTopIcon(String label, IconData icon, Color color) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: color,
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
-    );
-  }
-
-  Widget buildKitabList(List<Map<String, String>> kitabs) {
-    // Kalau ini list Sutta
-    final isSutta = identical(kitabs, suttaKitabs);
-
-    if (isSutta) {
-      // Set anak KN
-      const knChildrenSet = {
-        "Kp",
-        "Dhp",
-        "Ud",
-        "Iti",
-        "Snp",
-        "Vv",
-        "Pv",
-        "Thag",
-        "Thig",
-        "Tha Ap",
-        "Thi Ap",
-        "Bv",
-        "Cp",
-        "Ja",
-        "Mnd",
-        "Cnd",
-        "Ps",
-        "Ne",
-        "Pe",
-        "Mil",
-      };
-
-      /*final knChildren = suttaKitabs
-          .where((k) => knChildrenSet.contains(k["acronym"]))
-          .toList();*/
-      final parents = suttaKitabs
-          .where((k) => !knChildrenSet.contains(k["acronym"]))
-          .toList();
-
-      return Container(
-        color: Colors.grey[50], // 👉 background utama abu-abu muda
-        child: ListView(
-          padding: const EdgeInsets.all(8),
-          children: parents.map((kitab) {
-            final displayAcronym = normalizeNikayaAcronym(kitab["acronym"]!);
-
-            if (kitab["acronym"] == "KN") {
-              return Theme(
-                data: Theme.of(
-                  context,
-                ).copyWith(dividerColor: Colors.transparent),
-                child: Card(
-                  color: Colors.white, // 👉 kotak putih
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  clipBehavior:
-                      Clip.antiAlias, // 👉 ripple & hover ke-clip radius
-                  child: ExpansionTile(
-                    leading: buildNikayaAvatar("KN"),
-                    title: Text(
-                      "Khuddakanikāya",
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      kitab["desc"]!,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    initiallyExpanded: true,
-                    children: khuddakaChildren.map((child) {
-                      final childAcronym = normalizeNikayaAcronym(
-                        child["acronym"]!,
-                      );
-                      return ListTile(
-                        tileColor: Colors.white, // anak tetap putih
-                        hoverColor: Colors.grey[200], // efek hover
-                        leading: buildNikayaAvatar(childAcronym),
-                        title: Text(
-                          child["name"]!,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: (child["desc"]?.isNotEmpty ?? false)
-                            ? Text(
-                                child["desc"]!,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 13,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            : null,
-                        trailing: Text(
-                          child["range"]!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: getNikayaColor(childAcronym),
-                          ),
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => MenuPage(
-                                uid:
-                                    child["url"] ??
-                                    child["acronym"]!.toLowerCase(),
-                                parentAcronym: childAcronym,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-              );
-            }
-
-            // Default DN/MN/SN/AN
-            return Card(
-              color: Colors.white, // 👉 kotak putih
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              clipBehavior: Clip.antiAlias, // 👉 ripple & hover ke-clip radius
-              child: ListTile(
-                leading: buildNikayaAvatar(displayAcronym),
-                title: Text(
-                  kitab["name"]!,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: (kitab["desc"]?.isNotEmpty ?? false)
-                    ? Text(
-                        kitab["desc"]!,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      )
-                    : null,
-                trailing: Text(
-                  kitab["range"]!,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: getNikayaColor(displayAcronym),
-                  ),
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MenuPage(
-                        uid: kitab["url"] ?? kitab["acronym"]!.toLowerCase(),
-                        parentAcronym: displayAcronym,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            );
-          }).toList(),
-        ),
-      );
-    }
-
-    // Default untuk Abhidhamma/Vinaya
-    return Container(
-      color: Colors.grey[50], // background utama abu-abu muda
-      child: ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: kitabs.length,
-        itemBuilder: (context, index) {
-          final kitab = kitabs[index];
-          final displayAcronym = normalizeNikayaAcronym(kitab["acronym"]!);
-          final uid = kitab["acronym"]!.toLowerCase();
-
-          return Card(
-            color: Colors.white, // kotak putih
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            clipBehavior: Clip.antiAlias, // 👉 ripple & hover ke-clip radius
-            child: ListTile(
-              leading: buildNikayaAvatar(displayAcronym),
-              title: Text(
-                kitab["name"]!,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: (kitab["desc"]?.isNotEmpty ?? false)
-                  ? Text(
-                      kitab["desc"]!,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : null,
-              trailing: Text(
-                kitab["range"]!,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: getNikayaColor(displayAcronym),
-                ),
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MenuPage(
-                      uid: kitab["url"] ?? uid,
-                      parentAcronym: displayAcronym,
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
-        },
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bgColor(widget.isDarkMode),
+      body: CustomScrollView(
+        slivers: [
+          _buildAppBar(),
+          SliverToBoxAdapter(child: _buildQuoteCard()),
+          SliverToBoxAdapter(child: _buildQuickAccess()),
+          if (_recentlyViewed != null)
+            SliverToBoxAdapter(child: _buildRecentlyViewed()),
+          if (_bookmarks.isNotEmpty)
+            SliverToBoxAdapter(child: _buildBookmarks()),
+          SliverToBoxAdapter(child: _buildExploreSection()),
+        ],
       ),
     );
   }
 
-  Widget buildSliderGreeting() {
+  Widget _buildAppBar() {
+    return SliverToBoxAdapter(
+      child: HeaderDepan(
+        isDarkMode: widget.isDarkMode,
+        onThemeToggle: widget.onThemeToggle,
+        title: "Sotthi Hotu 🙏",
+        subtitle: "Namo Ratanattayā",
+      ),
+    );
+  }
+
+  Widget _buildQuoteCard() {
+    if (_todayQuote == null) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 35),
-          Row(
-            children: const [
-              Expanded(
-                child: Text(
-                  "Sotthi Hotu,\nNamo Ratanattayā",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Card(
+        color: _cardColor(widget.isDarkMode),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              colors: widget.isDarkMode
+                  ? [Colors.orange.shade900, Colors.deepOrange.shade900]
+                  : [Colors.orange.shade50, Colors.amber.shade50],
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    color: widget.isDarkMode ? Colors.amber : Colors.orange,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Dhammapada ${_todayQuote!["verse"]}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: widget.isDarkMode
+                          ? Colors.amber
+                          : Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _todayQuote!["pali"]!,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: widget.isDarkMode
+                      ? Colors.grey[300]
+                      : Colors.grey[800],
+                  height: 1.3,
                 ),
               ),
+              const SizedBox(height: 4),
               Text(
-                "2025 M\n2568–2569 TB",
-                style: TextStyle(fontSize: 14),
-                textAlign: TextAlign.right,
+                _todayQuote!["trans"]!,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: widget.isDarkMode
+                      ? Colors.grey[400]
+                      : Colors.grey[700],
+                  height: 1.4,
+                ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickAccess() {
+    final features = [
+      {
+        "label": "Tipiṭaka",
+        "icon": Icons.menu_book_rounded,
+        "color": const Color(0xFFFF6F00),
+      },
+      {
+        "label": "Paritta",
+        "icon": Icons.book_rounded,
+        "color": const Color(0xFF283593),
+      },
+      {
+        "label": "Meditasi",
+        "icon": Icons.self_improvement_rounded,
+        "color": const Color(0xFFFF9800),
+      },
+      {
+        "label": "Uposatha",
+        "icon": Icons.nightlight_round,
+        "color": const Color(0xFFD84315),
+      },
+      {
+        "label": "Saṅgaha",
+        "icon": Icons.category_rounded,
+        "color": const Color(0xFFFDD835),
+      },
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              "⚡ Akses Cepat",
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: _textColor(widget.isDarkMode),
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              buildTopIcon("Paritta", Icons.book, const Color(0xFF283593)),
-              buildTopIcon("Ab-saṅgaha", Icons.person, const Color(0xFFFDD835)),
-              buildTopIcon(
-                "Uposatha",
-                Icons.nightlight_round,
-                const Color(0xFFD84315),
-              ),
-              buildTopIcon(
-                "Meditasi",
-                Icons.self_improvement,
-                const Color(0xFFFF9800),
-              ),
-            ],
+          SizedBox(
+            height: 90,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: features.length,
+              itemBuilder: (context, index) {
+                final f = features[index];
+                return IconButtonBuilder(
+                  label: f["label"] as String,
+                  icon: f["icon"] as IconData,
+                  color: f["color"] as Color,
+                  onTap: () {
+                    // TODO: Navigate
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
+  Widget _buildRecentlyViewed() {
+    if (_recentlyViewed.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildSliderGreeting(),
-          Center(
-            child: Material(
-              color: Colors.white,
-              child: TabBar(
-                controller: _tabController,
-                labelColor: Colors.black,
-                isScrollable: true, // biar teks panjang ga kepotong
-                tabs: const [
-                  Tab(text: "Sutta"),
-                  Tab(text: "Abhidhamma"),
-                  Tab(text: "Vinaya"),
-                ],
-              ),
+          Text(
+            "👀 Terakhir Dilihat",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: _textColor(widget.isDarkMode),
             ),
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController, // sinkron dengan TabBar
-              children: [
-                buildKitabList(suttaKitabs),
-                buildKitabList(abhidhammaKitabs),
-                buildKitabList(vinayaKitabs),
-              ],
+          const SizedBox(height: 8),
+          Column(
+            children: _recentlyViewed.take(3).map((rv) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                color: _cardColor(widget.isDarkMode),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: getNikayaColor(rv["kitab"]!),
+                    radius: 18,
+                    child: Text(
+                      rv["kitab"]!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    rv["title"]!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: _textColor(widget.isDarkMode),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: _subtextColor(widget.isDarkMode),
+                  ),
+                  onTap: () {
+                    // TODO: Navigate ke detail rv["uid"]
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookmarks() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                "🔖 Penanda",
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: _textColor(widget.isDarkMode),
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  // TODO: Show all
+                },
+                child: const Text(
+                  "Lihat Semua",
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 70,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _bookmarks.length.clamp(0, 3),
+              itemBuilder: (context, index) {
+                final b = _bookmarks[index];
+                return Container(
+                  width: 180,
+                  margin: const EdgeInsets.only(right: 10),
+                  child: Card(
+                    color: _cardColor(widget.isDarkMode),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: getNikayaColor(b["kitab"]),
+                              radius: 18,
+                              child: Text(
+                                b["kitab"],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                b["title"],
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: _textColor(widget.isDarkMode),
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openExplore(BuildContext context, int initialIndex) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.85, // lebih tinggi saat muncul
+          minChildSize: 0.5,
+          maxChildSize: 1.0, // bisa tarik full layar
+          builder: (context, scrollController) {
+            return ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+              child: DefaultTabController(
+                length: 6,
+                initialIndex: initialIndex,
+                child: Scaffold(
+                  appBar: AppBar(
+                    title: const Text("Eksplor"),
+                    leading: IconButton(
+                      icon: const Icon(Icons.close), // ganti jadi silang
+                      onPressed: () =>
+                          Navigator.of(context).pop(), // tutup sheet
+                    ),
+                    bottom: const TabBar(
+                      isScrollable: true, // ⬅️ bikin judul tab bisa digeser
+                      tabs: [
+                        Tab(text: "Tipiṭakapp"),
+                        Tab(text: "Kamus & Perpus"),
+                        Tab(text: "Artikel & Berita"),
+                        Tab(text: "Unduh"),
+                        Tab(text: "Forum"),
+                        Tab(text: "Medsos"),
+                      ],
+                    ),
+                  ),
+                  body: const TabBarView(
+                    children: [
+                      ExploreTabApp(),
+                      ExploreTabKamus(),
+                      ExploreTabInfo(),
+                      ExploreTabUnduh(),
+                      ExploreTabForum(),
+                      ExploreTabIkuti(),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildExploreSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16), // margin luar 16
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "🌐 Eksplor",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: _textColor(widget.isDarkMode),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // spacing antar card 8 px
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: PanjangCardBuilder(
+              title: "Tipiṭakapp",
+              subtitle: "Berbagai aplikasi web Tipiṭaka",
+              icon: Icons.apps_rounded,
+              color: Colors.orange.shade700,
+              isDarkMode: widget.isDarkMode,
+              onTap: () => _openExplore(context, 0),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: PanjangCardBuilder(
+              title: "Kamus & Perpus",
+              subtitle: "Aplikasi web kamus dan perpus",
+              icon: Icons.library_books_rounded,
+              color: Colors.blue.shade700,
+              isDarkMode: widget.isDarkMode,
+              onTap: () => _openExplore(context, 1),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: PanjangCardBuilder(
+              title: "Artikel & Berita",
+              subtitle: "Kumpulan artikel dan berita",
+              icon: Icons.newspaper_rounded,
+              color: Colors.red.shade600,
+              isDarkMode: widget.isDarkMode,
+              onTap: () => _openExplore(context, 2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: PanjangCardBuilder(
+              title: "Unduh Sumber Daya",
+              subtitle: "Ebook, majalah, komik, materi",
+              icon: Icons.download_rounded,
+              color: Colors.green.shade700,
+              isDarkMode: widget.isDarkMode,
+              onTap: () => _openExplore(context, 3),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: PanjangCardBuilder(
+              title: "Forum Diskusi",
+              subtitle: "Forum diskusi Buddhis",
+              icon: Icons.forum_rounded,
+              color: Colors.teal.shade600,
+              isDarkMode: widget.isDarkMode,
+              onTap: () => _openExplore(context, 4),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: PanjangCardBuilder(
+              title: "Media Sosial",
+              subtitle: "Akun media sosial Buddhis",
+              icon: Icons.people_rounded,
+              color: Colors.indigo.shade600,
+              isDarkMode: widget.isDarkMode,
+              onTap: () => _openExplore(context, 5),
+            ),
+          ),
+          PanjangCardBuilder(
+            title: "Kontribusi",
+            subtitle: "Ikut kembangkan aplikasi ini",
+            icon: Icons.code,
+            color: Colors.blueGrey,
+            isDarkMode: widget.isDarkMode,
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text("Kontribusi"),
+                  content: const Text(
+                    "Aplikasi ini dikembangkan secara terbuka dengan mettā, karuṇā, muditā, dan upekkhā.\n\n"
+                    "Anda bisa kontribusi dengan:\n"
+                    "• Memberi masukan\n"
+                    "• Membantu dokumentasi\n"
+                    "• Menyumbang kode\n"
+                    "• Menyebarkan aplikasi ini\n\n"
+                    "Pilih salah satu opsi di bawah.\nTerima kasih <3",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        final uri = Uri(
+                          scheme: 'mailto',
+                          path: 'aluskaindonesia@gmail.com',
+                          query: Uri.encodeFull(
+                            'subject=Saran Aplikasi Tripitaka Indonesia'
+                            '&body=--- tulis saran Anda di bawah ---',
+                          ),
+                        );
+                        launchUrl(uri, mode: LaunchMode.externalApplication);
+                      },
+                      child: const Text("Kirim Email"),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        launchUrl(
+                          Uri.parse(
+                            "https://github.com/renaldoaluska/tipitaka",
+                          ),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                      child: const Text("Buka GitHub"),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text("Tutup"),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),

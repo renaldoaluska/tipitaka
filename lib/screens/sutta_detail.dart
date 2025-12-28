@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:html_unescape/html_unescape.dart';
@@ -39,7 +38,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
   // --- NAV CONTEXT & STATE ---
   String? _parentVaggaId; // anchor back ke Vagga/Nikaya aktif
 
-  // Tambahin variable di class state (bagian atas)
   //bool _hasNavigated = false; // ✅ Track apakah user pernah next/prev
   bool _isFirst = false; // disable Prev jika true
   bool _isLast = false; // disable Next jika true
@@ -88,18 +86,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
   // 2. Variabel nyimpen Daftar Isi
   final List<Map<String, dynamic>> _tocList = [];
 
-  // TAMBAHAN: Key buat kontrol Scaffold dari body
+  // Key buat kontrol Scaffold dari body
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
-
-    print("=== WIDGET INFO ===");
-    print("uid: ${widget.uid}");
-    print("lang: ${widget.lang}");
-    print("segmented: ${widget.textData?["segmented"]}");
-    print("keys_order: ${widget.textData?["keys_order"]?.runtimeType}");
 
     // ✅ CEK SEGMENTED DULU
     final bool isSegmented = widget.textData?["segmented"] == true;
@@ -496,13 +488,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Future<void> _initNavigationContext() async {
-    print("=== INIT NAVIGATION ===");
-    print("root_text: ${widget.textData?["root_text"]}");
-    print("vagga_uid: ${widget.textData?["root_text"]?["vagga_uid"]}");
-    print("resolved_vagga_uid: ${widget.textData?["resolved_vagga_uid"]}");
-    print("previous: ${widget.textData?["root_text"]?["previous"]}");
-    print("next: ${widget.textData?["root_text"]?["next"]}");
-
     final root = widget.textData?["root_text"];
     if (root is Map) {
       _parentVaggaId =
@@ -516,7 +501,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
           setState(() {
             _parentVaggaId = resolved;
           });
-          print("🔄 Resolved vagga at init: $_parentVaggaId");
         }
       }
       final prev = root["previous"];
@@ -535,8 +519,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
               (next.isEmpty ||
                   next["uid"] == null ||
                   next["uid"].toString().trim().isEmpty));
-
-      print("_isFirst: $_isFirst, _isLast: $_isLast");
     } else {
       _isFirst = true;
       _isLast = true;
@@ -739,14 +721,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
         context,
         PageRouteBuilder(
           settings: RouteSettings(name: '/sutta/$newUid'),
-          pageBuilder: (_, __, ___) => SuttaDetail(
+          pageBuilder: (_, _, _) => SuttaDetail(
             uid: newUid,
             lang: lang,
             textData: mergedData,
             openedFromSuttaDetail: true,
             originalSuttaUid: null,
           ),
-          transitionsBuilder: (_, animation, __, child) {
+          transitionsBuilder: (_, animation, _, child) {
             final offsetBegin = slideFromLeft
                 ? const Offset(-1, 0)
                 : const Offset(1, 0);
@@ -778,7 +760,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
   }
 
-  // TODO: ganti ke sumber data kamu
   /*Future<_Avail> _checkAvailability(Map<String, dynamic>? nav) async {
     if (nav == null) return const _Avail("pli", false);
     final lang = nav["lang"]?.toString() ?? "pli";
@@ -788,17 +769,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   /// Helper untuk resolve vagga_uid dari sutta uid
   Future<String?> _resolveVaggaUid(String suttaUid) async {
-    print("\n========================================");
-    print("🕵️ START DRILL DOWN: $suttaUid");
-    print("========================================");
-
     try {
       // 1. Parsing UID - Support format dengan strip (tha-ap) dan tanpa strip (ud3.3)
       final regex = RegExp(r'^([a-z]+(?:-[a-z]+)?)(\d+)(?:\.(\d+))?');
       final match = regex.firstMatch(suttaUid.toLowerCase());
 
       if (match == null) {
-        print("❌ REGEX MATCH FAILED");
         return null;
       }
 
@@ -807,11 +783,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
       final suttaNum = match.group(3) != null
           ? int.parse(match.group(3)!)
           : null; // 10, 3
-
-      print("🎯 Target Parsed:");
-      print("   Collection: $collection");
-      print("   Book Number: $bookNum");
-      print("   Sutta Number: ${suttaNum ?? 'null'}");
 
       // Mulai dari Root Koleksi
       String currentParent = collection;
@@ -906,7 +877,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
           if (isMatch) {
             nextParent = child["uid"];
-            print("   ✅ Match: $nextParent (Range: $rangeStr)");
             break;
           }
         }
@@ -924,13 +894,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
         }
       }
 
-      print("🏁 Final Resolved Vagga: $currentParent");
-
       // Return logic dengan fallback
       if (currentParent != collection) {
         return currentParent;
       } else if (lastValidParent != null) {
-        print("⚠️ Using last valid parent: $lastValidParent");
         return lastValidParent;
       }
 
@@ -1088,14 +1055,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
         context,
         PageRouteBuilder(
           settings: RouteSettings(name: '/sutta/$targetUid'),
-          pageBuilder: (_, __, ___) => SuttaDetail(
+          pageBuilder: (_, _, _) => SuttaDetail(
             uid: targetUid,
             lang: targetLang,
             textData: mergedData,
             openedFromSuttaDetail: true,
             originalSuttaUid: null,
           ),
-          transitionsBuilder: (_, animation, __, child) {
+          transitionsBuilder: (_, animation, _, child) {
             final offsetBegin = isPrevious
                 ? const Offset(-1, 0)
                 : const Offset(1, 0);
@@ -1337,7 +1304,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
-    _cachedSearchRegex = null; // Tambahkan ini
+    _cachedSearchRegex = null;
     super.dispose();
   }
 
