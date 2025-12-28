@@ -10,6 +10,11 @@ class ExploreTabForum extends StatelessWidget {
       // 💬 Forum Diskusi
       {"title": "Forum Diskusi", "isHeader": "true"},
       {
+        "title": "Classical Theravāda",
+        "desc": "Forum diskusi Theravāda internasional",
+        "url": "https://classicaltheravada.org/",
+      },
+      {
         "title": "DhammaWheel",
         "desc": "Forum diskusi Theravāda internasional",
         "url": "https://www.dhammawheel.com/",
@@ -18,11 +23,6 @@ class ExploreTabForum extends StatelessWidget {
         "title": "Discuss & Discover",
         "desc": "Forum diskusi Early Buddhism oleh SuttaCentral",
         "url": "https://discourse.suttacentral.net/",
-      },
-      {
-        "title": "Classical Theravāda",
-        "desc": "Forum diskusi Theravāda internasional",
-        "url": "https://classicaltheravada.org/",
       },
     ];
 

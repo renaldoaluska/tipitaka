@@ -203,9 +203,9 @@ class _HomeState extends State<Home> {
         "color": const Color(0xFF283593),
       },
       {
-        "label": "Meditasi",
-        "icon": Icons.self_improvement_rounded,
-        "color": const Color(0xFFFF9800),
+        "label": "Saṅgaha",
+        "icon": Icons.category_rounded,
+        "color": const Color(0xFFFDD835),
       },
       {
         "label": "Uposatha",
@@ -213,9 +213,9 @@ class _HomeState extends State<Home> {
         "color": const Color(0xFFD84315),
       },
       {
-        "label": "Saṅgaha",
-        "icon": Icons.category_rounded,
-        "color": const Color(0xFFFDD835),
+        "label": "Meditasi",
+        "icon": Icons.self_improvement_rounded,
+        "color": const Color(0xFFFF9800),
       },
     ];
     return Padding(
