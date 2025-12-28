@@ -99,10 +99,10 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       decoration: BoxDecoration(
                         color: accentColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: accentColor.withOpacity(0.3),
-                          width: 1.5,
-                        ),
+                        //border: Border.all(
+                        //  color: accentColor.withOpacity(0.3),
+                        //  width: 1.5,
+                        //),
                       ),
                       child: Icon(
                         Icons.nightlight_round,
@@ -321,10 +321,10 @@ class _PatipattiPageState extends State<PatipattiPage> {
                     decoration: BoxDecoration(
                       color: accentColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: accentColor.withOpacity(0.3),
-                        width: 1.5,
-                      ),
+                      // border: Border.all(
+                      //  color: accentColor.withOpacity(0.3),
+                      //  width: 1.5,
+                      // ),
                     ),
                     child: Icon(
                       Icons.self_improvement_rounded,
@@ -470,10 +470,10 @@ class _PatipattiPageState extends State<PatipattiPage> {
                     decoration: BoxDecoration(
                       color: accentColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: accentColor.withOpacity(0.3),
-                        width: 1.5,
-                      ),
+                      //  border: Border.all(
+                      //   color: accentColor.withOpacity(0.3),
+                      //  width: 1.5,
+                      //),
                     ),
                     child: Icon(
                       Icons.book_rounded,

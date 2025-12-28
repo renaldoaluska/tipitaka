@@ -95,7 +95,7 @@ class ExploreTab extends StatelessWidget {
 
         // kalau item biasa
         return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(bottom: 3),
           child: PanjangCardBuilder(
             title: item["title"] ?? "",
             subtitle: item["desc"] ?? "",

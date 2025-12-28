@@ -325,30 +325,51 @@ class _PariyattiPageState extends State<PariyattiPage>
           title: "Pariyatti",
           subtitle: "Studi Dhamma",
         ),
+
         const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
               Expanded(
-                child: _buildQuickButton(
-                  label: "Tematik",
-                  icon: Icons.category_rounded,
-                  color: Colors.indigo.shade700,
-                  onTap: () {
-                    // TODO: Navigate to Tematik
-                  },
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.indigo.shade700.withOpacity(
+                        0.3,
+                      ), // pakai accentColor
+                      width: 1.5,
+                    ),
+                  ),
+                  child: _buildQuickButton(
+                    label: "Tematik",
+                    icon: Icons.category_rounded,
+                    color: Colors.indigo.shade700,
+                    onTap: () {
+                      // TODO: Navigate to Tematik
+                    },
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildQuickButton(
-                  label: "Ab-saṅgaha",
-                  icon: Icons.auto_stories_rounded,
-                  color: Colors.amber.shade700,
-                  onTap: () {
-                    // TODO: Navigate to Sangaha
-                  },
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.amber.shade700.withOpacity(0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: _buildQuickButton(
+                    label: "Ab-saṅgaha",
+                    icon: Icons.auto_stories_rounded,
+                    color: Colors.amber.shade700,
+                    onTap: () {
+                      // TODO: Navigate to Sangaha
+                    },
+                  ),
                 ),
               ),
             ],
