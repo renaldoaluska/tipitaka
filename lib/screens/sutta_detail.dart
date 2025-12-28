@@ -1,9 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:html_unescape/html_unescape.dart';
 import 'package:tipitaka/screens/menu_page.dart';
 import 'package:tipitaka/screens/suttaplex.dart';
 import 'package:tipitaka/services/sutta.dart';
+import 'package:tipitaka/styles/nikaya_style.dart';
 import '../models/sutta_text.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'dart:async';
@@ -30,6 +32,8 @@ class SuttaDetail extends StatefulWidget {
   @override
   State<SuttaDetail> createState() => _SuttaDetailState();
 }
+
+enum SuttaSnackType { translatorFallback, firstText, lastText }
 
 class _SuttaDetailState extends State<SuttaDetail> {
   // --- NAV CONTEXT & STATE ---
@@ -583,7 +587,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
             const SizedBox(width: 12),
             const Flexible(
               child: Text(
-                "Tinggalkan mode baca?",
+                "Keluar dari mode baca?",
                 style: TextStyle(fontSize: 18),
               ),
             ),
@@ -698,6 +702,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     bool slideFromLeft = false,
   }) async {
     setState(() => _isLoading = true);
+
     try {
       final data =
           textData ??
@@ -713,7 +718,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
       debugPrint("Source: ${textData != null ? '🔵 Suttaplex' : '🟢 API'}");
       debugPrint("UID: $newUid | Lang: $lang | Segmented: $segmented");
 
-      final mergedData = {...data, "suttaplex": widget.textData?["suttaplex"]};
+      // ✅ FIX: Kalo ganti bahasa, DON'T recycle old suttaplex!
+      final Map<String, dynamic> mergedData;
+
+      if (textData != null) {
+        // ✅ Kalo dari modal suttaplex, textData udah include suttaplex yang BARU
+        mergedData = data;
+      } else {
+        // ✅ Kalo dari API, merge dengan suttaplex yang udah ada
+        mergedData = {...data, "suttaplex": widget.textData?["suttaplex"]};
+      }
 
       // ✅ REFACTORED: Semua logic vagga di satu tempat
       await _processVaggaTracking(mergedData, newUid);
@@ -1033,7 +1047,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
     setState(() {
       _isLoading = true;
     });
-
     try {
       final data = await SuttaService.fetchFullSutta(
         uid: targetUid,
@@ -1043,11 +1056,26 @@ class _SuttaDetailState extends State<SuttaDetail> {
         siteLanguage: "id",
       );
 
+      // ✅ Cek apakah hasil fetch valid
+      final hasTranslation = segmented
+          ? (data["translation_text"] != null || data["root_text"] != null)
+          : (data["translation"] != null || data["root_text"] != null);
+      if (!hasTranslation) {
+        _showSuttaSnackBar(
+          SuttaSnackType.translatorFallback,
+          uid: targetUid,
+          lang: targetLang,
+          author: authorUid,
+        );
+        return; // stop di sini, jangan navigate
+      }
+
       // Merge Data
       final mergedData = {
         ...data,
         "segmented": segmented,
-        "suttaplex": widget.textData?["suttaplex"],
+        // ✅ Ganti ini: pake suttaplex baru hasil fetch, jangan pake widget.textData lagi
+        "suttaplex": data["suttaplex"] ?? widget.textData?["suttaplex"],
       };
 
       // ✅ REFACTORED: Semua logic vagga di satu tempat
@@ -1093,6 +1121,63 @@ class _SuttaDetailState extends State<SuttaDetail> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showSuttaSnackBar(
+    SuttaSnackType type, {
+    String? uid,
+    String? lang,
+    String? author,
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    String message;
+    switch (type) {
+      case SuttaSnackType.translatorFallback:
+        message =
+            "Teks $uid ($lang) oleh $author tak ditemukan, silakan ganti versi terjemahan di ";
+        break;
+      case SuttaSnackType.firstText:
+        message =
+            "Teks $uid sudah terawal, ganti kitab dengan keluar terlebih dahulu ";
+        break;
+      case SuttaSnackType.lastText:
+        message =
+            "Teks $uid sudah terakhir, ganti kitab dengan keluar terlebih dahulu ";
+        break;
+    }
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: RichText(
+          text: TextSpan(
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            children: [
+              TextSpan(text: message),
+              if (type == SuttaSnackType.translatorFallback)
+                const WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Icon(Icons.menu_book, color: Colors.white, size: 18),
+                ),
+              if (type == SuttaSnackType.firstText ||
+                  type == SuttaSnackType.lastText)
+                const WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Icon(
+                    Icons.arrow_circle_left,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        backgroundColor: Colors.deepOrange.shade400,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   // ✅ Trigger Singkat (Tinggal panggil ini di tombol)
@@ -1352,7 +1437,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     // 2. Ambil Content
     var pali = paliSegs[key] ?? "";
-    if (pali.trim().isEmpty) pali = "... [dst] ...";
+    if (pali.trim().isEmpty) pali = "...";
 
     var trans = translationSegs[key] ?? "";
     final isTransEmpty = trans.trim().isEmpty;
@@ -1413,7 +1498,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 children: [
                   TextSpan(
                     children: _highlightText(
-                      isTransEmpty ? "... [dst] ..." : trans,
+                      isTransEmpty ? "..." : trans,
                       isTransEmpty
                           ? config.transStyle.copyWith(
                               color: Colors.grey,
@@ -1450,8 +1535,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     int paliMatchCount,
   ) {
     // Logic style khusus utk "... pe ..." (Pali ellipsis)
-    final isPe =
-        pali == "... [dst] ..." && !config.isH1 && !config.isH2 && !config.isH3;
+    final isPe = pali == "..." && !config.isH1 && !config.isH2 && !config.isH3;
     final finalPaliStyle = config.paliStyle.copyWith(
       fontStyle: isPe ? FontStyle.italic : FontStyle.normal,
       color: isPe ? Colors.grey : config.paliStyle.color,
@@ -1483,7 +1567,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                       children: [
                         TextSpan(
                           children: _highlightText(
-                            isTransEmpty ? "... [dst] ..." : trans,
+                            isTransEmpty ? "..." : trans,
                             isTransEmpty
                                 ? config.transStyle.copyWith(
                                     color: Colors.grey,
@@ -1521,8 +1605,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     String comm,
     int paliMatchCount,
   ) {
-    final isPe =
-        pali == "... [dst] ..." && !config.isH1 && !config.isH2 && !config.isH3;
+    final isPe = pali == "..." && !config.isH1 && !config.isH2 && !config.isH3;
     final finalPaliStyle = config.paliStyle.copyWith(
       fontStyle: isPe ? FontStyle.italic : FontStyle.normal,
       color: isPe ? Colors.grey : config.paliStyle.color,
@@ -1584,7 +1667,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                     children: [
                       TextSpan(
                         children: _highlightText(
-                          isTransEmpty ? "... [dst] ..." : trans,
+                          isTransEmpty ? "..." : trans,
                           isTransEmpty
                               ? config.transStyle.copyWith(
                                   color: Colors.grey,
@@ -1626,47 +1709,137 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // 1. CEK DATA KOSONG
-    if (widget.textData == null || widget.textData!.isEmpty) {
-      return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) async {
-          if (didPop) {
-            // 🔥 Reset initialVagga pas back berhasil
-            if (widget.textData != null) {
-              widget.textData!.remove("initial_vagga_uid");
-            }
-            return;
-          }
-          final allow = await _handleBackReplace();
-          if (allow) {
-            // 🔥 Reset sebelum pop
-            if (widget.textData != null) {
-              widget.textData!.remove("initial_vagga_uid");
-            }
-            Navigator.pop(context, result);
-          }
-        },
-        child: Scaffold(
-          key: _scaffoldKey,
-          appBar: AppBar(title: Text("${widget.uid} [${widget.lang}]")),
-          body: const Center(child: Text("Teks tidak tersedia")),
-        ),
-      );
+  // Helper widget untuk row info di dialog
+  Map<String, dynamic> _getMetadata() {
+    final isSegmented = widget.textData?["segmented"] == true;
+    final translations =
+        widget.textData?["suttaplex"]?["translations"] as List?;
+
+    String author = "";
+    String langName = "";
+
+    if (isSegmented) {
+      // ✅ SEGMENTED: Ambil dari suttaplex.translations
+      if (translations != null) {
+        try {
+          final currentTrans = translations.firstWhere(
+            (t) =>
+                t["author_uid"] == widget.textData?["author_uid"] &&
+                t["lang"] == widget.lang,
+            orElse: () => null,
+          );
+          author = currentTrans?["author"]?.toString() ?? "";
+          langName =
+              currentTrans?["lang_name"]?.toString() ??
+              ""; // Ambil dari suttaplex
+        } catch (e) {
+          author = "";
+        }
+      }
+    } else {
+      // ✅ LEGACY: Ambil dari translation.author
+      author = widget.textData?["translation"]?["author"]?.toString() ?? "";
+
+      // Cari langName di suttaplex juga buat legacy
+      if (translations != null) {
+        final currentTrans = translations.firstWhere(
+          (t) => t["lang"] == widget.lang,
+          orElse: () => null,
+        );
+        langName = currentTrans?["lang_name"]?.toString() ?? "";
+      }
     }
 
-    final bool isSegmented = widget.textData!["segmented"] == true;
+    // ✅ Fallback Lang Name kalau dari suttaplex nggak ketemu
+    if (langName.isEmpty) {
+      langName = isSegmented
+          ? (widget.textData?["bilara_translated_text"]?["lang_name"] ??
+                widget.textData?["translation_text"]?["lang_name"] ??
+                widget.textData?["root_text"]?["lang_name"] ??
+                widget.lang.toUpperCase())
+          : (widget.textData?["translation"]?["lang_name"] ??
+                widget.textData?["root_text"]?["lang_name"] ??
+                widget.lang.toUpperCase());
+    }
 
-    // 2. PERSIAPAN DATA (Map & Keys)
+    // ✅ Publication Date
+    final pubDate = translations?.firstWhere(
+      (t) =>
+          t["author_uid"] == widget.textData?["author_uid"] &&
+          t["lang"] == widget.lang,
+      orElse: () => null,
+    )?["publication_date"];
+
+    return {
+      "isSegmented": isSegmented,
+      "author": author,
+      "langName": langName,
+      "pubDate": pubDate,
+    };
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+              children: [
+                TextSpan(
+                  text: "$label: ",
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(fontWeight: FontWeight.normal),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Ambil metadata SEKALI di awal
+    final metadata = _getMetadata();
+
+    // Ambil header data
+    final String suttaTitle =
+        widget.textData?["root_text"]?["title"] ??
+        widget.textData?["translation"]?["title"] ??
+        widget.uid;
+
+    final String acronym =
+        widget.textData?["suttaplex"]?["acronym"] ??
+        widget.textData?["root_text"]?["acronym"] ??
+        "";
+
+    final String rawBlurb = widget.textData?["suttaplex"]?["blurb"] ?? "";
+
+    // ✅ SIMPLE: Blurb ada = tampil, blurb kosong = gak tampil
+    // Gak perlu deteksi bahasa sama sekali!
+    bool shouldShowBlurb = rawBlurb.isNotEmpty;
+
+    // 1. CEK DATA KOSONG
+    final bool isError = widget.textData == null || widget.textData!.isEmpty;
+
+    // 2. PERSIAPAN DATA
+    final bool isSegmented =
+        !isError && (widget.textData!["segmented"] == true);
+
     final Map<String, String> paliSegs;
     final Map<String, String> translationSegs;
     final Map<String, String> commentarySegs;
     final List<String> keysOrder;
 
-    if (isSegmented) {
-      // ... Logic parsing data Segmented lu yang lama ...
+    if (!isError && isSegmented) {
       paliSegs = (widget.textData!["root_text"] is Map)
           ? (widget.textData!["root_text"] as Map).map(
               (k, v) => MapEntry(k.toString(), v.toString()),
@@ -1686,7 +1859,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
       if (widget.textData!["keys_order"] is List) {
         keysOrder = List<String>.from(widget.textData!["keys_order"]);
       } else {
-        // Fallback generate keys manually
         final metadataKeys = {
           'previous',
           'next',
@@ -1712,18 +1884,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
     // 3. MENENTUKAN ISI BODY
     Widget body;
 
-    // CASE A: SEGMENTED (Pakai Unified Builder yang kita buat)
-    if (isSegmented) {
+    if (isError) {
+      // CASE ERROR: Tampilkan pesan error
+      body = const Center(child: Text("Teks tidak tersedia"));
+    } else if (isSegmented) {
+      // CASE A: SEGMENTED
       body = SelectionArea(
         child: ScrollablePositionedList.builder(
           itemScrollController: _itemScrollController,
           itemPositionsListener: _itemPositionsListener,
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            80,
-          ), // Bottom padding buat FAB
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
           itemCount: keysOrder.length,
           itemBuilder: (context, index) {
             return _buildSegmentedItem(
@@ -1737,18 +1907,15 @@ class _SuttaDetailState extends State<SuttaDetail> {
           },
         ),
       );
-    }
-    // CASE B: NON-SEGMENTED HTML
-    else if ((widget.textData!["translation_text"] is Map &&
+    } else if ((widget.textData!["translation_text"] is Map &&
             widget.textData!["translation_text"].containsKey("text")) ||
         (widget.textData!["root_text"] is Map &&
             widget.textData!["root_text"].containsKey("text"))) {
-      // Parse HTML jika belum
+      // CASE B: NON-SEGMENTED HTML
       if (_htmlSegments.isEmpty) {
         String rawHtml = "";
         if (widget.textData!["translation_text"] is Map &&
             widget.textData!["translation_text"].containsKey("text")) {
-          // ... logic unescape html trans ...
           final transMap = Map<String, dynamic>.from(
             widget.textData!["translation_text"],
           );
@@ -1756,7 +1923,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
             NonSegmentedSutta.fromJson(transMap).text,
           );
         } else if (widget.textData!["root_text"] is Map) {
-          // ... logic unescape html root ...
           final rootMap = Map<String, dynamic>.from(
             widget.textData!["root_text"],
           );
@@ -1775,7 +1941,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
           itemCount: _htmlSegments.length,
           itemBuilder: (context, index) {
             String content = _htmlSegments[index];
-            // Highlight Logic untuk HTML
             if (_searchController.text.length >= 2 &&
                 _cachedSearchRegex != null) {
               int localMatchCounter = 0;
@@ -1803,7 +1968,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                     fontSize: FontSize(_fontSize),
                     lineHeight: LineHeight(1.6),
                     margin: Margins.only(left: 10, right: 10),
-                    //textAlign: TextAlign.justify,
                   ),
                   "h1": Style(
                     fontSize: FontSize(_fontSize * 1.8),
@@ -1826,11 +1990,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
           },
         ),
       );
-    }
-    // CASE C: PALI ONLY (Fallback Logic lama lu)
-    else if (widget.textData!["root_text"] is Map &&
+    } else if (widget.textData!["root_text"] is Map &&
         !(widget.textData!["root_text"] as Map).containsKey("text")) {
-      // Kita reuse logic segmented item aja biar gak repetitif!
+      // CASE C: PALI ONLY
       final paliOnlyMap = (widget.textData!["root_text"] as Map).map(
         (k, v) => MapEntry(k.toString(), v.toString()),
       );
@@ -1845,7 +2007,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
           itemCount: paliKeys.length,
           itemBuilder: (context, index) {
-            // Panggil _buildSegmentedItem dengan map kosong buat trans & comm
             return _buildSegmentedItem(
               context,
               index,
@@ -1857,26 +2018,33 @@ class _SuttaDetailState extends State<SuttaDetail> {
           },
         ),
       );
-    }
-    // CASE D: ERROR
-    else {
-      body = const Center(child: Text("Format data tidak dikenali"));
+    } else {
+      // CASE D: FORMAT TIDAK DIKENALI
+      body = const Center(child: Text("Kesalahan format teks."));
     }
 
-    // 4. RETURN SCAFFOLD DENGAN FAB CLEAN
+    // 4. RETURN SCAFFOLD TUNGGAL DENGAN HEADER CUSTOM
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
+        if (didPop) {
+          if (widget.textData != null) {
+            widget.textData!.remove("initial_vagga_uid");
+          }
+          return;
+        }
         final allow = await _handleBackReplace();
-        if (allow) Navigator.pop(context, result);
+        if (allow) {
+          if (widget.textData != null) {
+            widget.textData!.remove("initial_vagga_uid");
+          }
+          if (mounted) Navigator.pop(context, result);
+        }
       },
       child: Scaffold(
         key: _scaffoldKey,
-        appBar: AppBar(
-          title: Text("${widget.uid} [${widget.lang}]"),
-          actions: const [SizedBox.shrink()],
-        ),
+        appBar: null, // 👈 Hilangkan AppBar
+        backgroundColor: Colors.grey[50], // 👈 Background abu-abu
         endDrawer: _tocList.isNotEmpty
             ? Drawer(
                 child: Column(
@@ -1931,8 +2099,194 @@ class _SuttaDetailState extends State<SuttaDetail> {
             : null,
         body: Stack(
           children: [
-            body,
-            // Tombol TOC Overlay
+            Column(
+              children: [
+                // 👇 SAFE AREA MANUAL
+                SizedBox(height: MediaQuery.of(context).padding.top),
+
+                // 👇 HEADER CARD (Versi dengan Icon Info)
+                Card(
+                  color: Colors.white,
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        // Tombol Back Bulat
+                        Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.black,
+                            ),
+                            onPressed: _isLoading
+                                ? null
+                                : () async {
+                                    final allow = await _handleBackReplace();
+                                    if (allow && mounted) {
+                                      Navigator.pop(context);
+                                    }
+                                  },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Judul Pali (1 line dengan elipsis otomatis)
+                        Expanded(
+                          child: Text(
+                            widget.textData?["suttaplex"]?["original_title"] ??
+                                suttaTitle,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // Icon Info (kalau ada blurb DAN bahasa cocok)
+
+                        // Icon Info (kalau ada blurb DAN bahasa cocok)
+                        ...[
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.info_outline,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => AlertDialog(
+                                  title: Text(
+                                    widget.textData?["suttaplex"]?["original_title"] ??
+                                        suttaTitle,
+                                  ),
+                                  content: SingleChildScrollView(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (shouldShowBlurb &&
+                                            rawBlurb.isNotEmpty) ...[
+                                          Html(data: rawBlurb),
+                                          const SizedBox(height: 16),
+                                          const Divider(),
+                                          const SizedBox(height: 12),
+                                        ],
+
+                                        // 🔹 Metadata Section
+                                        const Text(
+                                          "Tentang",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+
+                                        // 👇 Pake hasil metadata
+                                        if (metadata["author"]
+                                            .toString()
+                                            .isNotEmpty) ...[
+                                          _buildInfoRow(
+                                            Icons.person_outline,
+                                            "Author",
+                                            metadata["author"],
+                                          ),
+                                          const SizedBox(height: 10),
+                                        ],
+                                        _buildInfoRow(
+                                          Icons.language,
+                                          "Bahasa",
+                                          metadata["langName"],
+                                        ),
+                                        const SizedBox(height: 10),
+
+                                        if (metadata["pubDate"] != null &&
+                                            metadata["pubDate"]
+                                                .toString()
+                                                .isNotEmpty) ...[
+                                          _buildInfoRow(
+                                            Icons.calendar_today_outlined,
+                                            "Tahun Terbit",
+                                            metadata["pubDate"],
+                                          ),
+                                          const SizedBox(height: 10),
+                                        ],
+                                        _buildInfoRow(
+                                          metadata["isSegmented"]
+                                              ? Icons.format_align_left
+                                              : Icons.archive_outlined,
+                                          "Format",
+                                          metadata["isSegmented"]
+                                              ? "Aligned (Segmented JSON)"
+                                              : "Legacy (HTML)",
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("Tutup"),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+
+                        // Acronym Singkat (MN 15)
+                        if (acronym.isNotEmpty) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            acronym,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: getNikayaColor(
+                                normalizeNikayaAcronym(
+                                  acronym.split(" ").first,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                // 👇 BODY KONTEN
+                Expanded(child: body),
+              ],
+            ),
+
+            // Tombol TOC Overlay (existing)
             if (_tocList.isNotEmpty)
               Positioned(
                 right: 0,
@@ -1964,7 +2318,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   ),
                 ),
               ),
-            // Loading Overlay
+
+            // Loading Overlay (existing)
             if (_isLoading)
               Container(
                 color: Colors.black54,
@@ -1973,7 +2328,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
           ],
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: _buildFloatingActions(isSegmented), // <-- BERSIH!
+        floatingActionButton: _buildFloatingActions(isSegmented),
       ),
     );
   }
@@ -1996,7 +2351,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
           heroTag: "btn_prev",
           backgroundColor: getBgColor(_isFirst || _isLoading),
           foregroundColor: getFgColor(_isFirst || _isLoading),
-          onPressed: _isFirst || _isLoading ? null : _goToPrevSutta,
+          onPressed: () {
+            if (_isFirst) {
+              _showSuttaSnackBar(SuttaSnackType.firstText, uid: widget.uid);
+            } else if (!_isLoading) {
+              _goToPrevSutta();
+            }
+          },
+
           child: const Icon(Icons.arrow_back_ios_new),
         ),
         const SizedBox(width: 12),
@@ -2043,7 +2405,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
           heroTag: "btn_next",
           backgroundColor: getBgColor(_isLast || _isLoading),
           foregroundColor: getFgColor(_isLast || _isLoading),
-          onPressed: _isLast || _isLoading ? null : _goToNextSutta,
+
+          onPressed: () {
+            if (_isLast) {
+              _showSuttaSnackBar(SuttaSnackType.lastText, uid: widget.uid);
+            } else if (!_isLoading) {
+              _goToNextSutta();
+            }
+          },
           child: const Icon(Icons.arrow_forward_ios),
         ),
       ],
@@ -2198,12 +2567,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
         child: Suttaplex(
           uid: widget.uid,
           onSelect: (newUid, lang, authorUid, textData) {
+            // ❓ PERTANYAAN: Apakah `textData` ini udah include suttaplex?
             _replaceToSutta(
               newUid,
               lang,
               authorUid: authorUid,
               segmented: textData["segmented"] == true,
-              textData: textData,
+              textData: textData, // 👈 Ini isinya apa?
             );
           },
         ),
