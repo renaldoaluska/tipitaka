@@ -453,9 +453,9 @@ class _SuttaplexState extends State<Suttaplex> {
                               ),
                               TextSpan(
                                 text: paliTitle,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
-                                  color: Colors.grey,
+                                  color: Colors.grey[700],
                                 ),
                               ),
                             ],

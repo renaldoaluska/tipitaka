@@ -590,7 +590,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
           ],
         ),
         content: const Text(
-          "Posisi bacaan akan kembali ke daftar awal.",
+          "Posisi subbagian telah disesuaikan, tak semua bukaan dipertahankan.\n\n(Untuk ganti versi teks, Anda bisa akses menu di bawah.)",
           style: TextStyle(color: Colors.grey),
         ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
