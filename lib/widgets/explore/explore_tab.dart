@@ -61,11 +61,11 @@ class ExploreTab extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.label_important,
-                      size: 20,
-                      color: isDarkMode ? Colors.amber : Colors.orange.shade800,
-                    ),
+                    //  Icon(
+                    //    Icons.label_important,
+                    //    size: 20,
+                    //    color: isDarkMode ? Colors.amber : Colors.orange.shade500,
+                    //  ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -74,9 +74,7 @@ class ExploreTab extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: isDarkMode
-                              ? Colors.amber
-                              : Colors.orange.shade800,
+                          color: isDarkMode ? Colors.amber : Colors.grey[700],
                           letterSpacing: 0.8,
                         ),
                       ),
@@ -87,8 +85,8 @@ class ExploreTab extends StatelessWidget {
                 Divider(
                   thickness: 1,
                   color: isDarkMode
-                      ? Colors.orange.withOpacity(0.3)
-                      : Colors.orange.withOpacity(0.4),
+                      ? Colors.grey.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.4),
                 ),
               ],
             ),

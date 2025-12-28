@@ -63,13 +63,25 @@ class _MenuPageState extends State<MenuPage> {
     /*final childRangeHasAcronym = item.childRange.toUpperCase().contains(
       displayAcronym.toUpperCase(),
     );*/
-
     return Card(
       color: Colors.white,
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      elevation: 1, // ✅ tambah shadow
+      margin: const EdgeInsets.symmetric(
+        vertical: 5,
+        horizontal: 16,
+      ), // ✅ vertical 6→4
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      clipBehavior: Clip.antiAlias, // 👉 ripple & hover ke-clip radius
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
+        shape: RoundedRectangleBorder(
+          // ✅ tambah ini biar hover rounded
+          borderRadius: BorderRadius.circular(12),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          // ✅ tambah ini
+          horizontal: 16,
+          vertical: 0,
+        ),
         leading: buildNikayaAvatar(displayAcronym),
         title: Text(
           item.translatedTitle.isNotEmpty
@@ -77,30 +89,37 @@ class _MenuPageState extends State<MenuPage> {
               : item.originalTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ), // ✅ 16→14
         ),
         subtitle: item.blurb.isNotEmpty
             ? Text(
                 item.blurb.replaceAll(RegExp(r'<[^>]*>'), ''),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ), // ✅ 13→12
               )
             : null,
         trailing: isLeaf
             ? Text(
                 item.acronym.replaceFirst("Patthana", "Pat"),
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12, // ✅ 14→12
                   fontWeight: FontWeight.w600,
                   color: getNikayaColor(displayAcronym),
                 ),
               )
-            : (item.childRange.isNotEmpty
+            : // ... dst (trailing juga 14→12)
+              (item.childRange.isNotEmpty
                   ? Text(
                       item.childRange, // langsung pake childRange aja, udah lengkap
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: getNikayaColor(displayAcronym),
                       ),
@@ -128,7 +147,12 @@ class _MenuPageState extends State<MenuPage> {
               ),
               builder: (_) => FractionallySizedBox(
                 heightFactor: 0.85,
-                child: Suttaplex(uid: item.uid),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: Suttaplex(uid: item.uid),
+                ),
               ),
             );
           }

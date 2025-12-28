@@ -27,17 +27,16 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  // Quote of the Day
   final List<Map<String, String>> _dhammapadaQuotes = [
     {
       "verse": "183",
-      "pali": "Sabbapāpassa akaraṇaṃ, kusalassa upasampadā...",
+      "pali": "SabbapÄpassa akaraṇaṃ, kusalassa upasampadÄ...",
       "trans":
           "Tidak berbuat kejahatan, mengembangkan kebajikan, memurnikan pikiran—inilah ajaran para Buddha.",
     },
     {
       "verse": "1",
-      "pali": "Manopubbaṅgamā dhammā...",
+      "pali": "ManopubbaṅgamÄ dhammÄ...",
       "trans":
           "Pikiran adalah pelopor dari segala hal, pikiran adalah pemimpin, pikiran adalah pembentuk.",
     },
@@ -56,18 +55,16 @@ class _HomeState extends State<Home> {
   ];
   Map<String, String>? _todayQuote;
 
-  // User data (dummy - nanti dari storage)
-  // ganti dari Map tunggal jadi List
   final List<Map<String, String>> _recentlyViewed = [
-    {"uid": "mn1", "title": "MN 1 Mūlapariyāya Sutta", "kitab": "MN"},
+    {"uid": "mn1", "title": "MN 1 MÅ«lapariyÄya Sutta", "kitab": "MN"},
     {"uid": "sn56.11", "title": "SN 56.11 Dhammacakka", "kitab": "SN"},
-    {"uid": "an3.65", "title": "AN 3.65 Kālāma", "kitab": "AN"},
+    {"uid": "an3.65", "title": "AN 3.65 KÄlÄma", "kitab": "AN"},
   ];
 
   final List<Map<String, dynamic>> _bookmarks = [
     {"uid": "sn56.11", "title": "SN 56.11 Dhammacakka", "kitab": "SN"},
-    {"uid": "an3.65", "title": "AN 3.65 Kālāma", "kitab": "AN"},
-    {"uid": "dhp183", "title": "Dhp 183 Sabbapāpassa", "kitab": "Dhp"},
+    {"uid": "an3.65", "title": "AN 3.65 KÄlÄma", "kitab": "AN"},
+    {"uid": "dhp183", "title": "Dhp 183 SabbapÄpassa", "kitab": "Dhp"},
   ];
 
   @override
@@ -99,7 +96,7 @@ class _HomeState extends State<Home> {
           _buildAppBar(),
           SliverToBoxAdapter(child: _buildQuoteCard()),
           SliverToBoxAdapter(child: _buildQuickAccess()),
-          if (_recentlyViewed != null)
+          if (_recentlyViewed.isNotEmpty)
             SliverToBoxAdapter(child: _buildRecentlyViewed()),
           if (_bookmarks.isNotEmpty)
             SliverToBoxAdapter(child: _buildBookmarks()),
@@ -114,7 +111,7 @@ class _HomeState extends State<Home> {
       child: HeaderDepan(
         isDarkMode: widget.isDarkMode,
         onThemeToggle: widget.onThemeToggle,
-        title: "Sotthi Hotu 🙏",
+        title: "Sotthi Hotu",
         subtitle: "Namo Ratanattayā",
       ),
     );
@@ -125,6 +122,7 @@ class _HomeState extends State<Home> {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Card(
+        elevation: 1,
         color: _cardColor(widget.isDarkMode),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Container(
@@ -195,16 +193,11 @@ class _HomeState extends State<Home> {
       {
         "label": "Tipiṭaka",
         "icon": Icons.menu_book_rounded,
-        "color": const Color(0xFFFF6F00),
+        "color": const Color(0xFF283593),
       },
       {
         "label": "Paritta",
         "icon": Icons.book_rounded,
-        "color": const Color(0xFF283593),
-      },
-      {
-        "label": "Saṅgaha",
-        "icon": Icons.category_rounded,
         "color": const Color(0xFFFDD835),
       },
       {
@@ -226,7 +219,7 @@ class _HomeState extends State<Home> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              "⚡ Akses Cepat",
+              "Akses Cepat",
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
@@ -260,15 +253,13 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildRecentlyViewed() {
-    if (_recentlyViewed.isEmpty) return const SizedBox.shrink();
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "👀 Terakhir Dilihat",
+            "Terakhir Dilihat",
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
@@ -276,15 +267,27 @@ class _HomeState extends State<Home> {
             ),
           ),
           const SizedBox(height: 8),
-          Column(
-            children: _recentlyViewed.take(3).map((rv) {
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: _recentlyViewed.length.clamp(0, 3),
+            separatorBuilder: (_, __) =>
+                const SizedBox(height: 8), // spacing antar card
+            itemBuilder: (context, index) {
+              final rv = _recentlyViewed[index];
               return Card(
-                margin: const EdgeInsets.only(bottom: 8),
+                elevation: 1,
+                margin:
+                    EdgeInsets.zero, // hilangin margin bawaan biar konsisten
                 color: _cardColor(widget.isDarkMode),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   leading: CircleAvatar(
                     backgroundColor: getNikayaColor(rv["kitab"]!),
                     radius: 18,
@@ -307,17 +310,17 @@ class _HomeState extends State<Home> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: _subtextColor(widget.isDarkMode),
-                  ),
+                  //trailing: Icon(
+                  //  Icons.arrow_forward_ios,
+                  //  size: 16,
+                  //  color: _subtextColor(widget.isDarkMode),
+                  // ),
                   onTap: () {
                     // TODO: Navigate ke detail rv["uid"]
                   },
                 ),
               );
-            }).toList(),
+            },
           ),
         ],
       ),
@@ -326,14 +329,14 @@ class _HomeState extends State<Home> {
 
   Widget _buildBookmarks() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Text(
-                "🔖 Penanda",
+                "Penanda",
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -364,13 +367,16 @@ class _HomeState extends State<Home> {
                   width: 180,
                   margin: const EdgeInsets.only(right: 10),
                   child: Card(
+                    elevation: 1,
                     color: _cardColor(widget.isDarkMode),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () {},
+                      onTap: () {
+                        // TODO: Navigate ke detail b["uid"]
+                      },
                       child: Padding(
                         padding: const EdgeInsets.all(10),
                         child: Row(
@@ -424,9 +430,9 @@ class _HomeState extends State<Home> {
       builder: (context) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.85, // lebih tinggi saat muncul
+          initialChildSize: 0.85,
           minChildSize: 0.5,
-          maxChildSize: 1.0, // bisa tarik full layar
+          maxChildSize: 1.0,
           builder: (context, scrollController) {
             return ClipRRect(
               borderRadius: const BorderRadius.vertical(
@@ -439,12 +445,11 @@ class _HomeState extends State<Home> {
                   appBar: AppBar(
                     title: const Text("Eksplor"),
                     leading: IconButton(
-                      icon: const Icon(Icons.close), // ganti jadi silang
-                      onPressed: () =>
-                          Navigator.of(context).pop(), // tutup sheet
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                     bottom: const TabBar(
-                      isScrollable: true, // ⬅️ bikin judul tab bisa digeser
+                      isScrollable: true,
                       tabs: [
                         Tab(text: "Tipiṭakapp"),
                         Tab(text: "Kamus & Perpus"),
@@ -475,13 +480,58 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildExploreSection() {
+    final exploreItems = [
+      {
+        "title": "Tipiṭakapp",
+        "subtitle": "Berbagai aplikasi web Tipiṭaka",
+        "icon": Icons.apps_rounded,
+        "color": Colors.orange.shade700,
+        "index": 0,
+      },
+      {
+        "title": "Kamus & Perpus",
+        "subtitle": "Aplikasi web kamus dan perpus",
+        "icon": Icons.library_books_rounded,
+        "color": Colors.blue.shade700,
+        "index": 1,
+      },
+      {
+        "title": "Artikel & Berita",
+        "subtitle": "Kumpulan artikel dan berita",
+        "icon": Icons.newspaper_rounded,
+        "color": Colors.red.shade600,
+        "index": 2,
+      },
+      {
+        "title": "Unduh Sumber Daya",
+        "subtitle": "Ebook, majalah, komik, materi",
+        "icon": Icons.download_rounded,
+        "color": Colors.green.shade700,
+        "index": 3,
+      },
+      {
+        "title": "Forum Diskusi",
+        "subtitle": "Forum diskusi Buddhis",
+        "icon": Icons.forum_rounded,
+        "color": Colors.teal.shade600,
+        "index": 4,
+      },
+      {
+        "title": "Media Sosial",
+        "subtitle": "Akun media sosial Buddhis",
+        "icon": Icons.people_rounded,
+        "color": Colors.indigo.shade600,
+        "index": 5,
+      },
+    ];
+
     return Padding(
-      padding: const EdgeInsets.all(16), // margin luar 16
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "🌐 Eksplor",
+            "Eksplor",
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
@@ -489,73 +539,30 @@ class _HomeState extends State<Home> {
             ),
           ),
           const SizedBox(height: 12),
-          // spacing antar card 8 px
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: PanjangCardBuilder(
-              title: "Tipiṭakapp",
-              subtitle: "Berbagai aplikasi web Tipiṭaka",
-              icon: Icons.apps_rounded,
-              color: Colors.orange.shade700,
-              isDarkMode: widget.isDarkMode,
-              onTap: () => _openExplore(context, 0),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: PanjangCardBuilder(
-              title: "Kamus & Perpus",
-              subtitle: "Aplikasi web kamus dan perpus",
-              icon: Icons.library_books_rounded,
-              color: Colors.blue.shade700,
-              isDarkMode: widget.isDarkMode,
-              onTap: () => _openExplore(context, 1),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: PanjangCardBuilder(
-              title: "Artikel & Berita",
-              subtitle: "Kumpulan artikel dan berita",
-              icon: Icons.newspaper_rounded,
-              color: Colors.red.shade600,
-              isDarkMode: widget.isDarkMode,
-              onTap: () => _openExplore(context, 2),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: PanjangCardBuilder(
-              title: "Unduh Sumber Daya",
-              subtitle: "Ebook, majalah, komik, materi",
-              icon: Icons.download_rounded,
-              color: Colors.green.shade700,
-              isDarkMode: widget.isDarkMode,
-              onTap: () => _openExplore(context, 3),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: PanjangCardBuilder(
-              title: "Forum Diskusi",
-              subtitle: "Forum diskusi Buddhis",
-              icon: Icons.forum_rounded,
-              color: Colors.teal.shade600,
-              isDarkMode: widget.isDarkMode,
-              onTap: () => _openExplore(context, 4),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: PanjangCardBuilder(
-              title: "Media Sosial",
-              subtitle: "Akun media sosial Buddhis",
-              icon: Icons.people_rounded,
-              color: Colors.indigo.shade600,
-              isDarkMode: widget.isDarkMode,
-              onTap: () => _openExplore(context, 5),
-            ),
-          ),
+
+          // Loop explore items dengan spacing
+          ...exploreItems.asMap().entries.map((entry) {
+            final item = entry.value;
+            final isLast = entry.key == exploreItems.length - 1;
+
+            return Column(
+              children: [
+                PanjangCardBuilder(
+                  title: item["title"] as String,
+                  subtitle: item["subtitle"] as String,
+                  icon: item["icon"] as IconData,
+                  color: item["color"] as Color,
+                  isDarkMode: widget.isDarkMode,
+                  onTap: () => _openExplore(context, item["index"] as int),
+                ),
+                if (!isLast) const SizedBox(height: 3),
+              ],
+            );
+          }),
+
+          const SizedBox(height: 3),
+
+          // Kontribusi card
           PanjangCardBuilder(
             title: "Kontribusi",
             subtitle: "Ikut kembangkan aplikasi ini",
@@ -566,9 +573,12 @@ class _HomeState extends State<Home> {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   title: const Text("Kontribusi"),
                   content: const Text(
-                    "Aplikasi ini dikembangkan secara terbuka dengan mettā, karuṇā, muditā, dan upekkhā.\n\n"
+                    "Aplikasi ini dikembangkan secara terbuka dengan mettÄ, karuṇÄ, muditÄ, dan upekkhÄ.\n\n"
                     "Anda bisa kontribusi dengan:\n"
                     "• Memberi masukan\n"
                     "• Membantu dokumentasi\n"

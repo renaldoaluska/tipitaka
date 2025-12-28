@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../styles/nikaya_style.dart';
 import 'menu_page.dart';
+import '../widgets/header_depan.dart';
 
 class PariyattiPage extends StatefulWidget {
   final bool isDarkMode;
@@ -23,7 +24,6 @@ class _PariyattiPageState extends State<PariyattiPage>
   late AnimationController _fabController;
   late Animation<double> _fabAnimation;
 
-  // Data kitab - COPY dari home.dart yang lama
   final suttaKitabs = [
     {
       "acronym": "DN",
@@ -317,79 +317,53 @@ class _PariyattiPageState extends State<PariyattiPage>
   }
 
   Widget _buildHeader() {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "Studi Dhamma",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: _subtextColor(widget.isDarkMode),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "📚 Pariyatti",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: _textColor(widget.isDarkMode),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    widget.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                    color: widget.isDarkMode ? Colors.amber : Colors.grey[700],
-                  ),
-                  onPressed: widget.onThemeToggle,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Compact buttons for Paritta & Sangaha
-            Row(
-              children: [
-                Expanded(
-                  child: _buildQuickButton(
-                    "🙏 Tematik",
-                    Colors.indigo.shade700,
-                    () {
-                      // TODO: Navigate to Paritta
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildQuickButton(
-                    "📖 Saṅgaha",
-                    Colors.amber.shade700,
-                    () {
-                      // TODO: Navigate to Sangaha
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
+    return Column(
+      children: [
+        HeaderDepan(
+          isDarkMode: widget.isDarkMode,
+          onThemeToggle: widget.onThemeToggle,
+          title: "Pariyatti",
+          subtitle: "Studi Dhamma",
         ),
-      ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildQuickButton(
+                  label: "Tematik",
+                  icon: Icons.category_rounded,
+                  color: Colors.indigo.shade700,
+                  onTap: () {
+                    // TODO: Navigate to Tematik
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildQuickButton(
+                  label: "Ab-saṅgaha",
+                  icon: Icons.auto_stories_rounded,
+                  color: Colors.amber.shade700,
+                  onTap: () {
+                    // TODO: Navigate to Sangaha
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildQuickButton(String label, Color color, VoidCallback onTap) {
+  Widget _buildQuickButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Material(
       color: color.withOpacity(0.1),
       borderRadius: BorderRadius.circular(10),
@@ -397,10 +371,12 @@ class _PariyattiPageState extends State<PariyattiPage>
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
@@ -409,7 +385,7 @@ class _PariyattiPageState extends State<PariyattiPage>
                   color: color,
                 ),
               ),
-              const SizedBox(width: 4),
+              const Spacer(),
               Icon(Icons.arrow_forward_ios, size: 12, color: color),
             ],
           ),
@@ -427,6 +403,11 @@ class _PariyattiPageState extends State<PariyattiPage>
         labelColor: _textColor(widget.isDarkMode),
         unselectedLabelColor: _subtextColor(widget.isDarkMode),
         indicatorColor: Colors.deepOrange,
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.normal,
+        ),
         isScrollable: false,
         tabs: const [
           Tab(text: "Sutta"),
@@ -437,7 +418,6 @@ class _PariyattiPageState extends State<PariyattiPage>
     );
   }
 
-  // COPY build method dari home.dart yang lama
   Widget buildKitabList(List<Map<String, String>> kitabs) {
     final isSutta = identical(kitabs, suttaKitabs);
     if (isSutta) {
@@ -469,7 +449,7 @@ class _PariyattiPageState extends State<PariyattiPage>
       return Container(
         color: _bgColor(widget.isDarkMode),
         child: ListView(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           children: parents.map((kitab) {
             final acronym = normalizeNikayaAcronym(kitab["acronym"]!);
             if (kitab["acronym"] == "KN") {
@@ -479,6 +459,7 @@ class _PariyattiPageState extends State<PariyattiPage>
                 ).copyWith(dividerColor: Colors.transparent),
                 child: Card(
                   color: _cardColor(widget.isDarkMode),
+                  elevation: 1,
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -489,6 +470,7 @@ class _PariyattiPageState extends State<PariyattiPage>
                       "Khuddakanikāya",
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
+                        fontSize: 15,
                         color: _textColor(widget.isDarkMode),
                       ),
                     ),
@@ -496,7 +478,7 @@ class _PariyattiPageState extends State<PariyattiPage>
                       kitab["desc"]!,
                       style: TextStyle(
                         color: _subtextColor(widget.isDarkMode),
-                        fontSize: 13,
+                        fontSize: 12,
                       ),
                     ),
                     initiallyExpanded: false,
@@ -505,12 +487,20 @@ class _PariyattiPageState extends State<PariyattiPage>
                         child["acronym"]!,
                       );
                       return ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         tileColor: _cardColor(widget.isDarkMode),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 0,
+                        ),
                         leading: buildNikayaAvatar(childAcronym),
                         title: Text(
                           child["name"]!,
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
+                            fontSize: 14,
                             color: _textColor(widget.isDarkMode),
                           ),
                         ),
@@ -518,13 +508,13 @@ class _PariyattiPageState extends State<PariyattiPage>
                           child["desc"]!,
                           style: TextStyle(
                             color: _subtextColor(widget.isDarkMode),
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
                         trailing: Text(
                           child["range"]!,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: getNikayaColor(childAcronym),
                           ),
@@ -548,16 +538,25 @@ class _PariyattiPageState extends State<PariyattiPage>
             }
             return Card(
               color: _cardColor(widget.isDarkMode),
-              margin: const EdgeInsets.symmetric(vertical: 6),
+              elevation: 1,
+              margin: const EdgeInsets.symmetric(vertical: 5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 0, // ✅ samain kayak KN children
+                ),
                 leading: buildNikayaAvatar(acronym),
                 title: Text(
                   kitab["name"]!,
                   style: TextStyle(
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w500, // ✅ samain kayak KN children
+                    fontSize: 14, // ✅ samain kayak KN children
                     color: _textColor(widget.isDarkMode),
                   ),
                 ),
@@ -565,13 +564,13 @@ class _PariyattiPageState extends State<PariyattiPage>
                   kitab["desc"]!,
                   style: TextStyle(
                     color: _subtextColor(widget.isDarkMode),
-                    fontSize: 13,
+                    fontSize: 12, // ✅ tetap
                   ),
                 ),
                 trailing: Text(
                   kitab["range"]!,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 12, // ✅ samain kayak KN children
                     fontWeight: FontWeight.bold,
                     color: getNikayaColor(acronym),
                   ),
@@ -594,23 +593,32 @@ class _PariyattiPageState extends State<PariyattiPage>
     return Container(
       color: _bgColor(widget.isDarkMode),
       child: ListView.builder(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         itemCount: kitabs.length,
         itemBuilder: (context, index) {
           final kitab = kitabs[index];
           final acronym = normalizeNikayaAcronym(kitab["acronym"]!);
           return Card(
             color: _cardColor(widget.isDarkMode),
-            margin: const EdgeInsets.symmetric(vertical: 6),
+            elevation: 1,
+            margin: const EdgeInsets.symmetric(vertical: 5),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
             child: ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 0, // ✅ samain kayak KN children
+              ),
               leading: buildNikayaAvatar(acronym),
               title: Text(
                 kitab["name"]!,
                 style: TextStyle(
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w500, // ✅ samain kayak KN children
+                  fontSize: 14, // ✅ samain kayak KN children
                   color: _textColor(widget.isDarkMode),
                 ),
               ),
@@ -618,13 +626,13 @@ class _PariyattiPageState extends State<PariyattiPage>
                 kitab["desc"]!,
                 style: TextStyle(
                   color: _subtextColor(widget.isDarkMode),
-                  fontSize: 13,
+                  fontSize: 12, // ✅ tetap
                 ),
               ),
               trailing: Text(
                 kitab["range"]!,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12, // ✅ samain kayak KN children
                   fontWeight: FontWeight.bold,
                   color: getNikayaColor(acronym),
                 ),
@@ -657,20 +665,20 @@ class _PariyattiPageState extends State<PariyattiPage>
             ScaleTransition(
               scale: _fabAnimation,
               child: _buildFabOption(
-                "Kode Sutta",
-                Icons.tag,
-                Colors.blue,
-                () => _showCodeInput(),
+                label: "Kode Sutta",
+                icon: Icons.tag_rounded,
+                color: Colors.blue.shade600,
+                onTap: () => _showCodeInput(),
               ),
             ),
             const SizedBox(height: 10),
             ScaleTransition(
               scale: _fabAnimation,
               child: _buildFabOption(
-                "Pencarian",
-                Icons.search,
-                Colors.green,
-                () => _showSearchModal(),
+                label: "Pencarian",
+                icon: Icons.search_rounded,
+                color: Colors.green.shade600,
+                onTap: () => _showSearchModal(),
               ),
             ),
             const SizedBox(height: 10),
@@ -678,10 +686,14 @@ class _PariyattiPageState extends State<PariyattiPage>
           FloatingActionButton(
             onPressed: _toggleFab,
             backgroundColor: Colors.deepOrange,
+            elevation: 2,
             child: AnimatedRotation(
               turns: _isFabExpanded ? 0.125 : 0,
               duration: const Duration(milliseconds: 200),
-              child: Icon(_isFabExpanded ? Icons.close : Icons.search),
+              child: Icon(
+                _isFabExpanded ? Icons.close : Icons.search,
+                size: 24,
+              ),
             ),
           ),
         ],
@@ -689,12 +701,12 @@ class _PariyattiPageState extends State<PariyattiPage>
     );
   }
 
-  Widget _buildFabOption(
-    String label,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
+  Widget _buildFabOption({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -703,23 +715,24 @@ class _PariyattiPageState extends State<PariyattiPage>
           borderRadius: BorderRadius.circular(20),
           elevation: 2,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
                 color: _textColor(widget.isDarkMode),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         FloatingActionButton.small(
           heroTag: label,
           onPressed: onTap,
           backgroundColor: color,
-          child: Icon(icon, size: 18),
+          elevation: 2,
+          child: Icon(icon, size: 20),
         ),
       ],
     );
@@ -733,16 +746,29 @@ class _PariyattiPageState extends State<PariyattiPage>
         final ctrl = TextEditingController();
         return AlertDialog(
           backgroundColor: _cardColor(widget.isDarkMode),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(
             "Masukkan Kode Sutta",
-            style: TextStyle(color: _textColor(widget.isDarkMode)),
+            style: TextStyle(
+              color: _textColor(widget.isDarkMode),
+              fontWeight: FontWeight.bold,
+            ),
           ),
           content: TextField(
             controller: ctrl,
             autofocus: true,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: "Contoh: mn1, sn12.1",
-              border: OutlineInputBorder(),
+              hintStyle: TextStyle(color: _subtextColor(widget.isDarkMode)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
             style: TextStyle(color: _textColor(widget.isDarkMode)),
             onSubmitted: (v) {
@@ -755,12 +781,19 @@ class _PariyattiPageState extends State<PariyattiPage>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Batal"),
+              child: Text(
+                "Batal",
+                style: TextStyle(color: _subtextColor(widget.isDarkMode)),
+              ),
             ),
             FilledButton(
               onPressed: () {
-                if (ctrl.text.isNotEmpty) Navigator.pop(context);
+                if (ctrl.text.isNotEmpty) {
+                  Navigator.pop(context);
+                  // TODO: Parse & navigate
+                }
               },
+              style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
               child: const Text("Buka"),
             ),
           ],
@@ -779,10 +812,19 @@ class _PariyattiPageState extends State<PariyattiPage>
         height: MediaQuery.of(context).size.height * 0.8,
         decoration: BoxDecoration(
           color: _cardColor(widget.isDarkMode),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _subtextColor(widget.isDarkMode).withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -792,16 +834,30 @@ class _PariyattiPageState extends State<PariyattiPage>
                       autofocus: true,
                       decoration: InputDecoration(
                         hintText: "Cari judul sutta...",
-                        prefixIcon: const Icon(Icons.search),
+                        hintStyle: TextStyle(
+                          color: _subtextColor(widget.isDarkMode),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: _subtextColor(widget.isDarkMode),
+                        ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
                       ),
                       style: TextStyle(color: _textColor(widget.isDarkMode)),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close,
+                      color: _textColor(widget.isDarkMode),
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -809,9 +865,23 @@ class _PariyattiPageState extends State<PariyattiPage>
             ),
             Expanded(
               child: Center(
-                child: Text(
-                  "Ketik untuk mencari...",
-                  style: TextStyle(color: _subtextColor(widget.isDarkMode)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.search_off_rounded,
+                      size: 48,
+                      color: _subtextColor(widget.isDarkMode).withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Ketik untuk mencari sutta...",
+                      style: TextStyle(
+                        color: _subtextColor(widget.isDarkMode),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

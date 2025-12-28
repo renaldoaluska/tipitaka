@@ -338,7 +338,12 @@ class _SuttaplexState extends State<Suttaplex> {
 
   Widget buildTranslationList(List<dynamic> translations) {
     return Column(
-      children: translations.map((t) => buildTranslationItem(t)).toList(),
+      children: translations.map((t) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 3), // jarak antar item
+          child: buildTranslationItem(t),
+        );
+      }).toList(),
     );
   }
 
@@ -387,7 +392,19 @@ class _SuttaplexState extends State<Suttaplex> {
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
-        ...langs.map((lang) => lockedSectionLang(lang)),
+        ...langs.asMap().entries.map((entry) {
+          final index = entry.key;
+          final lang = entry.value;
+          final isLast = index == langs.length - 1;
+
+          return Padding(
+            padding: EdgeInsets.only(
+              // ❌ item pertama nggak dikasih top
+              bottom: isLast ? 8 : 4, // ✅ jarak antar item & ekstra di last
+            ),
+            child: lockedSectionLang(lang),
+          );
+        }),
       ],
     );
   }
@@ -486,6 +503,7 @@ class _SuttaplexState extends State<Suttaplex> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 8),
                       buildTranslationList(translations),
 
                       if (_extraTranslations.isNotEmpty)
