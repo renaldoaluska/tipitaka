@@ -76,218 +76,237 @@ class _PatipattiPageState extends State<PatipattiPage> {
         color: _cardColor(widget.isDarkMode),
         elevation: 1,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            // TODO: Navigate ke halaman detail Uposatha
-            // (Kalender penuh, pengambilan sīla, penjelasan, dll)
-          },
-          child: Container(
-            // decoration: BoxDecoration(
-            //  borderRadius: BorderRadius.circular(16),
-            // border: Border.all(color: accentColor.withOpacity(0.3), width: 2),
-            //),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header: Icon + Title + Badge dalam satu row
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        //border: Border.all(
-                        //  color: accentColor.withOpacity(0.3),
-                        //  width: 1.5,
-                        //),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.nightlight_round,
+                      color: accentColor,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Uposatha",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: _textColor(widget.isDarkMode),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Pengamalan Puasa",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _subtextColor(widget.isDarkMode),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: accentColor.withOpacity(0.3),
+                        width: 1,
                       ),
-                      child: Icon(
-                        Icons.nightlight_round,
+                    ),
+                    child: Text(
+                      "3 hari lagi",
+                      style: TextStyle(
                         color: accentColor,
-                        size: 24,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Uposatha",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: _textColor(widget.isDarkMode),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "Pengamalan Puasa",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _subtextColor(widget.isDarkMode),
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Dropdown versi kalender
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: accentColor.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.calendar_view_month,
+                      size: 14,
+                      color: accentColor,
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
+                    const SizedBox(width: 6),
+                    DropdownButton<String>(
+                      value: _selectedUposathaVersion,
+                      underline: const SizedBox(),
+                      isDense: true,
+                      icon: Icon(
+                        Icons.arrow_drop_down,
+                        size: 18,
+                        color: accentColor,
                       ),
-                      decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(
-                          color: accentColor.withOpacity(0.3),
-                          width: 1,
-                        ),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: accentColor,
+                        fontWeight: FontWeight.w600,
                       ),
-                      child: Text(
-                        "3 hari lagi",
-                        style: TextStyle(
-                          color: accentColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      items: _uposathaVersions.map((version) {
+                        return DropdownMenuItem(
+                          value: version,
+                          child: Text(version),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedUposathaVersion = value!;
+                        });
+                      },
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+              ),
+              const SizedBox(height: 10),
 
-                // Dropdown versi kalender
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: accentColor.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.calendar_view_month,
-                        size: 14,
-                        color: accentColor,
-                      ),
-                      const SizedBox(width: 6),
-                      DropdownButton<String>(
-                        value: _selectedUposathaVersion,
-                        underline: const SizedBox(),
-                        isDense: true,
-                        icon: Icon(
-                          Icons.arrow_drop_down,
-                          size: 18,
-                          color: accentColor,
-                        ),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: accentColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        items: _uposathaVersions.map((version) {
-                          return DropdownMenuItem(
-                            value: version,
-                            child: Text(version),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedUposathaVersion = value!;
-                            // TODO: Fetch ulang data fase bulan dari DB sesuai versi
-                          });
-                        },
-                      ),
-                    ],
+              // Fase bulan (plain box, no background)
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: accentColor.withOpacity(0.2),
+                    width: 1,
                   ),
                 ),
-                const SizedBox(height: 10),
-
-                // Fase bulan bulan ini (compact version)
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: accentColor.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Perhitungan Januari 2025",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _textColor(widget.isDarkMode),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      // Semua 4 fase adalah Uposatha
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: _moonPhases.map((phase) {
-                          return Column(
-                            children: [
-                              Text(
-                                phase["phase"]!,
-                                style: const TextStyle(fontSize: 20),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                phase["date"]!,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: _textColor(widget.isDarkMode),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Footer: Tap untuk detail
-                Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.calendar_today, color: accentColor, size: 14),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        "Tap untuk kalender & sīla",
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: _subtextColor(widget.isDarkMode),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      "Perhitungan Januari 2025",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _textColor(widget.isDarkMode),
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: _moonPhases.map((phase) {
+                        return Column(
+                          children: [
+                            Text(
+                              phase["phase"]!,
+                              style: const TextStyle(fontSize: 20),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              phase["date"]!,
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: _textColor(widget.isDarkMode),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 10),
+
+              // Tombol aksi bawah
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        backgroundColor: accentColor.withOpacity(
+                          0.05,
+                        ), // sama kayak dropdown
+                        foregroundColor: accentColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: accentColor.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: const Text(
+                        "Kalender",
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () {
+                        // TODO: Navigate ke kalender
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        backgroundColor: accentColor.withOpacity(
+                          0.05,
+                        ), // sama kayak dropdown
+                        foregroundColor: accentColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: accentColor.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.article_outlined, size: 16),
+                      label: const Text(
+                        "Panduan",
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () {
+                        // TODO: Navigate ke kalender
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
