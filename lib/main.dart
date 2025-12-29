@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/theme_manager.dart';
 import 'screens/home.dart';
@@ -369,8 +370,8 @@ class _RootPageState extends State<RootPage>
               _buildNavItem(
                 rootIndex: 0,
                 targetPage: 0,
-                icon: Icons.home_rounded,
-                label: 'Home',
+                icon: 'assets/ic_home.svg', // 👈 pake svg hasil convert tadi
+                label: 'Beranda',
               ),
               _buildNavItem(
                 rootIndex: 1,
@@ -395,7 +396,9 @@ class _RootPageState extends State<RootPage>
   Widget _buildNavItem({
     required int rootIndex,
     required int targetPage,
-    required IconData icon,
+    required dynamic
+    icon, // 👈 Ubah ke dynamic biar bisa terima String atau IconData
+    //required IconData icon,
     required String label,
   }) {
     final isSelected = _rootTab == rootIndex;
@@ -416,11 +419,26 @@ class _RootPageState extends State<RootPage>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  color: isSelected ? Colors.deepOrange : baseColor,
-                  size: isSelected ? 26 : 24,
-                ),
+                // 👇 LOGIKA SMART ICON: TETEP PAKE WARNA LU
+                icon is String
+                    ? SvgPicture.asset(
+                        icon,
+                        width: isSelected ? 26 : 24,
+                        height: isSelected ? 26 : 24,
+                        colorFilter: ColorFilter.mode(
+                          isSelected
+                              ? Colors.deepOrange
+                              : baseColor, // ✅ Sesuai permintaan lu
+                          BlendMode.srcIn,
+                        ),
+                      )
+                    : Icon(
+                        icon as IconData,
+                        color: isSelected
+                            ? Colors.deepOrange
+                            : baseColor, // ✅ Sesuai permintaan lu
+                        size: isSelected ? 26 : 24,
+                      ),
                 const SizedBox(height: 1),
                 Text(
                   label,
