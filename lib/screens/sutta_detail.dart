@@ -1142,7 +1142,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
           child: Padding(
             // Padding kiri dikit aja (2.0) biar ga nempel banget sama huruf terakhir,
             // tapi tetep keliatan "nyatu"
-            padding: const EdgeInsets.only(left: 2.0),
+            padding: const EdgeInsets.only(left: 0.1),
             child: Transform.translate(
               // ✅ INI DIA: Geser ke atas (Superscript)
               offset: const Offset(0, -6),
@@ -1341,7 +1341,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
           textDecoration: TextDecoration.none,
           verticalAlign: VerticalAlign.sup,
           border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-          margin: Margins.symmetric(horizontal: 2),
+          //margin: Margins.symmetric(horizontal: 4),
+          margin: Margins.only(right: 4),
           padding: HtmlPaddings.symmetric(horizontal: 2, vertical: 0),
           display: Display.inlineBlock,
         ),
@@ -1400,32 +1401,26 @@ class _SuttaDetailState extends State<SuttaDetail> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHtmlText(
-                  isTransEmpty ? "..." : trans,
-                  isTransEmpty
-                      ? config.transStyle.copyWith(
-                          color: Colors.grey,
-                          fontStyle: FontStyle.italic,
-                        )
-                      : config.transStyle,
-                  index,
-                  0,
-                ),
-                if (comm.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          _buildCommentSpan(
-                            context,
-                            comm,
-                            config.transStyle.fontSize ?? _fontSize,
-                          ),
-                        ],
-                      ),
-                    ),
+                // ✅ Gabungkan terjemahan + note jadi satu Text.rich
+                Text.rich(
+                  TextSpan(
+                    text: isTransEmpty ? "..." : trans,
+                    style: isTransEmpty
+                        ? config.transStyle.copyWith(
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          )
+                        : config.transStyle,
+                    children: [
+                      if (comm.isNotEmpty)
+                        _buildCommentSpan(
+                          context,
+                          comm,
+                          config.transStyle.fontSize ?? _fontSize,
+                        ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -1466,32 +1461,26 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHtmlText(
-                        isTransEmpty ? "..." : trans,
-                        isTransEmpty
-                            ? config.transStyle.copyWith(
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
-                              )
-                            : config.transStyle,
-                        index,
-                        paliMatchCount,
-                      ),
-                      if (comm.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                _buildCommentSpan(
-                                  context,
-                                  comm,
-                                  config.transStyle.fontSize ?? _fontSize,
-                                ),
-                              ],
-                            ),
-                          ),
+                      // ✅ Gabungkan trans + note jadi satu Text.rich
+                      Text.rich(
+                        TextSpan(
+                          text: isTransEmpty ? "..." : trans,
+                          style: isTransEmpty
+                              ? config.transStyle.copyWith(
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                )
+                              : config.transStyle,
+                          children: [
+                            if (comm.isNotEmpty)
+                              _buildCommentSpan(
+                                context,
+                                comm,
+                                config.transStyle.fontSize ?? _fontSize,
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
               ],
@@ -1556,32 +1545,26 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHtmlText(
-                      isTransEmpty ? "..." : trans,
-                      isTransEmpty
-                          ? config.transStyle.copyWith(
-                              color: Colors.grey,
-                              fontStyle: FontStyle.italic,
-                            )
-                          : config.transStyle,
-                      index,
-                      paliMatchCount,
-                    ),
-                    if (comm.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              _buildCommentSpan(
-                                context,
-                                comm,
-                                config.transStyle.fontSize ?? _fontSize,
-                              ),
-                            ],
-                          ),
-                        ),
+                    // ✅ Gabungkan trans + note jadi satu Text.rich
+                    Text.rich(
+                      TextSpan(
+                        text: isTransEmpty ? "..." : trans,
+                        style: isTransEmpty
+                            ? config.transStyle.copyWith(
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic,
+                              )
+                            : config.transStyle,
+                        children: [
+                          if (comm.isNotEmpty)
+                            _buildCommentSpan(
+                              context,
+                              comm,
+                              config.transStyle.fontSize ?? _fontSize,
+                            ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -1933,7 +1916,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
                     border: Border.all(
                       color: Colors.grey.withValues(alpha: 0.5),
                     ),
-                    margin: Margins.symmetric(horizontal: 2),
+                    //margin: Margins.symmetric(horizontal: 4),
+                    margin: Margins.only(right: 4),
                     padding: HtmlPaddings.symmetric(horizontal: 2, vertical: 0),
                     display: Display.inlineBlock,
                   ),
@@ -2026,6 +2010,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
         key: _scaffoldKey,
         appBar: null,
         backgroundColor: bgColor,
+        // INI WARNA BODY
+        //backgroundColor: Theme.of(context).brightness == Brightness.dark
+        //  ? Colors.grey[800]
+        //: Colors.grey[100],
         endDrawer: _tocList.isNotEmpty
             ? Drawer(
                 child: Column(
@@ -2080,6 +2068,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 ),
               )
             : null,
+
         body: Stack(
           children: [
             Column(
@@ -2091,222 +2080,225 @@ class _SuttaDetailState extends State<SuttaDetail> {
               ],
             ),
 
-            // TRANSPARENT HEADER
+            // TRANSPARENT HEADER dengan shadow konsisten
             Positioned(
               top: MediaQuery.of(context).padding.top,
               left: 0,
               right: 0,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: cardColor.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 3,
-                            spreadRadius: 0,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(
+                          alpha: 0.1,
+                        ), // lebih pekat
+                        blurRadius: 4, // lebih besar biar soft
+                        offset: const Offset(0, 2), // geser biar keliatan
                       ),
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: IconButton(
-                              icon: Icon(Icons.arrow_back, color: iconColor),
-                              onPressed: _isLoading
-                                  ? null
-                                  : () async {
-                                      final navigator = Navigator.of(context);
-                                      final allow = await _handleBackReplace();
-                                      if (allow && mounted) {
-                                        navigator.pop();
-                                      }
-                                    },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              widget.textData?["suttaplex"]?["original_title"] ??
-                                  suttaTitle,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.bookmark_border,
-                              color: Colors.amber,
-                              size: 22,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: () {
-                              // TODO: Handle bookmark functionality
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Bookmark: TO DO'),
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.info_outline,
-                              color: Colors.blue,
-                              size: 20,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                  backgroundColor: cardColor,
-                                  title: Text(
-                                    widget.textData?["suttaplex"]?["original_title"] ??
-                                        suttaTitle,
-                                    style: TextStyle(color: textColor),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                      child: Container(
+                        color: cardColor.withValues(alpha: 0.85),
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            // Tombol back dengan shadow kecil
+                            Container(
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
                                   ),
-                                  content: SingleChildScrollView(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (shouldShowBlurb &&
-                                            rawBlurb.isNotEmpty) ...[
-                                          Html(
-                                            data: rawBlurb,
-                                            style: {
-                                              "body": Style(color: textColor),
-                                            },
-                                          ),
-                                          const SizedBox(height: 16),
-                                          const Divider(),
-                                          const SizedBox(height: 12),
-                                        ],
-                                        Text(
-                                          "Tentang",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                            color: textColor,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        if (metadata["author"]
-                                            .toString()
-                                            .isNotEmpty) ...[
-                                          _buildInfoRow(
-                                            Icons.person_outline,
-                                            "Author",
-                                            metadata["author"],
-                                          ),
-                                          const SizedBox(height: 10),
-                                        ],
-                                        _buildInfoRow(
-                                          Icons.language,
-                                          "Bahasa",
-                                          metadata["langName"],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        if (metadata["pubDate"] != null &&
-                                            metadata["pubDate"]
-                                                .toString()
-                                                .isNotEmpty) ...[
-                                          _buildInfoRow(
-                                            Icons.calendar_today_outlined,
-                                            "Tahun Terbit",
-                                            metadata["pubDate"],
-                                          ),
-                                          const SizedBox(height: 10),
-                                        ],
-                                        _buildInfoRow(
-                                          metadata["isSegmented"]
-                                              ? Icons.format_align_left
-                                              : Icons.archive_outlined,
-                                          "Format",
-                                          metadata["isSegmented"]
-                                              ? "Aligned (Segmented JSON)"
-                                              : "Legacy (HTML)",
-                                        ),
-
-                                        if (_footerInfo.isNotEmpty) ...[
-                                          const SizedBox(height: 16),
-                                          const Divider(),
-                                          const SizedBox(height: 12),
+                                ],
+                              ),
+                              child: IconButton(
+                                icon: Icon(Icons.arrow_back, color: iconColor),
+                                onPressed: _isLoading
+                                    ? null
+                                    : () async {
+                                        final navigator = Navigator.of(context);
+                                        final allow =
+                                            await _handleBackReplace();
+                                        if (allow && mounted) {
+                                          navigator.pop();
+                                        }
+                                      },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                widget.textData?["suttaplex"]?["original_title"] ??
+                                    suttaTitle,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.bookmark_border,
+                                color: Colors.amber,
+                                size: 22,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Bookmark: TO DO'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.info_outline,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    backgroundColor: cardColor,
+                                    title: Text(
+                                      widget.textData?["suttaplex"]?["original_title"] ??
+                                          suttaTitle,
+                                      style: TextStyle(color: textColor),
+                                    ),
+                                    content: SingleChildScrollView(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (shouldShowBlurb &&
+                                              rawBlurb.isNotEmpty) ...[
+                                            Html(
+                                              data: rawBlurb,
+                                              style: {
+                                                "body": Style(color: textColor),
+                                              },
+                                            ),
+                                            const SizedBox(height: 16),
+                                            const Divider(),
+                                            const SizedBox(height: 12),
+                                          ],
                                           Text(
-                                            "Informasi",
+                                            "Tentang",
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 15,
                                               color: textColor,
                                             ),
                                           ),
-                                          const SizedBox(height: 8),
-                                          Html(
-                                            data: _footerInfo,
-                                            style: {
-                                              "body": Style(color: textColor),
-                                            },
+                                          const SizedBox(height: 12),
+                                          if (metadata["author"]
+                                              .toString()
+                                              .isNotEmpty) ...[
+                                            _buildInfoRow(
+                                              Icons.person_outline,
+                                              "Author",
+                                              metadata["author"],
+                                            ),
+                                            const SizedBox(height: 10),
+                                          ],
+                                          _buildInfoRow(
+                                            Icons.language,
+                                            "Bahasa",
+                                            metadata["langName"],
                                           ),
+                                          const SizedBox(height: 10),
+                                          if (metadata["pubDate"] != null &&
+                                              metadata["pubDate"]
+                                                  .toString()
+                                                  .isNotEmpty) ...[
+                                            _buildInfoRow(
+                                              Icons.calendar_today_outlined,
+                                              "Tahun Terbit",
+                                              metadata["pubDate"],
+                                            ),
+                                            const SizedBox(height: 10),
+                                          ],
+                                          _buildInfoRow(
+                                            metadata["isSegmented"]
+                                                ? Icons.format_align_left
+                                                : Icons.archive_outlined,
+                                            "Format",
+                                            metadata["isSegmented"]
+                                                ? "Aligned (Segmented JSON)"
+                                                : "Legacy (HTML)",
+                                          ),
+                                          if (_footerInfo.isNotEmpty) ...[
+                                            const SizedBox(height: 16),
+                                            const Divider(),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              "Informasi",
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                                color: textColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Html(
+                                              data: _footerInfo,
+                                              style: {
+                                                "body": Style(color: textColor),
+                                              },
+                                            ),
+                                          ],
                                         ],
-                                      ],
+                                      ),
                                     ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text("Tutup"),
+                                      ),
+                                    ],
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text("Tutup"),
+                                );
+                              },
+                            ),
+                            if (acronym.isNotEmpty) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                acronym,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: getNikayaColor(
+                                    normalizeNikayaAcronym(
+                                      acronym.split(" ").first,
                                     ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          if (acronym.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              acronym,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: getNikayaColor(
-                                  normalizeNikayaAcronym(
-                                    acronym.split(" ").first,
                                   ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),

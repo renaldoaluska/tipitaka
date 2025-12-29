@@ -49,7 +49,7 @@ class _HeaderDepanState extends State<HeaderDepan> {
 
     if (widget.enableAnimation && _displayList.length > 1) {
       // ini waktu lama muncul
-      _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
         if (mounted) {
           setState(() {
             _currentIndex = (_currentIndex + 1) % _displayList.length;

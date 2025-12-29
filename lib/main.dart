@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka/screens/tematik_page.dart';
 import 'core/theme/theme_manager.dart';
 import 'screens/home.dart';
 import 'screens/pariyatti_content.dart';
@@ -10,7 +11,7 @@ import 'widgets/header_depan.dart';
 import 'dart:ui';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized(); // Best practice tambah ini
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeManager(),
@@ -30,25 +31,66 @@ class TripitakaApp extends StatelessWidget {
           title: 'Tipitaka Indonesia',
           theme: themeManager.lightTheme,
           darkTheme: themeManager.darkTheme,
-          //themeMode: themeManager.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          // 👉 Ganti ini. Jangan pake ternary operator (?:)
-          // ✅ INI KUNCINYA
-          // ThemeMode.system -> Flutter otomatis cek HP user
-          // ThemeMode.dark -> Paksa dark
-          // ThemeMode.light -> Paksa light
           themeMode: themeManager.themeMode,
-
-          home: const RootPage(),
+          home: const _SplashGate(), // ⬅️ loading gate
         );
       },
     );
   }
 }
 
-// RootPage tetap sama, tapi hapus _isDarkMode state
+// Splash gate sederhana
+class _SplashGate extends StatefulWidget {
+  const _SplashGate();
+  @override
+  State<_SplashGate> createState() => _SplashGateState();
+}
+
+class _SplashGateState extends State<_SplashGate> {
+  @override
+  void initState() {
+    super.initState();
+    _boot();
+  }
+
+  Future<void> _boot() async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const RootPage()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = Theme.of(context).scaffoldBackgroundColor;
+    final onBg = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Scaffold(
+      backgroundColor: bg,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colors.deepOrange,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text("Memulai…", style: TextStyle(fontSize: 12, color: onBg)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// RootPage
 class RootPage extends StatefulWidget {
   const RootPage({super.key});
-
   @override
   State<RootPage> createState() => _RootPageState();
 }
@@ -87,15 +129,10 @@ class _RootPageState extends State<RootPage>
   void _navigateToPage(int index) {
     if (index >= 0 && index <= 4 && _currentIndex != index && mounted) {
       HapticFeedback.selectionClick();
-
-      // ✅ Simpan posisi terakhir kalau lagi di Pariyatti (1-3)
-      // Baik dari click maupun swipe
       if (_currentIndex >= 1 && _currentIndex <= 3) {
         _lastPariyattiPage = _currentIndex;
       }
-
       setState(() => _currentIndex = index);
-
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_pageController.hasClients && mounted) {
           _pageController.animateToPage(
@@ -116,38 +153,28 @@ class _RootPageState extends State<RootPage>
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 5 pages flat - tanpa parameter isDarkMode & onThemeToggle
     final pages = [
       const Home(),
-      const PariyattiContent(tab: 0), // Sutta
-      const PariyattiContent(tab: 1), // Abhidhamma
-      const PariyattiContent(tab: 2), // Vinaya
+      const PariyattiContent(tab: 0),
+      const PariyattiContent(tab: 1),
+      const PariyattiContent(tab: 2),
       const PatipattiPage(),
     ];
 
     return Scaffold(
-      backgroundColor: Theme.of(
-        context,
-      ).scaffoldBackgroundColor, // ✅ Ini aja yang diganti
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // ✅ PageView (full screen)
           PageView(
             controller: _pageController,
             onPageChanged: (index) {
-              if (mounted) {
-                setState(() => _currentIndex = index);
-              }
+              if (mounted) setState(() => _currentIndex = index);
             },
             physics: const BouncingScrollPhysics(),
             children: pages,
           ),
-
-          // ✅ Overlay header khusus Pariyatti
           if (_currentIndex >= 1 && _currentIndex <= 3)
             _buildPariyattiOverlay(),
-
-          // ✅ FAB cuma muncul di Pariyatti, tapi gak ikut slide
           if (_currentIndex >= 1 && _currentIndex <= 3) _buildFabSearch(),
         ],
       ),
@@ -174,56 +201,112 @@ class _RootPageState extends State<RootPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ✅ SOLUSI FINAL BIAR POSISI SAMA PERSIS:
-                  // Pake AppBar beneran (dibungkus SizedBox 80).
-                  // Ini maksa flutter ngitung posisi "Center" sama persis kayak di Home.
                   SizedBox(
                     height: 80,
                     child: AppBar(
-                      primary:
-                          false, // Penting: Matikan safearea internal AppBar (krn kita udh di dlm SafeArea)
+                      primary: false,
                       backgroundColor: Colors.transparent,
                       elevation: 0,
                       scrolledUnderElevation: 0,
                       automaticallyImplyLeading: false,
-                      centerTitle: true, // Paksa tengah
-                      titleSpacing: 0, // Hapus margin bawaan
-                      toolbarHeight: 80, // Samain tinggi
+                      centerTitle: true,
+                      titleSpacing: 0,
+                      toolbarHeight: 80,
                       title: const HeaderDepan(
                         title: "Pariyatti",
                         subtitle: "Studi Dhamma",
                       ),
                     ),
                   ),
-
-                  // const SizedBox(height: 12), // (Opsional, jarak ke tombol di bawahnya)
-
-                  // Quick buttons
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
                         Expanded(
-                          child: _buildQuickButton(
-                            label: "Tematik",
-                            icon: Icons.category_rounded,
-                            color: Colors.indigo.shade700,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.indigo.shade700.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  Future.delayed(
+                                    const Duration(milliseconds: 120),
+                                    () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const TematikPage(),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                                child: _buildQuickButton(
+                                  label: "Tematik",
+                                  icon: Icons.category_rounded,
+                                  color: Colors.indigo.shade700,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: _buildQuickButton(
-                            label: "Ab-saṅgaha",
-                            icon: Icons.auto_stories_rounded,
-                            color: Colors.amber.shade700,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.amber.shade700.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  Future.delayed(
+                                    const Duration(milliseconds: 120),
+                                    () {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Saṅgaha: TO DO'),
+                                          duration: Duration(milliseconds: 800),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                                child: _buildQuickButton(
+                                  label: "Ab-saṅgaha",
+                                  icon: Icons.auto_stories_rounded,
+                                  color: Colors.amber.shade700,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 12),
-
-                  // Tab bar (Kode lanjutannya sama...)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -251,19 +334,15 @@ class _RootPageState extends State<RootPage>
     required IconData icon,
     required Color color,
   }) {
-    // ✅ Ambil dari Theme, bukan state
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // ✅ Di dark mode, bikin warna lebih terang
     final displayColor = isDark ? Color.lerp(color, Colors.white, 0.3)! : color;
 
     final red = (displayColor.r * 255).round();
     final green = (displayColor.g * 255).round();
     final blue = (displayColor.b * 255).round();
 
-    // ✅ Alpha lebih tinggi di dark mode biar keliatan
-    final bgAlpha = isDark ? 51 : 26; // ✅ Ganti _isDarkMode jadi isDark
-    final borderAlpha = isDark ? 128 : 77; // ✅ Ganti _isDarkMode jadi isDark
+    final bgAlpha = isDark ? 51 : 26;
+    final borderAlpha = isDark ? 128 : 77;
 
     final bgColor = Color.fromARGB(bgAlpha, red, green, blue);
     return Container(
@@ -278,8 +357,27 @@ class _RootPageState extends State<RootPage>
         color: bgColor,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
-          onTap: () {},
           borderRadius: BorderRadius.circular(10),
+          // ⬇️ Ripple timing: delay ringan biar efek sempat muncul
+          onTap: () {
+            if (label == "Tematik") {
+              Future.delayed(const Duration(milliseconds: 120), () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TematikPage()),
+                );
+              });
+            } else if (label == "Ab-saṅgaha") {
+              Future.delayed(const Duration(milliseconds: 120), () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Saṅgaha: TO DO'),
+                    duration: Duration(milliseconds: 800),
+                  ),
+                );
+              });
+            }
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             child: Row(
@@ -307,15 +405,14 @@ class _RootPageState extends State<RootPage>
 
   Widget _buildTabButton(int tabIndex, String label, int targetPage) {
     final isActive = _currentIndex == targetPage;
-    final isDark =
-        Theme.of(context).brightness == Brightness.dark; // ✅ Tambah ini
-    final baseColor = isDark ? Colors.grey[400]! : Colors.grey[600]!; // ✅ Ganti
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
 
     return Expanded(
       child: Material(
         color: isActive
             ? Colors.deepOrange.withValues(alpha: 0.15)
-            : (isDark ? Colors.grey[850] : Colors.white), // ✅ Ganti
+            : (isDark ? Colors.grey[850] : Colors.white),
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: () => _navigateToPage(targetPage),
@@ -347,12 +444,12 @@ class _RootPageState extends State<RootPage>
   }
 
   Widget _buildBottomNav() {
-    final isDark = Theme.of(context).brightness == Brightness.dark; // ✅ Tambah
-    final navBarColor = isDark ? Colors.grey[850]! : Colors.white; // ✅ Tambah
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBarColor = isDark ? Colors.grey[850]! : Colors.white;
 
     return Container(
       decoration: BoxDecoration(
-        color: navBarColor, // ✅ Ganti dari _navBarColor(_isDarkMode)
+        color: navBarColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -370,13 +467,12 @@ class _RootPageState extends State<RootPage>
               _buildNavItem(
                 rootIndex: 0,
                 targetPage: 0,
-                icon: 'assets/home.svg', // 👈 pake svg hasil convert tadi
+                icon: 'assets/home.svg',
                 label: 'Beranda',
               ),
               _buildNavItem(
                 rootIndex: 1,
-                targetPage:
-                    _lastPariyattiPage, // ✅ Ke posisi terakhir, bukan hardcoded 2
+                targetPage: _lastPariyattiPage,
                 icon: Icons.menu_book_rounded,
                 label: 'Pariyatti',
               ),
@@ -396,7 +492,7 @@ class _RootPageState extends State<RootPage>
   Widget _buildNavItem({
     required int rootIndex,
     required int targetPage,
-    required dynamic icon, // Bisa terima String path atau IconData
+    required dynamic icon,
     required String label,
   }) {
     final isSelected = _rootTab == rootIndex;
@@ -417,7 +513,6 @@ class _RootPageState extends State<RootPage>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 👇 LOGIKA CEK SVG ATAU ICON BIASA
                 if (icon is String)
                   SvgPicture.asset(
                     icon,
@@ -463,7 +558,7 @@ class _RootPageState extends State<RootPage>
   Widget _buildFabSearch() {
     return Positioned(
       right: 16,
-      bottom: 20, // ✅ Cukup 20 aja
+      bottom: 20,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -492,7 +587,7 @@ class _RootPageState extends State<RootPage>
           ],
           FloatingActionButton(
             onPressed: _toggleFab,
-            backgroundColor: Colors.deepOrange, // ✅ Balik ke orange
+            backgroundColor: Colors.deepOrange,
             elevation: 2,
             child: AnimatedRotation(
               turns: _isFabExpanded ? 0.250 : 0,
@@ -500,7 +595,7 @@ class _RootPageState extends State<RootPage>
               child: Icon(
                 _isFabExpanded ? Icons.close : Icons.search,
                 size: 24,
-                color: Colors.white, // ✅ Icon putih
+                color: Colors.white,
               ),
             ),
           ),
@@ -540,7 +635,7 @@ class _RootPageState extends State<RootPage>
           onPressed: onTap,
           backgroundColor: color,
           elevation: 2,
-          child: Icon(icon, size: 20, color: Colors.white), // ✅ Icon putih
+          child: Icon(icon, size: 20, color: Colors.white),
         ),
       ],
     );
@@ -551,30 +646,26 @@ class _RootPageState extends State<RootPage>
     showDialog(
       context: context,
       builder: (context) {
-        // ✅ Ambil dari Theme
         final cardColor = Theme.of(context).colorScheme.surface;
         final textColor = Theme.of(context).colorScheme.onSurface;
         final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
         final ctrl = TextEditingController();
         return AlertDialog(
-          backgroundColor: cardColor, // ✅ Ganti
+          backgroundColor: cardColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(
             "Masukkan Kode Sutta",
-            style: TextStyle(
-              color: textColor, // ✅ Ganti
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           ),
           content: TextField(
             controller: ctrl,
             autofocus: true,
             decoration: InputDecoration(
               hintText: "Contoh: mn1, sn12.1",
-              hintStyle: TextStyle(color: subtextColor), // ✅ Ganti
+              hintStyle: TextStyle(color: subtextColor),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -583,7 +674,7 @@ class _RootPageState extends State<RootPage>
                 vertical: 12,
               ),
             ),
-            style: TextStyle(color: textColor), // ✅ Ganti
+            style: TextStyle(color: textColor),
             onSubmitted: (v) {
               if (v.isNotEmpty) {
                 Navigator.pop(context);

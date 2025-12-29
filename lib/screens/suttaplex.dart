@@ -518,8 +518,11 @@ class _SuttaplexState extends State<Suttaplex> {
                           ),
                         },
                       ),
-
-                      const Divider(height: 32),
+                      Opacity(
+                        opacity:
+                            0.15, // nilai antara 0.0 (transparan) sampai 1.0 (solid)
+                        child: const Divider(height: 32),
+                      ),
 
                       Text(
                         "Akar (Mūla)",
@@ -555,12 +558,20 @@ class _SuttaplexState extends State<Suttaplex> {
                       if (_showAllTranslations)
                         buildTranslationList(_extraTranslations),
 
-                      const Divider(height: 32),
+                      Opacity(
+                        opacity:
+                            0.15, // nilai antara 0.0 (transparan) sampai 1.0 (solid)
+                        child: const Divider(height: 32),
+                      ),
                       lockedSectionGroup("Tafsiran (Aṭṭhakathā)", [
                         "pli",
                         "id",
                       ]),
-                      const Divider(height: 32),
+                      Opacity(
+                        opacity:
+                            0.15, // nilai antara 0.0 (transparan) sampai 1.0 (solid)
+                        child: const Divider(height: 32),
+                      ),
                       lockedSectionGroup("Subtafsiran (Ṭīkā)", ["pli", "id"]),
                     ],
                   ),
