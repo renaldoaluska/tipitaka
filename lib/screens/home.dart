@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'dart:math';
 import '../styles/nikaya_style.dart';
 import '../widgets/icon_button_builder.dart';
@@ -11,7 +10,6 @@ import '../widgets/explore/explore_tab_forum.dart';
 import '../widgets/explore/explore_tab_info.dart';
 import '../widgets/explore/explore_tab_unduh.dart';
 import '../widgets/explore/explore_tab_ikuti.dart';
-import '../core/theme/theme_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Home extends StatefulWidget {
@@ -25,27 +23,29 @@ class _HomeState extends State<Home> {
   final List<Map<String, String>> _dhammapadaQuotes = [
     {
       "verse": "183",
-      "pali": "Sabbapāpassa akaraṇaṃ, kusalassa upasampadā...",
+      "pali":
+          "Sabbapāpassa akaraṇaṁ, kusalassa upasampadā;\nSacittapariyodapanaṁ,\netaṁ buddhāna sāsanaṁ.",
       "trans":
           "Tidak berbuat kejahatan, mengembangkan kebajikan, memurnikan pikiran—inilah ajaran para Buddha.",
     },
     {
       "verse": "1",
-      "pali": "Manopubbaṅgamā dhammā...",
+      "pali": "Manopubbaṅgamā dhammā, manoseṭṭhā manomayā;",
       "trans":
           "Pikiran adalah pelopor dari segala hal, pikiran adalah pemimpin, pikiran adalah pembentuk.",
     },
     {
       "verse": "223",
-      "pali": "Akkodhena jine kodhaṃ...",
+      "pali": "Akkodhena jine kodhaṁ, asādhuṁ sādhunā jine;",
       "trans":
           "Kalahkan amarah dengan tidak marah, kalahkan kejahatan dengan kebaikan.",
     },
     {
       "verse": "103",
-      "pali": "Yo sahassaṃ sahassena...",
+      "pali":
+          "Yo sahassaṃ sahassena, saṅgāme mānuse jine; Ekañca jeyyamattānaṁ, sa ve saṅgāmajuttamo.",
       "trans":
-          "Lebih baik menaklukkan diri sendiri daripada menaklukkan ribuan orang dalam pertempuran.",
+          "Walaupun seseorang dapat menaklukkan ribuan musuh, dalam ribuan kali pertempuran; Namun sesungguhnya penakluk terbesar, adalah orang yang dapat menaklukkan dirinya sendiri.",
     },
   ];
   Map<String, String>? _todayQuote;
