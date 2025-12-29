@@ -48,7 +48,8 @@ class _HeaderDepanState extends State<HeaderDepan> {
     _displayList = [widget.subtitle, ...?widget.subtitlesList];
 
     if (widget.enableAnimation && _displayList.length > 1) {
-      _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      // ini waktu lama muncul
+      _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
         if (mounted) {
           setState(() {
             _currentIndex = (_currentIndex + 1) % _displayList.length;
@@ -103,6 +104,7 @@ class _HeaderDepanState extends State<HeaderDepan> {
                     child: SizedBox(
                       height: 20,
                       child: AnimatedSwitcher(
+                        // Ubah 500 jadi misal 800 atau 1000 (makin gede makin lambat geraknya)
                         duration: const Duration(milliseconds: 500),
                         // LayoutStack biar transisi lancar
                         layoutBuilder: (currentChild, previousChildren) {
