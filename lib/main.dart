@@ -370,7 +370,7 @@ class _RootPageState extends State<RootPage>
               _buildNavItem(
                 rootIndex: 0,
                 targetPage: 0,
-                icon: 'assets/ic_home.svg', // 👈 pake svg hasil convert tadi
+                icon: '../assets/home.svg', // 👈 pake svg hasil convert tadi
                 label: 'Beranda',
               ),
               _buildNavItem(
@@ -396,14 +396,12 @@ class _RootPageState extends State<RootPage>
   Widget _buildNavItem({
     required int rootIndex,
     required int targetPage,
-    required dynamic
-    icon, // 👈 Ubah ke dynamic biar bisa terima String atau IconData
-    //required IconData icon,
+    required dynamic icon, // Bisa terima String path atau IconData
     required String label,
   }) {
     final isSelected = _rootTab == rootIndex;
-    final isDark = Theme.of(context).brightness == Brightness.dark; // ✅ Tambah
-    final baseColor = isDark ? Colors.grey[400]! : Colors.grey[600]!; // ✅ Ganti
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
 
     return Expanded(
       child: Material(
@@ -419,26 +417,23 @@ class _RootPageState extends State<RootPage>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 👇 LOGIKA SMART ICON: TETEP PAKE WARNA LU
-                icon is String
-                    ? SvgPicture.asset(
-                        icon,
-                        width: isSelected ? 26 : 24,
-                        height: isSelected ? 26 : 24,
-                        colorFilter: ColorFilter.mode(
-                          isSelected
-                              ? Colors.deepOrange
-                              : baseColor, // ✅ Sesuai permintaan lu
-                          BlendMode.srcIn,
-                        ),
-                      )
-                    : Icon(
-                        icon as IconData,
-                        color: isSelected
-                            ? Colors.deepOrange
-                            : baseColor, // ✅ Sesuai permintaan lu
-                        size: isSelected ? 26 : 24,
-                      ),
+                // 👇 LOGIKA CEK SVG ATAU ICON BIASA
+                if (icon is String)
+                  SvgPicture.asset(
+                    icon,
+                    width: isSelected ? 26 : 24,
+                    height: isSelected ? 26 : 24,
+                    colorFilter: ColorFilter.mode(
+                      isSelected ? Colors.deepOrange : baseColor,
+                      BlendMode.srcIn,
+                    ),
+                  )
+                else
+                  Icon(
+                    icon as IconData,
+                    color: isSelected ? Colors.deepOrange : baseColor,
+                    size: isSelected ? 26 : 24,
+                  ),
                 const SizedBox(height: 1),
                 Text(
                   label,
