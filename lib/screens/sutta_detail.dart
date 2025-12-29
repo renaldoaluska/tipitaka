@@ -1090,13 +1090,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   // ✅ FIX: Replace '|' with double break line for readability
+
   WidgetSpan _buildCommentSpan(
     BuildContext context,
     String comm,
     double fontSize,
   ) {
+    // Format baris baru di komentar
     final formattedComm = comm.replaceAll('|', '<br><br>');
+
     return WidgetSpan(
+      // Alignment middle biar widget-nya dianggap sebaris dulu
       alignment: PlaceholderAlignment.middle,
       child: GestureDetector(
         onTap: () {
@@ -1134,15 +1138,19 @@ class _SuttaDetailState extends State<SuttaDetail> {
         },
         child: SelectionContainer.disabled(
           child: Padding(
-            padding: const EdgeInsets.only(left: 0),
+            // Padding kiri dikit aja (2.0) biar ga nempel banget sama huruf terakhir,
+            // tapi tetep keliatan "nyatu"
+            padding: const EdgeInsets.only(left: 2.0),
             child: Transform.translate(
+              // ✅ INI DIA: Geser ke atas (Superscript)
               offset: const Offset(0, -6),
               child: Text(
                 "[note]",
                 style: TextStyle(
                   color: Colors.red,
                   fontWeight: FontWeight.bold,
-                  fontSize: fontSize * 0.5,
+                  // Ukuran font kecil (60% dari font utama)
+                  fontSize: fontSize * 0.6,
                 ),
               ),
             ),
@@ -2555,127 +2563,197 @@ class _SuttaDetailState extends State<SuttaDetail> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
+      // Biar modalnya gak ketutup keyboard/ui lain
+      isScrollControlled: true,
       builder: (context) {
-        // Helper buat tombol biar seragam
-        Widget buildOptionBtn(String label, bool isActive, VoidCallback onTap) {
-          final colorScheme = Theme.of(context).colorScheme;
-          return Expanded(
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                backgroundColor: isActive ? colorScheme.primaryContainer : null,
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            // Helper Style Tombol (Tetap sama kayak sebelumnya)
+            ButtonStyle getBtnStyle(bool isActive) {
+              final scheme = Theme.of(context).colorScheme;
+              return OutlinedButton.styleFrom(
+                backgroundColor: isActive ? scheme.primaryContainer : null,
                 side: BorderSide(
-                  color: isActive ? colorScheme.primary : Colors.grey.shade400,
+                  color: isActive ? scheme.primary : Colors.grey.shade400,
+                  width: 1.0,
                 ),
                 foregroundColor: isActive
-                    ? colorScheme.onPrimaryContainer
-                    : colorScheme.onSurface,
-              ),
-              onPressed: onTap,
-              child: FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
-            ),
-          );
-        }
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (isSegmented && widget.lang != "pli") ...[
-                  Text(
-                    "Tampilan Segmen",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      buildOptionBtn(
-                        "Atas-bawah",
-                        _viewMode == ViewMode.lineByLine,
-                        () {
-                          setState(() => _viewMode = ViewMode.lineByLine);
-                          _savePreferences();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      buildOptionBtn(
-                        "Kiri-kanan",
-                        _viewMode == ViewMode.sideBySide,
-                        () {
-                          setState(() => _viewMode = ViewMode.sideBySide);
-                          _savePreferences();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      buildOptionBtn(
-                        "Tanpa Pāli",
-                        _viewMode == ViewMode.translationOnly,
-                        () {
-                          setState(() => _viewMode = ViewMode.translationOnly);
-                          _savePreferences();
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                Text(
-                  "Ukuran Font",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurface,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 8),
-                Row(
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  24,
+                ), // Bottom agak gedean dikit
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.text_decrease),
-                        label: const Text("Kecil"),
-                        onPressed: () {
-                          setState(
-                            () => _fontSize = (_fontSize - 2).clamp(12.0, 30.0),
-                          );
-                          _savePreferences();
-                        },
+                    // ✅ HEADER BARU: Judul + Tombol Close (X)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Pengaturan Tampilan",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                          // Biar area sentuhnya pas
+                          splashRadius: 24,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24), // Jarak ke konten
+                    // Opsi Tampilan Segmen
+                    if (isSegmented && widget.lang != "pli") ...[
+                      Text(
+                        "Mode Baca",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: getBtnStyle(
+                                _viewMode == ViewMode.lineByLine,
+                              ),
+                              onPressed: () {
+                                setState(() => _viewMode = ViewMode.lineByLine);
+                                setModalState(() {});
+                                _savePreferences();
+                              },
+                              child: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text("Atas-Bawah"),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              style: getBtnStyle(
+                                _viewMode == ViewMode.sideBySide,
+                              ),
+                              onPressed: () {
+                                setState(() => _viewMode = ViewMode.sideBySide);
+                                setModalState(() {});
+                                _savePreferences();
+                              },
+                              child: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text("Kiri-Kanan"),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              style: getBtnStyle(
+                                _viewMode == ViewMode.translationOnly,
+                              ),
+                              onPressed: () {
+                                setState(
+                                  () => _viewMode = ViewMode.translationOnly,
+                                );
+                                setModalState(() {});
+                                _savePreferences();
+                              },
+                              child: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text("Tanpa Pāli"),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Opsi Ukuran Font
+                    Text(
+                      "Ukuran Teks",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.refresh),
-                        label: const Text("Reset"),
-                        onPressed: () {
-                          setState(() => _fontSize = 18.0);
-                          _savePreferences();
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.text_increase),
-                        label: const Text("Besar"),
-                        onPressed: () {
-                          setState(
-                            () => _fontSize = (_fontSize + 2).clamp(12.0, 30.0),
-                          );
-                          _savePreferences();
-                        },
-                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: getBtnStyle(false),
+                            icon: const Icon(Icons.remove, size: 18),
+                            label: const Text("Kecil"),
+                            onPressed: () {
+                              setState(
+                                () => _fontSize = (_fontSize - 2).clamp(
+                                  12.0,
+                                  30.0,
+                                ),
+                              );
+                              _savePreferences();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: getBtnStyle(false),
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text("Reset"),
+                            onPressed: () {
+                              setState(() => _fontSize = 18.0);
+                              _savePreferences();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: getBtnStyle(false),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text("Besar"),
+                            onPressed: () {
+                              setState(
+                                () => _fontSize = (_fontSize + 2).clamp(
+                                  12.0,
+                                  30.0,
+                                ),
+                              );
+                              _savePreferences();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
