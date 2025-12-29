@@ -27,7 +27,7 @@ class TripitakaApp extends StatelessWidget {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
-          title: 'Tripitaka Indonesia',
+          title: 'Tipitaka Indonesia',
           theme: themeManager.lightTheme,
           darkTheme: themeManager.darkTheme,
           //themeMode: themeManager.isDarkMode ? ThemeMode.dark : ThemeMode.light,
