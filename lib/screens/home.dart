@@ -56,7 +56,7 @@ class _HomeState extends State<Home> {
   Map<String, String>? _todayQuote;
 
   final List<Map<String, String>> _recentlyViewed = [
-    {"uid": "mn1", "title": "MN 1 MÅ«lapariyāya Sutta", "kitab": "MN"},
+    {"uid": "mn1", "title": "MN 1 Mūlapariyāya Sutta", "kitab": "MN"},
     {"uid": "sn56.11", "title": "SN 56.11 Dhammacakka", "kitab": "SN"},
     {"uid": "an3.65", "title": "AN 3.65 Kālāma", "kitab": "AN"},
   ];
