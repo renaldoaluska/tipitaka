@@ -148,6 +148,8 @@ class _HomeState extends State<Home> {
           "Sukhitā Hontu Ñātayo",
           "Sabbe Sattā Bhavantu Sukhitattā",
           "Nibbānassa Paccayo Hotu",
+          "Buddhasāsanaṁ Ciraṁ Tiṭṭhatu",
+          "Sādhu Sādhu Sādhu",
         ],
         enableAnimation: true,
       ),
