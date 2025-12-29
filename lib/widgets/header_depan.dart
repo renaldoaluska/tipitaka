@@ -5,9 +5,7 @@ import '../core/theme/theme_manager.dart';
 
 class HeaderDepan extends StatefulWidget {
   final String title;
-  // 👇 String utama (Wajib ada biar file lain aman)
   final String subtitle;
-  // 👇 List tambahan buat animasi di Home (Opsional)
   final List<String>? subtitlesList;
   final bool enableAnimation;
 
@@ -47,7 +45,6 @@ class _HeaderDepanState extends State<HeaderDepan> {
   void _setupLogic() {
     _timer?.cancel();
     _currentIndex = 0;
-    // Gabungin subtitle utama + list tambahannya
     _displayList = [widget.subtitle, ...?widget.subtitlesList];
 
     if (widget.enableAnimation && _displayList.length > 1) {
@@ -106,8 +103,8 @@ class _HeaderDepanState extends State<HeaderDepan> {
                     child: SizedBox(
                       height: 20,
                       child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 600),
-                        reverseDuration: const Duration(milliseconds: 400),
+                        duration: const Duration(milliseconds: 500),
+                        // LayoutStack biar transisi lancar
                         layoutBuilder: (currentChild, previousChildren) {
                           return Stack(
                             alignment: Alignment.centerLeft,
@@ -117,24 +114,22 @@ class _HeaderDepanState extends State<HeaderDepan> {
                             ],
                           );
                         },
-                        // 👇 INI BAGIAN YANG DIUBAH BIAR JADI "DEPAN KE BELAKANG"
                         transitionBuilder: (Widget child, Animation<double> animation) {
                           final isNewWidget =
                               child.key == ValueKey(currentText);
 
                           if (isNewWidget) {
-                            // --- ANIMASI MASUK (YANG BARU) ---
-                            // Slide biasa dari bawah ke tengah.
+                            // --- MASUK (TEKS BARU) ---
+                            // Masuk normal dari bawah (Offset 0, 1.0)
                             return SlideTransition(
                               position:
                                   Tween<Offset>(
-                                    begin: const Offset(0.0, 1.0), // Dari bawah
+                                    begin: const Offset(0.0, 1.0),
                                     end: Offset.zero,
                                   ).animate(
                                     CurvedAnimation(
                                       parent: animation,
-                                      curve: Curves
-                                          .easeOutBack, // Mantul dikit pas masuk
+                                      curve: Curves.easeOut, // Masuk santai
                                     ),
                                   ),
                               child: FadeTransition(
@@ -143,38 +138,41 @@ class _HeaderDepanState extends State<HeaderDepan> {
                               ),
                             );
                           } else {
-                            // --- ANIMASI KELUAR (YANG LAMA) ---
-                            // KUNCINYA: Geser ke atas SAMBIL MENGECIL (Scale Down)
+                            // --- KELUAR (TEKS LAMA) ---
+                            // DISINI KUNCINYA:
+                            // Kita geser JAUH ke atas (-1.0) biar cepet minggir
                             return SlideTransition(
                               position:
                                   Tween<Offset>(
-                                    begin: Offset.zero,
-                                    end: const Offset(
+                                    begin: const Offset(
                                       0.0,
-                                      -0.5,
-                                    ), // Geser ke atas dikit
+                                      -1.0,
+                                    ), // Geser Full ke atas
+                                    end: Offset
+                                        .zero, // (Posisi awal sebelum gerak)
                                   ).animate(
                                     CurvedAnimation(
                                       parent: animation,
-                                      curve:
-                                          Curves.easeIn, // Keluar makin cepet
+                                      curve: const Interval(
+                                        0.0,
+                                        0.7,
+                                        curve: Curves.easeIn,
+                                      ), // Selesai lebih cepet (70% durasi)
                                     ),
                                   ),
-                              // 👇 SCALE DOWN DISINI
-                              child: ScaleTransition(
-                                // Mengecil dari ukuran normal (1.0) ke agak kecil (0.9)
-                                scale: Tween<double>(
-                                  begin: 1.0,
-                                  end: 0.9,
-                                ).animate(animation),
-                                child: FadeTransition(
-                                  // Fade Out manual biar pas keluar dia memudar
-                                  opacity: Tween<double>(
-                                    begin: 1.0,
-                                    end: 0.0,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
+                              child: FadeTransition(
+                                // Ilang lebih cepet lagi (50% durasi udah transparan)
+                                opacity: Tween<double>(begin: 0.0, end: 1.0)
+                                    .animate(
+                                      CurvedAnimation(
+                                        parent: animation,
+                                        curve: const Interval(
+                                          0.5,
+                                          1.0,
+                                        ), // Kebalik karena exit animation itu reverse
+                                      ),
+                                    ),
+                                child: child,
                               ),
                             );
                           }
