@@ -214,6 +214,11 @@ class _HomeState extends State<Home> {
         "icon": Icons.self_improvement_rounded,
         "color": const Color(0xFFFF9800),
       },
+      {
+        "label": "Kustom",
+        "icon": Icons.dashboard_customize,
+        "color": Colors.blueGrey.shade300,
+      },
     ];
     return
     //Padding(
@@ -222,18 +227,18 @@ class _HomeState extends State<Home> {
     Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        /*Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              "Akses Cepat",
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: _textColor(widget.isDarkMode),
-              ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            "Akses Cepat",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: _textColor(widget.isDarkMode),
             ),
-          ),*/
-        const SizedBox(height: 8),
+          ),
+        ),
+        const SizedBox(height: 12),
         SizedBox(
           height: 90,
           child: ListView.builder(
