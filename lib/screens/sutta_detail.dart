@@ -242,9 +242,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
   void _jumpToResult(int index) {
     if (_allMatches.isEmpty) return;
     final maxIndex = _allMatches.length - 1;
-    if (index < 0)
+    if (index < 0) {
       index = maxIndex;
-    else if (index > maxIndex)
+    } else if (index > maxIndex)
       index = 0;
 
     if (index >= 0 && index < _allMatches.length) {
@@ -354,8 +354,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
     int listIndex,
     int startMatchCount,
   ) {
-    if (_searchController.text.length < 2 || _cachedSearchRegex == null)
+    if (_searchController.text.length < 2 || _cachedSearchRegex == null) {
       return content;
+    }
 
     int localMatchCounter = 0;
     return content.replaceAllMapped(_cachedSearchRegex!, (match) {
