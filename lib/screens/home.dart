@@ -30,13 +30,13 @@ class _HomeState extends State<Home> {
   final List<Map<String, String>> _dhammapadaQuotes = [
     {
       "verse": "183",
-      "pali": "SabbapÄpassa akaraṇaṃ, kusalassa upasampadÄ...",
+      "pali": "Sabbapāpassa akaraṇaṃ, kusalassa upasampadā...",
       "trans":
           "Tidak berbuat kejahatan, mengembangkan kebajikan, memurnikan pikiran—inilah ajaran para Buddha.",
     },
     {
       "verse": "1",
-      "pali": "ManopubbaṅgamÄ dhammÄ...",
+      "pali": "Manopubbaṅgamā dhammā...",
       "trans":
           "Pikiran adalah pelopor dari segala hal, pikiran adalah pemimpin, pikiran adalah pembentuk.",
     },
@@ -56,15 +56,15 @@ class _HomeState extends State<Home> {
   Map<String, String>? _todayQuote;
 
   final List<Map<String, String>> _recentlyViewed = [
-    {"uid": "mn1", "title": "MN 1 MÅ«lapariyÄya Sutta", "kitab": "MN"},
+    {"uid": "mn1", "title": "MN 1 MÅ«lapariyāya Sutta", "kitab": "MN"},
     {"uid": "sn56.11", "title": "SN 56.11 Dhammacakka", "kitab": "SN"},
-    {"uid": "an3.65", "title": "AN 3.65 KÄlÄma", "kitab": "AN"},
+    {"uid": "an3.65", "title": "AN 3.65 Kālāma", "kitab": "AN"},
   ];
 
   final List<Map<String, dynamic>> _bookmarks = [
     {"uid": "sn56.11", "title": "SN 56.11 Dhammacakka", "kitab": "SN"},
-    {"uid": "an3.65", "title": "AN 3.65 KÄlÄma", "kitab": "AN"},
-    {"uid": "dhp183", "title": "Dhp 183 SabbapÄpassa", "kitab": "Dhp"},
+    {"uid": "an3.65", "title": "AN 3.65 Kālāma", "kitab": "AN"},
+    {"uid": "dhp183", "title": "Dhp 183 Sabbapāpassa", "kitab": "Dhp"},
   ];
 
   @override
@@ -84,8 +84,9 @@ class _HomeState extends State<Home> {
   Color _bgColor(bool dark) => dark ? Colors.grey[900]! : Colors.grey[50]!;
   Color _cardColor(bool dark) => dark ? Colors.grey[850]! : Colors.white;
   Color _textColor(bool dark) => dark ? Colors.white : Colors.black;
-  Color _subtextColor(bool dark) =>
+  /*Color _subtextColor(bool dark) =>
       dark ? Colors.grey[400]! : Colors.grey[600]!;
+*/
 
   @override
   Widget build(BuildContext context) {
@@ -578,7 +579,7 @@ class _HomeState extends State<Home> {
                   ),
                   title: const Text("Kontribusi"),
                   content: const Text(
-                    "Aplikasi ini dikembangkan secara terbuka dengan mettÄ, karuṇÄ, muditÄ, dan upekkhÄ.\n\n"
+                    "Aplikasi ini dikembangkan secara terbuka dengan mettā, karuṇā, muditā, dan upekkhā.\n\n"
                     "Anda bisa kontribusi dengan:\n"
                     "• Memberi masukan\n"
                     "• Membantu dokumentasi\n"

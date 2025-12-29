@@ -591,6 +591,9 @@ class _PariyattiPageState extends State<PariyattiPage>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ExpansionTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     leading: buildNikayaAvatar("KN"),
                     title: Text(
                       "Khuddakanikāya",
