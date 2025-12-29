@@ -652,7 +652,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
           },
         ),
       );
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint("❌ Error _replaceToSutta: $e");
       if (e is SocketException || e.toString().contains("SocketException")) {
         if (mounted) setState(() => _connectionError = true);
@@ -2402,7 +2402,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.transparent,
+
+      // ✅ INI DIA JUARANYA: Kasih warna hitam transparan (Overlay)
+      // Jadi user tau kalo belakangnya lagi "dikunci"
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+
       builder: (context) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
@@ -2413,21 +2417,33 @@ class _SuttaDetailState extends State<SuttaDetail> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor.withValues(alpha: 0.95),
+                  // Warna kotak search-nya ngikutin tema (Putih/Gelap)
+                  color: Theme.of(context).colorScheme.surface,
                   boxShadow: const [
                     BoxShadow(
-                      color: Colors.black12,
+                      color: Colors.black26,
                       blurRadius: 10,
                       spreadRadius: 2,
                     ),
                   ],
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
+                    top: Radius.circular(20), // Radius makin tumpul makin manis
                   ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Header kecil biar manis (Opsional, kayak handle pintu)
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+
                     Row(
                       children: [
                         Expanded(
@@ -2436,23 +2452,33 @@ class _SuttaDetailState extends State<SuttaDetail> {
                             autofocus: true,
                             decoration: InputDecoration(
                               hintText: "Cari kata (min. 2 huruf)...",
+                              prefixIcon: const Icon(Icons.search),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
                               ),
+                              filled: true,
+                              // Warna kolom input dikit beda biar kontras
+                              fillColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 12,
-                                vertical: 8,
+                                vertical: 12,
                               ),
-                              suffixIcon: IconButton(
-                                icon: const Icon(Icons.backspace_outlined),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  if (mounted) {
-                                    setState(() => _allMatches.clear());
-                                  }
-                                  if (mounted) setSheetState(() {});
-                                },
-                              ),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 20),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        if (mounted) {
+                                          setState(() => _allMatches.clear());
+                                        }
+                                        if (mounted) setSheetState(() {});
+                                      },
+                                    )
+                                  : null,
                             ),
                             onChanged: (val) {
                               if (_debounce?.isActive ?? false) {
@@ -2474,29 +2500,35 @@ class _SuttaDetailState extends State<SuttaDetail> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.close),
+                        // Tombol Close Text ganti jadi Cancel biar jelas
+                        TextButton(
                           onPressed: () => Navigator.pop(context),
+                          child: const Text("Batal"),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
+
+                    // Baris Kontrol Navigasi (Panah Atas Bawah)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           _allMatches.isEmpty
-                              ? "0 hasil"
-                              : "${_currentMatchIndex + 1} dari ${_allMatches.length} kata",
+                              ? "Belum ada hasil"
+                              : "${_currentMatchIndex + 1} dari ${_allMatches.length} hasil",
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                            color: _allMatches.isEmpty
+                                ? Theme.of(context).colorScheme.secondary
+                                : Theme.of(context).colorScheme.primary,
                           ),
                         ),
                         Row(
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.arrow_upward),
+                            IconButton.filledTonal(
+                              icon: const Icon(Icons.keyboard_arrow_up),
+                              tooltip: "Sebelumnya",
                               onPressed: _allMatches.isEmpty
                                   ? null
                                   : () {
@@ -2504,8 +2536,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                       setSheetState(() {});
                                     },
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.arrow_downward),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              icon: const Icon(Icons.keyboard_arrow_down),
+                              tooltip: "Selanjutnya",
                               onPressed: _allMatches.isEmpty
                                   ? null
                                   : () {
