@@ -482,7 +482,7 @@ class _RootPageState extends State<RootPage>
             backgroundColor: Colors.deepOrange, // ✅ Balik ke orange
             elevation: 2,
             child: AnimatedRotation(
-              turns: _isFabExpanded ? 0.125 : 0,
+              turns: _isFabExpanded ? 0.250 : 0,
               duration: const Duration(milliseconds: 200),
               child: Icon(
                 _isFabExpanded ? Icons.close : Icons.search,
