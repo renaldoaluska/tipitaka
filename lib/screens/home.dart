@@ -14,7 +14,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui'; // 👈 Wajib ada buat efek Blur
 
 class Home extends StatefulWidget {
-  const Home({super.key});
+  final Function(int)? onNavigate; // 👈 Callback untuk navigasi ke tab lain
+
+  const Home({super.key, this.onNavigate});
 
   @override
   State<Home> createState() => _HomeState();
@@ -67,6 +69,11 @@ class _HomeState extends State<Home> {
   void initState() {
     super.initState();
     _loadTodayQuote();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   void _loadTodayQuote() {
@@ -131,7 +138,19 @@ class _HomeState extends State<Home> {
         ),
       ),
 
-      title: HeaderDepan(title: "Sotthi Hotu", subtitle: "Namo Ratanattayā"),
+      title: HeaderDepan(
+        title: "Namo Buddhāya",
+        subtitle: "Sotthi Hotu", // Subtitle utama
+        subtitlesList: const [
+          // List tambahannya
+          "Suvatthi Hotu",
+          "Sukhī Hotu",
+          "Sukhitā Hontu Ñātayo",
+          "Sabbe Sattā Bhavantu Sukhitattā",
+          "Nibbānassa Paccayo Hotu",
+        ],
+        enableAnimation: true,
+      ),
       centerTitle: true,
       titleSpacing: 0,
     );
@@ -216,27 +235,41 @@ class _HomeState extends State<Home> {
         "label": "Tipiṭaka",
         "icon": Icons.menu_book_rounded,
         "color": const Color(0xFF1565C0),
+        "onTap": () {
+          // 👈 Navigasi ke tab Pariyatti (index 1)
+          widget.onNavigate?.call(1);
+        },
       },
       {
         "label": "Uposatha",
         "icon": Icons.nightlight_round,
         "color": const Color(0xFFF9A825),
+        "onTap": () {
+          // TODO: Navigate
+        },
       },
       {
         "label": "Meditasi",
         "icon": Icons.self_improvement_rounded,
         "color": const Color(0xFFD32F2F),
+        "onTap": () {
+          // TODO: Navigate
+        },
       },
       {
         "label": "Paritta",
         "icon": Icons.book_rounded,
         "color": const Color(0xFFF57C00),
+        "onTap": () {
+          // TODO: Navigate
+        },
       },
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
@@ -261,9 +294,7 @@ class _HomeState extends State<Home> {
                     label: f["label"] as String,
                     icon: f["icon"] as IconData,
                     color: f["color"] as Color,
-                    onTap: () {
-                      // TODO: Navigate
-                    },
+                    onTap: f["onTap"] as VoidCallback,
                   ),
                 ),
               );
@@ -279,12 +310,13 @@ class _HomeState extends State<Home> {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final cardColor = Theme.of(context).colorScheme.surface;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
             "Terakhir Dilihat",
             style: TextStyle(
               fontSize: 15,
@@ -292,8 +324,11 @@ class _HomeState extends State<Home> {
               color: textColor,
             ),
           ),
-          const SizedBox(height: 16),
-          ListView.separated(
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             padding: EdgeInsets.zero,
@@ -341,8 +376,8 @@ class _HomeState extends State<Home> {
               );
             },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -351,12 +386,13 @@ class _HomeState extends State<Home> {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final cardColor = Theme.of(context).colorScheme.surface;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
             children: [
               Text(
                 "Penanda",
@@ -368,6 +404,11 @@ class _HomeState extends State<Home> {
               ),
               const Spacer(),
               TextButton(
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 onPressed: () {
                   // TODO: Show all
                 },
@@ -378,67 +419,69 @@ class _HomeState extends State<Home> {
               ),
             ],
           ),
-          SizedBox(
-            height: 70,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _bookmarks.length.clamp(0, 3),
-              itemBuilder: (context, index) {
-                final b = _bookmarks[index];
-                return Container(
-                  width: 180,
-                  margin: const EdgeInsets.only(right: 10),
-                  child: Card(
-                    elevation: 1,
-                    color: cardColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () {
-                        // TODO: Navigate
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: getNikayaColor(b["kitab"]),
-                              radius: 18,
-                              child: Text(
-                                b["kitab"],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 70,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: _bookmarks.length.clamp(0, 3),
+            itemBuilder: (context, index) {
+              final b = _bookmarks[index];
+              return Container(
+                width: 180,
+                margin: const EdgeInsets.only(right: 10),
+                child: Card(
+                  elevation: 1,
+                  color: cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () {
+                      // TODO: Navigate
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: getNikayaColor(b["kitab"]),
+                            radius: 18,
+                            child: Text(
+                              b["kitab"],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                b["title"],
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: textColor,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              b["title"],
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: textColor,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -550,12 +593,13 @@ class _HomeState extends State<Home> {
       },
     ];
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
             "Eksplor",
             style: TextStyle(
               fontSize: 15,
@@ -563,86 +607,97 @@ class _HomeState extends State<Home> {
               color: textColor,
             ),
           ),
-          const SizedBox(height: 12),
-          ...exploreItems.asMap().entries.map((entry) {
-            final item = entry.value;
-            final isLast = entry.key == exploreItems.length - 1;
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              ...exploreItems.asMap().entries.map((entry) {
+                final item = entry.value;
+                final isLast = entry.key == exploreItems.length - 1;
 
-            return Column(
-              children: [
-                PanjangCardBuilder(
-                  title: item["title"] as String,
-                  subtitle: item["subtitle"] as String,
-                  icon: item["icon"] as IconData,
-                  color: item["color"] as Color,
-                  onTap: () => _openExplore(context, item["index"] as int),
-                ),
-                if (!isLast) const SizedBox(height: 3),
-              ],
-            );
-          }),
-          const SizedBox(height: 3),
-          PanjangCardBuilder(
-            title: "Kontribusi",
-            subtitle: "Ikut kembangkan aplikasi ini",
-            icon: Icons.code,
-            color: Colors.blueGrey,
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  title: const Text("Kontribusi"),
-                  content: const Text(
-                    "Aplikasi ini dikembangkan secara terbuka dengan mettā, karuṇā, muditā, dan upekkhā.\n\n"
-                    "Anda bisa kontribusi dengan:\n"
-                    "• Memberi masukan\n"
-                    "• Membantu dokumentasi\n"
-                    "• Menyumbang kode\n"
-                    "• Menyebarkan aplikasi ini\n\n"
-                    "Pilih salah satu opsi di bawah.\nTerima kasih <3",
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        final uri = Uri(
-                          scheme: 'mailto',
-                          path: 'aluskaindonesia@gmail.com',
-                          query: Uri.encodeFull(
-                            'subject=Saran Aplikasi Tripitaka Indonesia'
-                            '&body=--- tulis saran Anda di bawah ---',
-                          ),
-                        );
-                        launchUrl(uri, mode: LaunchMode.externalApplication);
-                      },
-                      child: const Text("Kirim Email"),
+                return Column(
+                  children: [
+                    PanjangCardBuilder(
+                      title: item["title"] as String,
+                      subtitle: item["subtitle"] as String,
+                      icon: item["icon"] as IconData,
+                      color: item["color"] as Color,
+                      onTap: () => _openExplore(context, item["index"] as int),
                     ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        launchUrl(
-                          Uri.parse(
-                            "https://github.com/renaldoaluska/tipitaka",
-                          ),
-                          mode: LaunchMode.externalApplication,
-                        );
-                      },
-                      child: const Text("Buka GitHub"),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text("Tutup"),
-                    ),
+                    if (!isLast) const SizedBox(height: 3),
                   ],
-                ),
-              );
-            },
+                );
+              }),
+              const SizedBox(height: 3),
+              PanjangCardBuilder(
+                title: "Kontribusi",
+                subtitle: "Ikut kembangkan aplikasi ini",
+                icon: Icons.code,
+                color: Colors.blueGrey,
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: const Text("Kontribusi"),
+                      content: const Text(
+                        "Aplikasi ini dikembangkan secara terbuka dengan mettā, karuṇā, muditā, dan upekkhā.\n\n"
+                        "Anda bisa kontribusi dengan:\n"
+                        "• Memberi masukan\n"
+                        "• Membantu dokumentasi\n"
+                        "• Menyumbang kode\n"
+                        "• Menyebarkan aplikasi ini\n\n"
+                        "Pilih salah satu opsi di bawah.\nTerima kasih <3",
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            final uri = Uri(
+                              scheme: 'mailto',
+                              path: 'aluskaindonesia@gmail.com',
+                              query: Uri.encodeFull(
+                                'subject=Saran Aplikasi Tripitaka Indonesia'
+                                '&body=--- tulis saran Anda di bawah ---',
+                              ),
+                            );
+                            launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                          child: const Text("Kirim Email"),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            launchUrl(
+                              Uri.parse(
+                                "https://github.com/renaldoaluska/tipitaka",
+                              ),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                          child: const Text("Buka GitHub"),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text("Tutup"),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 }

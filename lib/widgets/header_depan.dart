@@ -1,12 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../core/theme/theme_manager.dart';
 
-class HeaderDepan extends StatelessWidget {
+class HeaderDepan extends StatefulWidget {
   final String title;
+
+  // 👇 INI TETAP STRING BIAR FILE LAIN GA ERROR
   final String subtitle;
 
-  const HeaderDepan({super.key, required this.title, required this.subtitle});
+  // 👇 INI TAMBAHAN OPSIONAL BUAT ANIMASI DI HOME
+  final List<String>? subtitlesList;
+
+  final bool enableAnimation;
+
+  const HeaderDepan({
+    super.key,
+    required this.title,
+    required this.subtitle, // Halaman lain taunya ini, jadi aman
+    this.subtitlesList, // Di Home tinggal isi ini
+    this.enableAnimation = false,
+  });
+
+  @override
+  State<HeaderDepan> createState() => _HeaderDepanState();
+}
+
+class _HeaderDepanState extends State<HeaderDepan> {
+  late int _currentIndex;
+  Timer? _timer;
+  List<String> _displayList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _setupLogic();
+  }
+
+  @override
+  void didUpdateWidget(covariant HeaderDepan oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Cek kalau ada perubahan data biar hot reload jalan
+    if (widget.enableAnimation != oldWidget.enableAnimation ||
+        widget.subtitlesList != oldWidget.subtitlesList ||
+        widget.subtitle != oldWidget.subtitle) {
+      _setupLogic();
+    }
+  }
+
+  void _setupLogic() {
+    _timer?.cancel();
+    _currentIndex = 0;
+
+    // Gabungin subtitle utama + list tambahannya
+    _displayList = [widget.subtitle, ...?widget.subtitlesList];
+
+    // Syarat animasi: enableAnimation TRUE dan isi list LEBIH DARI 1
+    if (widget.enableAnimation && _displayList.length > 1) {
+      _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+        if (mounted) {
+          setState(() {
+            _currentIndex = (_currentIndex + 1) % _displayList.length;
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,37 +79,119 @@ class HeaderDepan extends StatelessWidget {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
-    // ❌ HAPUS SafeArea
-    // ✅ Pake Padding biasa aja.
-    // Kita kurangi top padding jadi 0 atau kecil, karena AppBar udah nengahin otomatis.
+    // Safety check: Ambil teks saat ini
+    final currentText = _displayList.isNotEmpty
+        ? _displayList[_currentIndex]
+        : widget.subtitle;
+
+    final titleStyle = TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: textColor,
+    );
+
+    final subtitleStyle = TextStyle(
+      fontSize: 13,
+      color: subtextColor,
+      fontWeight: FontWeight.w500,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16), // Kiri kanan aja
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize
-                  .min, // ✅ Ini penting biar vertikalnya rapet tengah
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 13, color: subtextColor),
-                ),
+                Text(widget.title, style: titleStyle),
                 const SizedBox(height: 2),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
+
+                // LOGIKA ANIMASI
+                if (widget.enableAnimation && _displayList.length > 1)
+                  ClipRect(
+                    child: SizedBox(
+                      height: 20,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 600),
+                        reverseDuration: const Duration(milliseconds: 300),
+                        layoutBuilder: (currentChild, previousChildren) {
+                          return Stack(
+                            alignment: Alignment.centerLeft,
+                            children: <Widget>[
+                              ...previousChildren,
+                              if (currentChild != null) currentChild,
+                            ],
+                          );
+                        },
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                              final isNewWidget =
+                                  child.key == ValueKey(currentText);
+
+                              if (isNewWidget) {
+                                // ANIMASI MASUK: Slide dari Bawah + Scale Up (Card Push)
+                                return SlideTransition(
+                                  position:
+                                      Tween<Offset>(
+                                        begin: const Offset(0.0, 1.0),
+                                        end: Offset.zero,
+                                      ).animate(
+                                        CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeOutBack,
+                                        ),
+                                      ),
+                                  child: ScaleTransition(
+                                    scale: Tween<double>(
+                                      begin: 0.8,
+                                      end: 1.0,
+                                    ).animate(animation),
+                                    child: FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                // ANIMASI KELUAR: Slide ke Atas
+                                return SlideTransition(
+                                  position:
+                                      Tween<Offset>(
+                                        begin: const Offset(0.0, -1.0),
+                                        end: Offset.zero,
+                                      ).animate(
+                                        CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeIn,
+                                        ),
+                                      ),
+                                  child: FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  ),
+                                );
+                              }
+                            },
+                        child: Text(
+                          currentText,
+                          key: ValueKey<String>(currentText),
+                          style: subtitleStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  // LOGIKA STATIS (Aman buat file lain)
+                  Text(widget.subtitle, style: subtitleStyle),
               ],
             ),
           ),
 
-          // Toggle Switch Tetap Sama...
+          // Toggle Switch (Gak diubah)
           GestureDetector(
             onTap: () {
               final isCurrentlyDark =
