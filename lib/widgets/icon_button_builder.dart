@@ -25,6 +25,15 @@ class IconButtonBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Ambil dari Theme, bukan parameter
+    final textColor = Theme.of(context).colorScheme.onSurface;
+
+    // Extract RGB dari color untuk shadow
+    final red = (color.r * 255).round();
+    final green = (color.g * 255).round();
+    final blue = (color.b * 255).round();
+    final shadowColor = Color.fromARGB(77, red, green, blue);
+
     return Container(
       width: width,
       margin: const EdgeInsets.only(right: 12),
@@ -42,7 +51,7 @@ class IconButtonBuilder extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withOpacity(0.3),
+                    color: shadowColor,
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -56,9 +65,7 @@ class IconButtonBuilder extends StatelessWidget {
               style: TextStyle(
                 fontSize: fontSize,
                 fontWeight: FontWeight.w500,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white
-                    : Colors.black,
+                color: textColor, // ✅ Ganti dari isDarkMode logic
               ),
               textAlign: TextAlign.center,
               maxLines: 1,

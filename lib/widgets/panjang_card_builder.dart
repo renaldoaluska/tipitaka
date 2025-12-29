@@ -7,7 +7,6 @@ class PanjangCardBuilder extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  final bool isDarkMode;
 
   const PanjangCardBuilder({
     super.key,
@@ -16,18 +15,23 @@ class PanjangCardBuilder extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
-    required this.isDarkMode,
   });
-
-  Color _cardColor(bool dark) => dark ? Colors.grey[850]! : Colors.white;
-  Color _textColor(bool dark) => dark ? Colors.white : Colors.black;
-  Color _subtextColor(bool dark) =>
-      dark ? Colors.grey[400]! : Colors.grey[600]!;
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Ambil dari Theme, bukan parameter
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    // Extract RGB dari color untuk background
+    final red = (color.r * 255).round();
+    final green = (color.g * 255).round();
+    final blue = (color.b * 255).round();
+    final bgColor = Color.fromARGB(26, red, green, blue);
+
     return Card(
-      color: _cardColor(isDarkMode),
+      color: cardColor, // ✅ Dari Theme
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -40,7 +44,7 @@ class PanjangCardBuilder extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: bgColor,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -55,24 +59,19 @@ class PanjangCardBuilder extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: _textColor(isDarkMode),
+                        color: textColor, // ✅ Dari Theme
                       ),
                     ),
                     Text(
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: _subtextColor(isDarkMode),
+                        color: subtextColor, // ✅ Dari Theme
                       ),
                     ),
                   ],
                 ),
               ),
-              // Icon(
-              //  Icons.arrow_forward_ios,
-              // size: 16,
-              //color: _subtextColor(isDarkMode),
-              //),
             ],
           ),
         ),

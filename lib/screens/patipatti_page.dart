@@ -2,36 +2,21 @@ import 'package:flutter/material.dart';
 import '../widgets/header_depan.dart';
 
 class PatipattiPage extends StatefulWidget {
-  final bool isDarkMode;
-  final VoidCallback onThemeToggle;
-
-  const PatipattiPage({
-    super.key,
-    required this.isDarkMode,
-    required this.onThemeToggle,
-  });
+  const PatipattiPage({super.key});
 
   @override
   State<PatipattiPage> createState() => _PatipattiPageState();
 }
 
 class _PatipattiPageState extends State<PatipattiPage> {
-  Color _bgColor(bool dark) => dark ? Colors.grey[900]! : Colors.grey[50]!;
-  Color _cardColor(bool dark) => dark ? Colors.grey[850]! : Colors.white;
-  Color _textColor(bool dark) => dark ? Colors.white : Colors.black;
-  Color _subtextColor(bool dark) =>
-      dark ? Colors.grey[400]! : Colors.grey[600]!;
-
   // Versi kalender Uposatha
-  String _selectedUposathaVersion = "Mahanikaya"; // default
+  String _selectedUposathaVersion = "Mahanikaya";
   final List<String> _uposathaVersions = [
     "Mahanikaya",
     "Dhammayuttika",
     "Myanmar",
-    // TODO: Tambah versi lain dari DB
   ];
 
-  // TODO: Hitung fase bulan dan uposatha dates berdasarkan versi
   final List<Map<String, String>> _moonPhases = [
     {"date": "1 Jan", "phase": "🌑", "label": "New Moon"},
     {"date": "8 Jan", "phase": "🌓", "label": "First Quarter"},
@@ -41,11 +26,15 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Ambil dari Theme
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
     return Scaffold(
-      backgroundColor: _bgColor(widget.isDarkMode),
+      backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           SliverToBoxAdapter(child: _buildUposathaCard()),
           SliverToBoxAdapter(child: _buildMeditationCard()),
           SliverToBoxAdapter(child: _buildParittaCard()),
@@ -55,25 +44,31 @@ class _PatipattiPageState extends State<PatipattiPage> {
   }
 
   Widget _buildAppBar() {
-    return SliverToBoxAdapter(
-      child: HeaderDepan(
-        isDarkMode: widget.isDarkMode,
-        onThemeToggle: widget.onThemeToggle,
-        title: "Paṭipatti",
-        subtitle: "Praktik Dhamma",
-      ),
+    return const SliverToBoxAdapter(
+      child: HeaderDepan(title: "Paṭipatti", subtitle: "Praktik Dhamma"),
     );
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 1. UPOSATHA CARD - neutral background dengan accent indigo
+  // 1. UPOSATHA CARD - Kuning (warna bendera ke-2)
   // ═══════════════════════════════════════════════════════════
   Widget _buildUposathaCard() {
-    const accentColor = Color(0xFF3949AB); // Indigo
+    // ✅ Ambil dari Theme
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    const accentColor = Color(0xFFF57F17);
+    final lightBg = isDark ? const Color(0xFF4A4417) : const Color(0xFFFFF8E1);
+    final borderColor = isDark
+        ? const Color(0xFF6D621F)
+        : const Color(0xFFFFE082);
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
       child: Card(
-        color: _cardColor(widget.isDarkMode),
+        color: cardColor,
         elevation: 1,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
@@ -81,16 +76,15 @@ class _PatipattiPageState extends State<PatipattiPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
+                      color: lightBg,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.nightlight_round,
                       color: accentColor,
                       size: 24,
@@ -106,16 +100,13 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: _textColor(widget.isDarkMode),
+                            color: textColor,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           "Pengamalan Puasa",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _subtextColor(widget.isDarkMode),
-                          ),
+                          style: TextStyle(fontSize: 12, color: subtextColor),
                         ),
                       ],
                     ),
@@ -127,12 +118,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: accentColor.withOpacity(0.3),
-                        width: 1,
-                      ),
+                      border: Border.all(color: borderColor, width: 1),
                     ),
-                    child: Text(
+                    child: const Text(
                       "3 hari lagi",
                       style: TextStyle(
                         color: accentColor,
@@ -144,25 +132,20 @@ class _PatipattiPageState extends State<PatipattiPage> {
                 ],
               ),
               const SizedBox(height: 10),
-
-              // Dropdown versi kalender
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.05),
+                  color: lightBg,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: accentColor.withOpacity(0.2),
-                    width: 1,
-                  ),
+                  border: Border.all(color: borderColor, width: 1),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.calendar_view_month,
                       size: 14,
                       color: accentColor,
@@ -172,12 +155,12 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       value: _selectedUposathaVersion,
                       underline: const SizedBox(),
                       isDense: true,
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.arrow_drop_down,
                         size: 18,
                         color: accentColor,
                       ),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 11,
                         color: accentColor,
                         fontWeight: FontWeight.w600,
@@ -198,16 +181,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                 ),
               ),
               const SizedBox(height: 10),
-
-              // Fase bulan (plain box, no background)
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: accentColor.withOpacity(0.2),
-                    width: 1,
-                  ),
+                  border: Border.all(color: borderColor, width: 1),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +194,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       "Perhitungan Januari 2025",
                       style: TextStyle(
                         fontSize: 11,
-                        color: _textColor(widget.isDarkMode),
+                        color: textColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -235,7 +213,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               phase["date"]!,
                               style: TextStyle(
                                 fontSize: 9,
-                                color: _textColor(widget.isDarkMode),
+                                color: textColor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -247,23 +225,16 @@ class _PatipattiPageState extends State<PatipattiPage> {
                 ),
               ),
               const SizedBox(height: 10),
-
-              // Tombol aksi bawah
               Row(
                 children: [
                   Expanded(
                     child: TextButton.icon(
                       style: TextButton.styleFrom(
-                        backgroundColor: accentColor.withOpacity(
-                          0.05,
-                        ), // sama kayak dropdown
+                        backgroundColor: lightBg,
                         foregroundColor: accentColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: accentColor.withOpacity(0.2),
-                            width: 1,
-                          ),
+                          side: BorderSide(color: borderColor, width: 1),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
@@ -272,25 +243,18 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         "Kalender",
                         style: TextStyle(fontSize: 12),
                       ),
-                      onPressed: () {
-                        // TODO: Navigate ke kalender
-                      },
+                      onPressed: () {},
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextButton.icon(
                       style: TextButton.styleFrom(
-                        backgroundColor: accentColor.withOpacity(
-                          0.05,
-                        ), // sama kayak dropdown
+                        backgroundColor: lightBg,
                         foregroundColor: accentColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: accentColor.withOpacity(0.2),
-                            width: 1,
-                          ),
+                          side: BorderSide(color: borderColor, width: 1),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
@@ -299,9 +263,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         "Panduan",
                         style: TextStyle(fontSize: 12),
                       ),
-                      onPressed: () {
-                        // TODO: Navigate ke kalender
-                      },
+                      onPressed: () {},
                     ),
                   ),
                 ],
@@ -314,38 +276,41 @@ class _PatipattiPageState extends State<PatipattiPage> {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 2. MEDITASI CARD - neutral background dengan accent orange
+  // 2. MEDITASI CARD - Merah (warna bendera ke-3)
   // ═══════════════════════════════════════════════════════════
   Widget _buildMeditationCard() {
-    const accentColor = Color(0xFFFF6F00); // Orange
+    // ✅ Ambil dari Theme
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    const accentColor = Color(0xFFD32F2F);
+    final lightBg = isDark ? const Color(0xFF4A1F1F) : const Color(0xFFFFEBEE);
+    final borderColor = isDark
+        ? const Color(0xFF6D2C2C)
+        : const Color(0xFFFFCDD2);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       child: Card(
-        color: _cardColor(widget.isDarkMode),
-        elevation: 1, // ✅ tambahin ini biar nggak ada shadow
-        // shape: RoundedRectangleBorder(
-        //  borderRadius: BorderRadius.circular(16),
-        //  side: BorderSide(color: accentColor.withOpacity(0.3), width: 2),
-        // ),
+        color: cardColor,
+        elevation: 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Icon + Title dalam satu row
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
+                      color: lightBg,
                       borderRadius: BorderRadius.circular(10),
-                      // border: Border.all(
-                      //  color: accentColor.withOpacity(0.3),
-                      //  width: 1.5,
-                      // ),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.self_improvement_rounded,
                       color: accentColor,
                       size: 24,
@@ -361,17 +326,13 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: _textColor(widget.isDarkMode),
+                            color: textColor,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           "Ketenangan & Pandangan Terang",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _subtextColor(widget.isDarkMode),
-                            fontWeight: FontWeight.w400,
-                          ),
+                          style: TextStyle(fontSize: 12, color: subtextColor),
                         ),
                       ],
                     ),
@@ -379,8 +340,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Tombol aksi (3 tombol)
               Row(
                 children: [
                   Expanded(
@@ -388,9 +347,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       label: "Timer",
                       icon: Icons.timer_outlined,
                       color: accentColor,
-                      onTap: () {
-                        // TODO: Buka meditation timer
-                      },
+                      lightBg: lightBg,
+                      borderColor: borderColor,
+                      onTap: () {},
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -399,9 +358,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       label: "Audio",
                       icon: Icons.headphones_rounded,
                       color: accentColor,
-                      onTap: () {
-                        // TODO: Buka audio guide (termasuk Mettā)
-                      },
+                      lightBg: lightBg,
+                      borderColor: borderColor,
+                      onTap: () {},
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -410,9 +369,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       label: "Video",
                       icon: Icons.play_circle_outline,
                       color: accentColor,
-                      onTap: () {
-                        // TODO: Buka video guide
-                      },
+                      lightBg: lightBg,
+                      borderColor: borderColor,
+                      onTap: () {},
                     ),
                   ),
                 ],
@@ -424,77 +383,42 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  Widget _buildActionButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withOpacity(0.3), width: 1),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // ═══════════════════════════════════════════════════════════
-  // 3. PARITTA CARD - neutral background dengan accent purple
+  // 3. PARITTA CARD - Oranye (warna bendera ke-5)
   // ═══════════════════════════════════════════════════════════
   Widget _buildParittaCard() {
-    const accentColor = Color(0xFF8E24AA); // Purple
+    // ✅ Ambil dari Theme
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    const accentColor = Color(0xFFF57C00);
+    final lightBg = isDark ? const Color(0xFF4A3517) : const Color(0xFFFFF3E0);
+    final borderColor = isDark
+        ? const Color(0xFF6D4C1F)
+        : const Color(0xFFFFE0B2);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Card(
-        color: _cardColor(widget.isDarkMode),
+        color: cardColor,
         elevation: 1,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          //decoration: BoxDecoration(
-          //   borderRadius: BorderRadius.circular(16),
-          //   border: Border.all(color: accentColor.withOpacity(0.3), width: 2),
-          // ),
+        child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Icon + Title dalam satu row
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
+                      color: lightBg,
                       borderRadius: BorderRadius.circular(10),
-                      //  border: Border.all(
-                      //   color: accentColor.withOpacity(0.3),
-                      //  width: 1.5,
-                      //),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.book_rounded,
                       color: accentColor,
                       size: 24,
@@ -510,17 +434,13 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: _textColor(widget.isDarkMode),
+                            color: textColor,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           "Syair Perlindungan",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _subtextColor(widget.isDarkMode),
-                            fontWeight: FontWeight.w400,
-                          ),
+                          style: TextStyle(fontSize: 12, color: subtextColor),
                         ),
                       ],
                     ),
@@ -528,8 +448,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Tombol kategori paritta (3x2 grid)
               Column(
                 children: [
                   Row(
@@ -539,9 +457,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           label: "Tradisi STI",
                           icon: Icons.menu_book_rounded,
                           color: accentColor,
-                          onTap: () {
-                            // TODO: Buka submenu 9 kategori STI
-                          },
+                          lightBg: lightBg,
+                          borderColor: borderColor,
+                          onTap: () {},
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -550,9 +468,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           label: "Pagi Hari",
                           icon: Icons.wb_sunny_outlined,
                           color: accentColor,
-                          onTap: () {
-                            // TODO: Buka list paritta pagi
-                          },
+                          lightBg: lightBg,
+                          borderColor: borderColor,
+                          onTap: () {},
                         ),
                       ),
                     ],
@@ -565,9 +483,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           label: "Malam Hari",
                           icon: Icons.nights_stay_outlined,
                           color: accentColor,
-                          onTap: () {
-                            // TODO: Buka list paritta malam
-                          },
+                          lightBg: lightBg,
+                          borderColor: borderColor,
+                          onTap: () {},
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -576,9 +494,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           label: "Uposatha",
                           icon: Icons.calendar_month,
                           color: accentColor,
-                          onTap: () {
-                            // TODO: Buka list paritta uposatha
-                          },
+                          lightBg: lightBg,
+                          borderColor: borderColor,
+                          onTap: () {},
                         ),
                       ),
                     ],
@@ -591,9 +509,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           label: "Dhammadesanā",
                           icon: Icons.church_rounded,
                           color: accentColor,
-                          onTap: () {
-                            // TODO: Pilih vihara (DBS/DR/Yasati/PATVDH)
-                          },
+                          lightBg: lightBg,
+                          borderColor: borderColor,
+                          onTap: () {},
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -602,14 +520,53 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           label: "Lainnya",
                           icon: Icons.more_horiz,
                           color: accentColor,
-                          onTap: () {
-                            // TODO: Kategori tambahan
-                          },
+                          lightBg: lightBg,
+                          borderColor: borderColor,
+                          onTap: () {},
                         ),
                       ),
                     ],
                   ),
                 ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required Color lightBg,
+    required Color borderColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: lightBg,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),

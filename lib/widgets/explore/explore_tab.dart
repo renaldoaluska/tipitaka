@@ -10,8 +10,8 @@ class ExploreTab extends StatelessWidget {
   const ExploreTab({
     super.key,
     required this.items,
-    this.defaultIcon = Icons.link, // fallback default
-    this.defaultColor = Colors.orange, // fallback default
+    this.defaultIcon = Icons.link,
+    this.defaultColor = Colors.orange,
   });
 
   Future<void> _launchCustomTab(BuildContext context, String url) async {
@@ -32,15 +32,24 @@ class ExploreTab extends StatelessWidget {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error membuka $url: $e")));
+      // ✅ Fix: Check if widget is still mounted before using context
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error membuka $url: $e")));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // ✅ Fix: Extract warna divider di sini (tanpa withOpacity)
+    final dividerColor = isDarkMode
+        ? Color.fromARGB(77, 158, 158, 158) // Grey 30% untuk dark
+        : Color.fromARGB(102, 158, 158, 158); // Grey 40% untuk light
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: items.length,
@@ -49,23 +58,13 @@ class ExploreTab extends StatelessWidget {
         if (item["isHeader"] == "true") {
           final isFirst = index == 0;
           return Padding(
-            padding: EdgeInsets.only(
-              top: isFirst
-                  ? 12
-                  : 28, // ⬅️ first header ada jarak tipis, lainnya lebih lega
-              bottom: 8, // ⬅️ bottom lebih rapat, nggak kejauhan
-            ),
+            padding: EdgeInsets.only(top: isFirst ? 12 : 28, bottom: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    //  Icon(
-                    //    Icons.label_important,
-                    //    size: 20,
-                    //    color: isDarkMode ? Colors.amber : Colors.orange.shade500,
-                    //  ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -81,27 +80,24 @@ class ExploreTab extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4), // garis lebih dekat ke teks
+                const SizedBox(height: 4),
                 Divider(
                   thickness: 1,
-                  color: isDarkMode
-                      ? Colors.grey.withOpacity(0.3)
-                      : Colors.grey.withOpacity(0.4),
+                  color: dividerColor, // ✅ Ganti dari Colors.grey.withOpacity()
                 ),
               ],
             ),
           );
         }
 
-        // kalau item biasa
         return Padding(
           padding: const EdgeInsets.only(bottom: 3),
           child: PanjangCardBuilder(
             title: item["title"] ?? "",
             subtitle: item["desc"] ?? "",
-            icon: defaultIcon, // ⬅️ pakai defaultIcon
-            color: defaultColor, // ⬅️ pakai defaultColor
-            isDarkMode: isDarkMode,
+            icon: defaultIcon,
+            color: defaultColor,
+            // isDarkMode: isDarkMode,
             onTap: () {
               final url = item["url"] ?? "";
               if (url.isEmpty) return;
@@ -112,45 +108,4 @@ class ExploreTab extends StatelessWidget {
       },
     );
   }
-
-  /* IconData? _mapIcon(String? name) {
-    switch (name) {
-      case "apps":
-        return Icons.apps_rounded;
-      case "library_books":
-        return Icons.library_books_rounded;
-      case "article":
-        return Icons.article_rounded;
-      case "download":
-        return Icons.download_rounded;
-      case "forum":
-        return Icons.forum_rounded;
-      case "share":
-        return Icons.share_rounded;
-      case "list":
-        return Icons.list_alt_rounded;
-      default:
-        return null; // fallback ke defaultIcon
-    }
-  }
-
-  Color? _mapColor(String? name) {
-    switch (name) {
-      case "orange":
-        return Colors.orange.shade700;
-      case "blue":
-        return Colors.blue.shade700;
-      case "red":
-        return Colors.red.shade600;
-      case "green":
-        return Colors.green.shade700;
-      case "purple":
-        return Colors.purple.shade700;
-      case "teal":
-        return Colors.teal.shade600;
-      default:
-        return null; // fallback ke defaultColor
-    }
-  }
-*/
 }

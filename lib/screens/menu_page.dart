@@ -56,32 +56,23 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   Widget buildMenuItem(MenuItem item) {
+    // ✅ Ambil warna tema
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
     final isLeaf = item.nodeType != "branch";
     final displayAcronym = _rootAcronym;
 
-    // Cek apakah childRange udah include acronym
-    /*final childRangeHasAcronym = item.childRange.toUpperCase().contains(
-      displayAcronym.toUpperCase(),
-    );*/
     return Card(
-      color: Colors.white,
-      elevation: 1, // ✅ tambah shadow
-      margin: const EdgeInsets.symmetric(
-        vertical: 5,
-        horizontal: 16,
-      ), // ✅ vertical 6→4
+      color: cardColor, // ✅ Ganti Colors.white
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
-        shape: RoundedRectangleBorder(
-          // ✅ tambah ini biar hover rounded
-          borderRadius: BorderRadius.circular(12),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          // ✅ tambah ini
-          horizontal: 16,
-          vertical: 0,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
         leading: buildNikayaAvatar(displayAcronym),
         title: Text(
           item.translatedTitle.isNotEmpty
@@ -89,10 +80,12 @@ class _MenuPageState extends State<MenuPage> {
               : item.originalTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
+            // ✅ Hapus const
             fontWeight: FontWeight.w500,
             fontSize: 14,
-          ), // ✅ 16→14
+            color: textColor, // ✅ Warna judul ikut tema
+          ),
         ),
         subtitle: item.blurb.isNotEmpty
             ? Text(
@@ -100,24 +93,23 @@ class _MenuPageState extends State<MenuPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: subTextColor, // ✅ Ganti Colors.grey
                   fontSize: 12,
-                ), // ✅ 13→12
+                ),
               )
             : null,
         trailing: isLeaf
             ? Text(
                 item.acronym.replaceFirst("Patthana", "Pat"),
                 style: TextStyle(
-                  fontSize: 12, // ✅ 14→12
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: getNikayaColor(displayAcronym),
                 ),
               )
-            : // ... dst (trailing juga 14→12)
-              (item.childRange.isNotEmpty
+            : (item.childRange.isNotEmpty
                   ? Text(
-                      item.childRange, // langsung pake childRange aja, udah lengkap
+                      item.childRange,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -141,7 +133,7 @@ class _MenuPageState extends State<MenuPage> {
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
-              backgroundColor: Colors.white,
+              backgroundColor: cardColor, // ✅ Background sheet ikut tema
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
@@ -163,27 +155,40 @@ class _MenuPageState extends State<MenuPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Setup variabel tema di sini
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    // Khusus icon button back:
+    final iconColor = Theme.of(context).iconTheme.color;
+
     final rawBlurb = _root?["blurb"] ?? "";
     final previewBlurb = rawBlurb.replaceAll(RegExp(r'<[^>]*>'), '');
     final isLong = previewBlurb.length > 60;
 
     return Scaffold(
       appBar: null,
+      backgroundColor: bgColor, // ✅ Scaffold background dinamis
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-          ? const Center(child: Text("Data tidak tersedia (menu_page)"))
+          ? Center(
+              child: Text(
+                "Data tidak tersedia (menu_page)",
+                style: TextStyle(color: textColor), // ✅ Text error dinamis
+              ),
+            )
           : Container(
-              color: Colors.grey[50], // 👉 background abu-abu muda
+              color: bgColor, // ✅ Container background dinamis
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: MediaQuery.of(context).padding.top,
-                  ), // 👉 jarak aman
+                  SizedBox(height: MediaQuery.of(context).padding.top),
                   if (_root != null)
                     Card(
-                      color: Colors.white,
+                      color: cardColor, // ✅ Header card dinamis
                       margin: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 6,
@@ -202,23 +207,26 @@ class _MenuPageState extends State<MenuPage> {
                               // 👉 Row: tombol back + judul + acronym + range
                               Row(
                                 children: [
-                                  // Tombol back bulat putih
+                                  // Tombol back bulat
                                   Container(
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
+                                    decoration: BoxDecoration(
+                                      color: cardColor, // ✅ Background tombol
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black12,
+                                          color: Colors.black.withValues(
+                                            alpha: 0.1,
+                                          ), // ✅ Shadow lebih soft
                                           blurRadius: 4,
-                                          offset: Offset(0, 2),
+                                          offset: const Offset(0, 2),
                                         ),
                                       ],
                                     ),
                                     child: IconButton(
-                                      icon: const Icon(
+                                      icon: Icon(
                                         Icons.arrow_back,
-                                        color: Colors.black,
+                                        color:
+                                            iconColor, // ✅ Icon color ikut tema
                                       ),
                                       onPressed: () => Navigator.pop(context),
                                     ),
@@ -229,16 +237,17 @@ class _MenuPageState extends State<MenuPage> {
                                   Expanded(
                                     child: Text(
                                       _root?["root_name"] ?? "",
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
+                                        color: textColor, // ✅ Judul dinamis
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
 
-                                  // Akronim: tampilkan HANYA kalau child_range kosong
+                                  // Akronim
                                   if (_rootAcronym.isNotEmpty &&
                                       _rootAcronym.trim().toUpperCase() !=
                                           (_root?["root_name"] ?? "")
@@ -258,7 +267,7 @@ class _MenuPageState extends State<MenuPage> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
 
-                                  // Range anak kalau ada (udah include akronim di dalemnya)
+                                  // Range anak
                                   if ((_root?["child_range"] ?? "").isNotEmpty)
                                     Text(
                                       _root?["child_range"] ?? "",
@@ -277,9 +286,8 @@ class _MenuPageState extends State<MenuPage> {
                               RichText(
                                 text: TextSpan(
                                   style: TextStyle(
-                                    fontSize: 16, // 👈 ini yang bikin konsisten
-                                    color: Colors
-                                        .grey[700], // 👈 warna sama kayak sebelumnya
+                                    fontSize: 16,
+                                    color: subTextColor, // ✅ Deskripsi dinamis
                                   ),
                                   children: [
                                     TextSpan(
@@ -292,7 +300,7 @@ class _MenuPageState extends State<MenuPage> {
                                       TextSpan(
                                         text: "Baca selengkapnya",
                                         style: const TextStyle(
-                                          fontSize: 16, // 👈  biar gak beda
+                                          fontSize: 16,
                                           color: Colors.blue,
                                           fontWeight: FontWeight.w500,
                                         ),
@@ -301,11 +309,24 @@ class _MenuPageState extends State<MenuPage> {
                                             showDialog(
                                               context: context,
                                               builder: (_) => AlertDialog(
+                                                backgroundColor:
+                                                    cardColor, // ✅ Dialog bg dinamis
                                                 title: Text(
                                                   _root?["root_name"] ?? "",
+                                                  style: TextStyle(
+                                                    color: textColor,
+                                                  ), // ✅ Title dialog
                                                 ),
                                                 content: SingleChildScrollView(
-                                                  child: Html(data: rawBlurb),
+                                                  child: Html(
+                                                    data: rawBlurb,
+                                                    style: {
+                                                      "body": Style(
+                                                        color:
+                                                            textColor, // ✅ Isi HTML dinamis
+                                                      ),
+                                                    },
+                                                  ),
                                                 ),
                                                 actions: [
                                                   TextButton(
@@ -328,7 +349,7 @@ class _MenuPageState extends State<MenuPage> {
                     ),
                   Expanded(
                     child: ListView.builder(
-                      padding: EdgeInsets.zero, // 👉 rapetin list ke header
+                      padding: EdgeInsets.zero,
                       itemCount: _items.length,
                       itemBuilder: (context, index) {
                         final item = _items[index];

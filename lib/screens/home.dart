@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math';
 import '../styles/nikaya_style.dart';
 import '../widgets/icon_button_builder.dart';
@@ -10,17 +11,11 @@ import '../widgets/explore/explore_tab_forum.dart';
 import '../widgets/explore/explore_tab_info.dart';
 import '../widgets/explore/explore_tab_unduh.dart';
 import '../widgets/explore/explore_tab_ikuti.dart';
+import '../core/theme/theme_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Home extends StatefulWidget {
-  final bool isDarkMode;
-  final VoidCallback onThemeToggle;
-
-  const Home({
-    super.key,
-    required this.isDarkMode,
-    required this.onThemeToggle,
-  });
+  const Home({super.key});
 
   @override
   State<Home> createState() => _HomeState();
@@ -81,23 +76,17 @@ class _HomeState extends State<Home> {
     });
   }
 
-  Color _bgColor(bool dark) => dark ? Colors.grey[900]! : Colors.grey[50]!;
-  Color _cardColor(bool dark) => dark ? Colors.grey[850]! : Colors.white;
-  Color _textColor(bool dark) => dark ? Colors.white : Colors.black;
-  /*Color _subtextColor(bool dark) =>
-      dark ? Colors.grey[400]! : Colors.grey[600]!;
-*/
-
   @override
   Widget build(BuildContext context) {
+    // ✅ Ambil warna dari Theme, bukan parameter
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
     return Scaffold(
-      backgroundColor: _bgColor(widget.isDarkMode),
+      backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 16), // ✅ jarak sebelum kutipan
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildQuoteCard()),
           SliverToBoxAdapter(child: _buildQuickAccess()),
           if (_recentlyViewed.isNotEmpty)
@@ -112,28 +101,28 @@ class _HomeState extends State<Home> {
 
   Widget _buildAppBar() {
     return SliverToBoxAdapter(
-      child: HeaderDepan(
-        isDarkMode: widget.isDarkMode,
-        onThemeToggle: widget.onThemeToggle,
-        title: "Sotthi Hotu",
-        subtitle: "Namo Ratanattayā",
-      ),
+      child: HeaderDepan(title: "Sotthi Hotu", subtitle: "Namo Ratanattayā"),
     );
   }
 
   Widget _buildQuoteCard() {
     if (_todayQuote == null) return const SizedBox.shrink();
+
+    // ✅ Ambil warna dari Theme
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).colorScheme.surface;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Card(
         elevation: 1,
-        color: _cardColor(widget.isDarkMode),
+        color: cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
-              colors: widget.isDarkMode
+              colors: isDark
                   ? [Colors.orange.shade900, Colors.deepOrange.shade900]
                   : [Colors.orange.shade50, Colors.amber.shade50],
             ),
@@ -146,7 +135,7 @@ class _HomeState extends State<Home> {
                 children: [
                   Icon(
                     Icons.auto_awesome,
-                    color: widget.isDarkMode ? Colors.amber : Colors.orange,
+                    color: isDark ? Colors.amber : Colors.orange,
                     size: 16,
                   ),
                   const SizedBox(width: 6),
@@ -155,9 +144,7 @@ class _HomeState extends State<Home> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: widget.isDarkMode
-                          ? Colors.amber
-                          : Colors.orange.shade800,
+                      color: isDark ? Colors.amber : Colors.orange.shade800,
                     ),
                   ),
                 ],
@@ -168,9 +155,7 @@ class _HomeState extends State<Home> {
                 style: TextStyle(
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
-                  color: widget.isDarkMode
-                      ? Colors.grey[300]
-                      : Colors.grey[800],
+                  color: isDark ? Colors.grey[300] : Colors.grey[800],
                   height: 1.3,
                 ),
               ),
@@ -179,9 +164,7 @@ class _HomeState extends State<Home> {
                 _todayQuote!["trans"]!,
                 style: TextStyle(
                   fontSize: 12,
-                  color: widget.isDarkMode
-                      ? Colors.grey[400]
-                      : Colors.grey[700],
+                  color: isDark ? Colors.grey[400] : Colors.grey[700],
                   height: 1.4,
                 ),
               ),
@@ -193,38 +176,33 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildQuickAccess() {
+    // ✅ Ambil warna dari Theme
+    final textColor = Theme.of(context).colorScheme.onSurface;
+
     final features = [
       {
         "label": "Tipiṭaka",
         "icon": Icons.menu_book_rounded,
-        "color": const Color(0xFF283593),
-      },
-      {
-        "label": "Paritta",
-        "icon": Icons.book_rounded,
-        "color": const Color(0xFFFDD835),
+        "color": const Color(0xFF1565C0),
       },
       {
         "label": "Uposatha",
         "icon": Icons.nightlight_round,
-        "color": const Color(0xFFD84315),
+        "color": const Color(0xFFF9A825),
       },
       {
         "label": "Meditasi",
         "icon": Icons.self_improvement_rounded,
-        "color": const Color(0xFFFF9800),
+        "color": const Color(0xFFD32F2F),
       },
       {
-        "label": "Kustom",
-        "icon": Icons.dashboard_customize,
-        "color": Colors.blueGrey.shade300,
+        "label": "Paritta",
+        "icon": Icons.book_rounded,
+        "color": const Color(0xFFF57C00),
       },
     ];
-    return
-    //Padding(
-    //  padding: const EdgeInsets.symmetric(vertical: 8),
-    // child:
-    Column(
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
@@ -234,36 +212,41 @@ class _HomeState extends State<Home> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: _textColor(widget.isDarkMode),
+              color: textColor,
             ),
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 90,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: features.length,
-            itemBuilder: (context, index) {
-              final f = features[index];
-              return IconButtonBuilder(
-                label: f["label"] as String,
-                icon: f["icon"] as IconData,
-                color: f["color"] as Color,
-                onTap: () {
-                  // TODO: Navigate
-                },
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: features.map((f) {
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: IconButtonBuilder(
+                    label: f["label"] as String,
+                    icon: f["icon"] as IconData,
+                    color: f["color"] as Color,
+                    onTap: () {
+                      // TODO: Navigate
+                    },
+                  ),
+                ),
               );
-            },
+            }).toList(),
           ),
         ),
       ],
     );
-    //);
   }
 
   Widget _buildRecentlyViewed() {
+    // ✅ Ambil warna dari Theme
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final cardColor = Theme.of(context).colorScheme.surface;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(
@@ -274,7 +257,7 @@ class _HomeState extends State<Home> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: _textColor(widget.isDarkMode),
+              color: textColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -283,15 +266,13 @@ class _HomeState extends State<Home> {
             physics: const NeverScrollableScrollPhysics(),
             padding: EdgeInsets.zero,
             itemCount: _recentlyViewed.length.clamp(0, 3),
-            separatorBuilder: (_, __) =>
-                const SizedBox(height: 8), // spacing antar card
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final rv = _recentlyViewed[index];
               return Card(
                 elevation: 1,
-                margin:
-                    EdgeInsets.zero, // hilangin margin bawaan biar konsisten
-                color: _cardColor(widget.isDarkMode),
+                margin: EdgeInsets.zero,
+                color: cardColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -316,18 +297,13 @@ class _HomeState extends State<Home> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: _textColor(widget.isDarkMode),
+                      color: textColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  //trailing: Icon(
-                  //  Icons.arrow_forward_ios,
-                  //  size: 16,
-                  //  color: _subtextColor(widget.isDarkMode),
-                  // ),
                   onTap: () {
-                    // TODO: Navigate ke detail rv["uid"]
+                    // TODO: Navigate
                   },
                 ),
               );
@@ -339,6 +315,10 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildBookmarks() {
+    // ✅ Ambil warna dari Theme
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final cardColor = Theme.of(context).colorScheme.surface;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
@@ -351,7 +331,7 @@ class _HomeState extends State<Home> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: _textColor(widget.isDarkMode),
+                  color: textColor,
                 ),
               ),
               const Spacer(),
@@ -366,7 +346,6 @@ class _HomeState extends State<Home> {
               ),
             ],
           ),
-          //const SizedBox(height: 2),
           SizedBox(
             height: 70,
             child: ListView.builder(
@@ -379,14 +358,14 @@ class _HomeState extends State<Home> {
                   margin: const EdgeInsets.only(right: 10),
                   child: Card(
                     elevation: 1,
-                    color: _cardColor(widget.isDarkMode),
+                    color: cardColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
-                        // TODO: Navigate ke detail b["uid"]
+                        // TODO: Navigate
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(10),
@@ -411,7 +390,7 @@ class _HomeState extends State<Home> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
-                                  color: _textColor(widget.isDarkMode),
+                                  color: textColor,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -491,6 +470,9 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildExploreSection() {
+    // ✅ Ambil warna dari Theme
+    final textColor = Theme.of(context).colorScheme.onSurface;
+
     final exploreItems = [
       {
         "title": "Tipiṭakapp",
@@ -546,12 +528,10 @@ class _HomeState extends State<Home> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: _textColor(widget.isDarkMode),
+              color: textColor,
             ),
           ),
           const SizedBox(height: 12),
-
-          // Loop explore items dengan spacing
           ...exploreItems.asMap().entries.map((entry) {
             final item = entry.value;
             final isLast = entry.key == exploreItems.length - 1;
@@ -563,23 +543,18 @@ class _HomeState extends State<Home> {
                   subtitle: item["subtitle"] as String,
                   icon: item["icon"] as IconData,
                   color: item["color"] as Color,
-                  isDarkMode: widget.isDarkMode,
                   onTap: () => _openExplore(context, item["index"] as int),
                 ),
                 if (!isLast) const SizedBox(height: 3),
               ],
             );
           }),
-
           const SizedBox(height: 3),
-
-          // Kontribusi card
           PanjangCardBuilder(
             title: "Kontribusi",
             subtitle: "Ikut kembangkan aplikasi ini",
             icon: Icons.code,
             color: Colors.blueGrey,
-            isDarkMode: widget.isDarkMode,
             onTap: () {
               showDialog(
                 context: context,
