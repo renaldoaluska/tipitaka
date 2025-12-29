@@ -95,6 +95,9 @@ class _HomeState extends State<Home> {
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 16), // ✅ jarak sebelum kutipan
+          ),
           SliverToBoxAdapter(child: _buildQuoteCard()),
           SliverToBoxAdapter(child: _buildQuickAccess()),
           if (_recentlyViewed.isNotEmpty)
@@ -121,7 +124,7 @@ class _HomeState extends State<Home> {
   Widget _buildQuoteCard() {
     if (_todayQuote == null) return const SizedBox.shrink();
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Card(
         elevation: 1,
         color: _cardColor(widget.isDarkMode),
@@ -212,12 +215,14 @@ class _HomeState extends State<Home> {
         "color": const Color(0xFFFF9800),
       },
     ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
+    return
+    //Padding(
+    //  padding: const EdgeInsets.symmetric(vertical: 8),
+    // child:
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        /*Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               "Akses Cepat",
@@ -227,30 +232,30 @@ class _HomeState extends State<Home> {
                 color: _textColor(widget.isDarkMode),
               ),
             ),
+          ),*/
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 90,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: features.length,
+            itemBuilder: (context, index) {
+              final f = features[index];
+              return IconButtonBuilder(
+                label: f["label"] as String,
+                icon: f["icon"] as IconData,
+                color: f["color"] as Color,
+                onTap: () {
+                  // TODO: Navigate
+                },
+              );
+            },
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 90,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: features.length,
-              itemBuilder: (context, index) {
-                final f = features[index];
-                return IconButtonBuilder(
-                  label: f["label"] as String,
-                  icon: f["icon"] as IconData,
-                  color: f["color"] as Color,
-                  onTap: () {
-                    // TODO: Navigate
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
+    //);
   }
 
   Widget _buildRecentlyViewed() {
@@ -267,7 +272,7 @@ class _HomeState extends State<Home> {
               color: _textColor(widget.isDarkMode),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -330,7 +335,7 @@ class _HomeState extends State<Home> {
 
   Widget _buildBookmarks() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -356,7 +361,7 @@ class _HomeState extends State<Home> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          //const SizedBox(height: 2),
           SizedBox(
             height: 70,
             child: ListView.builder(
