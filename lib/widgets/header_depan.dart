@@ -5,20 +5,17 @@ import '../core/theme/theme_manager.dart';
 
 class HeaderDepan extends StatefulWidget {
   final String title;
-
-  // 👇 INI TETAP STRING BIAR FILE LAIN GA ERROR
+  // 👇 String utama (Wajib ada biar file lain aman)
   final String subtitle;
-
-  // 👇 INI TAMBAHAN OPSIONAL BUAT ANIMASI DI HOME
+  // 👇 List tambahan buat animasi di Home (Opsional)
   final List<String>? subtitlesList;
-
   final bool enableAnimation;
 
   const HeaderDepan({
     super.key,
     required this.title,
-    required this.subtitle, // Halaman lain taunya ini, jadi aman
-    this.subtitlesList, // Di Home tinggal isi ini
+    required this.subtitle,
+    this.subtitlesList,
     this.enableAnimation = false,
   });
 
@@ -40,7 +37,6 @@ class _HeaderDepanState extends State<HeaderDepan> {
   @override
   void didUpdateWidget(covariant HeaderDepan oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Cek kalau ada perubahan data biar hot reload jalan
     if (widget.enableAnimation != oldWidget.enableAnimation ||
         widget.subtitlesList != oldWidget.subtitlesList ||
         widget.subtitle != oldWidget.subtitle) {
@@ -51,11 +47,9 @@ class _HeaderDepanState extends State<HeaderDepan> {
   void _setupLogic() {
     _timer?.cancel();
     _currentIndex = 0;
-
     // Gabungin subtitle utama + list tambahannya
     _displayList = [widget.subtitle, ...?widget.subtitlesList];
 
-    // Syarat animasi: enableAnimation TRUE dan isi list LEBIH DARI 1
     if (widget.enableAnimation && _displayList.length > 1) {
       _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
         if (mounted) {
@@ -79,7 +73,6 @@ class _HeaderDepanState extends State<HeaderDepan> {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
-    // Safety check: Ambil teks saat ini
     final currentText = _displayList.isNotEmpty
         ? _displayList[_currentIndex]
         : widget.subtitle;
@@ -108,14 +101,13 @@ class _HeaderDepanState extends State<HeaderDepan> {
                 Text(widget.title, style: titleStyle),
                 const SizedBox(height: 2),
 
-                // LOGIKA ANIMASI
                 if (widget.enableAnimation && _displayList.length > 1)
                   ClipRect(
                     child: SizedBox(
                       height: 20,
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 600),
-                        reverseDuration: const Duration(milliseconds: 300),
+                        reverseDuration: const Duration(milliseconds: 400),
                         layoutBuilder: (currentChild, previousChildren) {
                           return Stack(
                             alignment: Alignment.centerLeft,
@@ -125,55 +117,68 @@ class _HeaderDepanState extends State<HeaderDepan> {
                             ],
                           );
                         },
-                        transitionBuilder:
-                            (Widget child, Animation<double> animation) {
-                              final isNewWidget =
-                                  child.key == ValueKey(currentText);
+                        // 👇 INI BAGIAN YANG DIUBAH BIAR JADI "DEPAN KE BELAKANG"
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          final isNewWidget =
+                              child.key == ValueKey(currentText);
 
-                              if (isNewWidget) {
-                                // ANIMASI MASUK: Slide dari Bawah + Scale Up (Card Push)
-                                return SlideTransition(
-                                  position:
-                                      Tween<Offset>(
-                                        begin: const Offset(0.0, 1.0),
-                                        end: Offset.zero,
-                                      ).animate(
-                                        CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeOutBack,
-                                        ),
-                                      ),
-                                  child: ScaleTransition(
-                                    scale: Tween<double>(
-                                      begin: 0.8,
-                                      end: 1.0,
-                                    ).animate(animation),
-                                    child: FadeTransition(
-                                      opacity: animation,
-                                      child: child,
+                          if (isNewWidget) {
+                            // --- ANIMASI MASUK (YANG BARU) ---
+                            // Slide biasa dari bawah ke tengah.
+                            return SlideTransition(
+                              position:
+                                  Tween<Offset>(
+                                    begin: const Offset(0.0, 1.0), // Dari bawah
+                                    end: Offset.zero,
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: animation,
+                                      curve: Curves
+                                          .easeOutBack, // Mantul dikit pas masuk
                                     ),
                                   ),
-                                );
-                              } else {
-                                // ANIMASI KELUAR: Slide ke Atas
-                                return SlideTransition(
-                                  position:
-                                      Tween<Offset>(
-                                        begin: const Offset(0.0, -1.0),
-                                        end: Offset.zero,
-                                      ).animate(
-                                        CurvedAnimation(
-                                          parent: animation,
-                                          curve: Curves.easeIn,
-                                        ),
-                                      ),
-                                  child: FadeTransition(
-                                    opacity: animation,
-                                    child: child,
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              ),
+                            );
+                          } else {
+                            // --- ANIMASI KELUAR (YANG LAMA) ---
+                            // KUNCINYA: Geser ke atas SAMBIL MENGECIL (Scale Down)
+                            return SlideTransition(
+                              position:
+                                  Tween<Offset>(
+                                    begin: Offset.zero,
+                                    end: const Offset(
+                                      0.0,
+                                      -0.5,
+                                    ), // Geser ke atas dikit
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: animation,
+                                      curve:
+                                          Curves.easeIn, // Keluar makin cepet
+                                    ),
                                   ),
-                                );
-                              }
-                            },
+                              // 👇 SCALE DOWN DISINI
+                              child: ScaleTransition(
+                                // Mengecil dari ukuran normal (1.0) ke agak kecil (0.9)
+                                scale: Tween<double>(
+                                  begin: 1.0,
+                                  end: 0.9,
+                                ).animate(animation),
+                                child: FadeTransition(
+                                  // Fade Out manual biar pas keluar dia memudar
+                                  opacity: Tween<double>(
+                                    begin: 1.0,
+                                    end: 0.0,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
+                            );
+                          }
+                        },
                         child: Text(
                           currentText,
                           key: ValueKey<String>(currentText),
@@ -185,7 +190,6 @@ class _HeaderDepanState extends State<HeaderDepan> {
                     ),
                   )
                 else
-                  // LOGIKA STATIS (Aman buat file lain)
                   Text(widget.subtitle, style: subtitleStyle),
               ],
             ),
