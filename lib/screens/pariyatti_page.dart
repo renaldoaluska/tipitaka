@@ -590,81 +590,89 @@ class _PariyattiPageState extends State<PariyattiPage>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: ExpansionTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    leading: buildNikayaAvatar("KN"),
-                    title: Text(
-                      "Khuddakanikāya",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: _textColor(widget.isDarkMode),
+                  child: ExpansionTileTheme(
+                    data: ExpansionTileThemeData(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      collapsedShape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    subtitle: Text(
-                      kitab["desc"]!,
-                      style: TextStyle(
-                        color: _subtextColor(widget.isDarkMode),
-                        fontSize: 12,
+                    child: ExpansionTile(
+                      leading: buildNikayaAvatar("KN"),
+                      title: Text(
+                        "Khuddakanikāya",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: _textColor(widget.isDarkMode),
+                        ),
                       ),
-                    ),
-                    initiallyExpanded: false,
-                    children: khuddakaChildren.map((child) {
-                      final childAcronym = normalizeNikayaAcronym(
-                        child["acronym"]!,
-                      );
-                      return ListTile(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      subtitle: Text(
+                        kitab["desc"]!,
+                        style: TextStyle(
+                          color: _subtextColor(widget.isDarkMode),
+                          fontSize: 12,
                         ),
-                        tileColor: _cardColor(widget.isDarkMode),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 0,
-                        ),
-                        leading: buildNikayaAvatar(childAcronym),
-                        title: Text(
-                          child["name"]!,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                            color: _textColor(widget.isDarkMode),
+                      ),
+                      initiallyExpanded: false,
+                      children: khuddakaChildren.map((child) {
+                        final childAcronym = normalizeNikayaAcronym(
+                          child["acronym"]!,
+                        );
+                        return ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ),
-                        subtitle: Text(
-                          child["desc"]!,
-                          style: TextStyle(
-                            color: _subtextColor(widget.isDarkMode),
-                            fontSize: 12,
+                          tileColor: _cardColor(widget.isDarkMode),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 0,
                           ),
-                        ),
-                        trailing: Text(
-                          child["range"]!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: getNikayaColor(childAcronym),
-                          ),
-                        ),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MenuPage(
-                              uid:
-                                  child["url"] ??
-                                  child["acronym"]!.toLowerCase(),
-                              parentAcronym: childAcronym,
+                          leading: buildNikayaAvatar(childAcronym),
+                          title: Text(
+                            child["name"]!,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                              color: _textColor(widget.isDarkMode),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                          subtitle: Text(
+                            child["desc"]!,
+                            style: TextStyle(
+                              color: _subtextColor(widget.isDarkMode),
+                              fontSize: 12,
+                            ),
+                          ),
+                          trailing: Text(
+                            child["range"]!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: getNikayaColor(childAcronym),
+                            ),
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MenuPage(
+                                uid:
+                                    child["url"] ??
+                                    child["acronym"]!.toLowerCase(),
+                                parentAcronym: childAcronym,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
               );
             }
+
             return Card(
               color: _cardColor(widget.isDarkMode),
               elevation: 1,
