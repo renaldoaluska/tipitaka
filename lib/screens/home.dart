@@ -399,7 +399,7 @@ class _HomeState extends State<Home> {
                                 b["kitab"],
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 11,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
