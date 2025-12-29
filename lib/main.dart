@@ -370,7 +370,7 @@ class _RootPageState extends State<RootPage>
               _buildNavItem(
                 rootIndex: 0,
                 targetPage: 0,
-                icon: '../assets/home.svg', // 👈 pake svg hasil convert tadi
+                icon: 'assets/home.svg', // 👈 pake svg hasil convert tadi
                 label: 'Beranda',
               ),
               _buildNavItem(
