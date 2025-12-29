@@ -11,6 +11,7 @@ import '../widgets/explore/explore_tab_info.dart';
 import '../widgets/explore/explore_tab_unduh.dart';
 import '../widgets/explore/explore_tab_ikuti.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:ui'; // 👈 Wajib ada buat efek Blur
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -100,8 +101,39 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildAppBar() {
-    return SliverToBoxAdapter(
-      child: HeaderDepan(title: "Sotthi Hotu", subtitle: "Namo Ratanattayā"),
+    // Ambil warna background dari tema, terus dibikin agak transparan
+    final transparentColor = Theme.of(
+      context,
+    ).scaffoldBackgroundColor.withValues(alpha: 0.85);
+
+    return SliverAppBar(
+      pinned: true, // Wajib true biar melayang
+      floating: true,
+
+      // ✅ Bikin background aslinya transparan biar flexibleSpace kelihatan
+      backgroundColor: Colors.transparent,
+
+      // Matikan bayangan default biar gak numpuk
+      elevation: 0,
+      scrolledUnderElevation: 0,
+
+      automaticallyImplyLeading: false,
+      toolbarHeight: 80,
+
+      // ✅ INI RAHASIANYA: Efek Kaca Buram (Frosted Glass)
+      flexibleSpace: ClipRRect(
+        child: BackdropFilter(
+          // Atur tingkat keburaman (makin gede makin ngeblur)
+          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+          child: Container(
+            color: transparentColor, // Warna semi-transparan
+          ),
+        ),
+      ),
+
+      title: HeaderDepan(title: "Sotthi Hotu", subtitle: "Namo Ratanattayā"),
+      centerTitle: true,
+      titleSpacing: 0,
     );
   }
 

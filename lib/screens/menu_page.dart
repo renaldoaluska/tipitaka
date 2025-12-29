@@ -5,6 +5,7 @@ import '../models/menu.dart';
 import 'suttaplex.dart';
 import '../styles/nikaya_style.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'dart:ui';
 
 class MenuPage extends StatefulWidget {
   final String uid;
@@ -40,7 +41,6 @@ class _MenuPageState extends State<MenuPage> {
 
       setState(() {
         _root = root;
-        // simpan acronym kitab utama sekali
         if (widget.parentAcronym.isNotEmpty) {
           _rootAcronym = widget.parentAcronym;
         } else {
@@ -56,7 +56,6 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   Widget buildMenuItem(MenuItem item) {
-    // ✅ Ambil warna tema
     final cardColor = Theme.of(context).colorScheme.surface;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -65,7 +64,7 @@ class _MenuPageState extends State<MenuPage> {
     final displayAcronym = _rootAcronym;
 
     return Card(
-      color: cardColor, // ✅ Ganti Colors.white
+      color: cardColor,
       elevation: 1,
       margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -81,10 +80,9 @@ class _MenuPageState extends State<MenuPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            // ✅ Hapus const
             fontWeight: FontWeight.w500,
             fontSize: 14,
-            color: textColor, // ✅ Warna judul ikut tema
+            color: textColor,
           ),
         ),
         subtitle: item.blurb.isNotEmpty
@@ -92,10 +90,7 @@ class _MenuPageState extends State<MenuPage> {
                 item.blurb.replaceAll(RegExp(r'<[^>]*>'), ''),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: subTextColor, // ✅ Ganti Colors.grey
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: subTextColor, fontSize: 12),
               )
             : null,
         trailing: isLeaf
@@ -133,7 +128,7 @@ class _MenuPageState extends State<MenuPage> {
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
-              backgroundColor: cardColor, // ✅ Background sheet ikut tema
+              backgroundColor: cardColor,
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
@@ -155,211 +150,242 @@ class _MenuPageState extends State<MenuPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Setup variabel tema di sini
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
     final cardColor = Theme.of(context).colorScheme.surface;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
-
-    // Khusus icon button back:
     final iconColor = Theme.of(context).iconTheme.color;
 
     final rawBlurb = _root?["blurb"] ?? "";
-    final previewBlurb = rawBlurb.replaceAll(RegExp(r'<[^>]*>'), '');
+    final previewBlurb = rawBlurb.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+    final hasBlurb = previewBlurb.isNotEmpty;
     final isLong = previewBlurb.length > 60;
 
     return Scaffold(
       appBar: null,
-      backgroundColor: bgColor, // ✅ Scaffold background dinamis
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-          ? Center(
-              child: Text(
-                "Data tidak tersedia (menu_page)",
-                style: TextStyle(color: textColor), // ✅ Text error dinamis
-              ),
-            )
-          : Container(
-              color: bgColor, // ✅ Container background dinamis
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: bgColor,
+      extendBodyBehindAppBar: true,
+      body: SafeArea(
+        bottom: false,
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _items.isEmpty
+            ? Center(
+                child: Text(
+                  "Data tidak tersedia",
+                  style: TextStyle(color: textColor),
+                ),
+              )
+            : Stack(
                 children: [
-                  SizedBox(height: MediaQuery.of(context).padding.top),
+                  // LIST CONTENT
+                  CustomScrollView(
+                    slivers: [
+                      // Spacing untuk header
+                      SliverToBoxAdapter(
+                        child: SizedBox(height: hasBlurb ? 130 : 80),
+                      ),
+
+                      // LIST ITEM
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          return buildMenuItem(_items[index]);
+                        }, childCount: _items.length),
+                      ),
+                    ],
+                  ),
+
+                  // FLOATING TRANSPARENT HEADER
                   if (_root != null)
-                    Card(
-                      color: cardColor, // ✅ Header card dinamis
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 👉 Row: tombol back + judul + acronym + range
-                              Row(
-                                children: [
-                                  // Tombol back bulat
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: cardColor, // ✅ Background tombol
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.1,
-                                          ), // ✅ Shadow lebih soft
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 3,
+                                spreadRadius: 0,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(
+                                sigmaX: 10.0,
+                                sigmaY: 10.0,
+                              ),
+                              child: Container(
+                                color: cardColor.withValues(alpha: 0.85),
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // ROW HEADER
+                                    Row(
+                                      children: [
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: cardColor,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: IconButton(
+                                            icon: Icon(
+                                              Icons.arrow_back,
+                                              color: iconColor,
+                                            ),
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                          ),
                                         ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            _root?["root_name"] ?? "",
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                              color: textColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (_rootAcronym.isNotEmpty &&
+                                            _rootAcronym.trim().toUpperCase() !=
+                                                (_root?["root_name"] ?? "")
+                                                    .trim()
+                                                    .toUpperCase() &&
+                                            (_root?["child_range"] ?? "")
+                                                .isEmpty)
+                                          Text(
+                                            _rootAcronym,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: getNikayaColor(
+                                                normalizeNikayaAcronym(
+                                                  _rootAcronym,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        if ((_root?["child_range"] ?? "")
+                                            .isNotEmpty)
+                                          Text(
+                                            _root?["child_range"] ?? "",
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: getNikayaColor(
+                                                _rootAcronym,
+                                              ),
+                                            ),
+                                          ),
                                       ],
                                     ),
-                                    child: IconButton(
-                                      icon: Icon(
-                                        Icons.arrow_back,
-                                        color:
-                                            iconColor, // ✅ Icon color ikut tema
-                                      ),
-                                      onPressed: () => Navigator.pop(context),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
 
-                                  // Judul kitab utama
-                                  Expanded(
-                                    child: Text(
-                                      _root?["root_name"] ?? "",
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: textColor, // ✅ Judul dinamis
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-
-                                  // Akronim
-                                  if (_rootAcronym.isNotEmpty &&
-                                      _rootAcronym.trim().toUpperCase() !=
-                                          (_root?["root_name"] ?? "")
-                                              .trim()
-                                              .toUpperCase() &&
-                                      (_root?["child_range"] ?? "").isEmpty)
-                                    Text(
-                                      _rootAcronym,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: getNikayaColor(
-                                          normalizeNikayaAcronym(_rootAcronym),
-                                        ),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-
-                                  // Range anak
-                                  if ((_root?["child_range"] ?? "").isNotEmpty)
-                                    Text(
-                                      _root?["child_range"] ?? "",
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: getNikayaColor(_rootAcronym),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-
-                              RichText(
-                                text: TextSpan(
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: subTextColor, // ✅ Deskripsi dinamis
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text: isLong
-                                          ? previewBlurb.substring(0, 60) +
-                                                "... "
-                                          : previewBlurb,
-                                    ),
-                                    if (isLong)
-                                      TextSpan(
-                                        text: "Baca selengkapnya",
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.blue,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        recognizer: TapGestureRecognizer()
-                                          ..onTap = () {
-                                            showDialog(
-                                              context: context,
-                                              builder: (_) => AlertDialog(
-                                                backgroundColor:
-                                                    cardColor, // ✅ Dialog bg dinamis
-                                                title: Text(
-                                                  _root?["root_name"] ?? "",
-                                                  style: TextStyle(
-                                                    color: textColor,
-                                                  ), // ✅ Title dialog
+                                    // DESKRIPSI
+                                    if (hasBlurb) ...[
+                                      const SizedBox(height: 8),
+                                      RichText(
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        text: TextSpan(
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            height: 1.4,
+                                            color: subTextColor,
+                                          ),
+                                          children: [
+                                            TextSpan(
+                                              text: isLong
+                                                  ? "${previewBlurb.substring(0, 80)}... "
+                                                  : previewBlurb,
+                                            ),
+                                            if (isLong)
+                                              TextSpan(
+                                                text: "Baca Selengkapnya",
+                                                style: const TextStyle(
+                                                  color: Colors.blue,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
-                                                content: SingleChildScrollView(
-                                                  child: Html(
-                                                    data: rawBlurb,
-                                                    style: {
-                                                      "body": Style(
-                                                        color:
-                                                            textColor, // ✅ Isi HTML dinamis
+                                                recognizer: TapGestureRecognizer()
+                                                  ..onTap = () {
+                                                    showDialog(
+                                                      context: context,
+                                                      builder: (_) => AlertDialog(
+                                                        backgroundColor:
+                                                            cardColor,
+                                                        title: Text(
+                                                          _root?["root_name"] ??
+                                                              "",
+                                                          style: TextStyle(
+                                                            color: textColor,
+                                                          ),
+                                                        ),
+                                                        content:
+                                                            SingleChildScrollView(
+                                                              child: Html(
+                                                                data: rawBlurb,
+                                                                style: {
+                                                                  "body": Style(
+                                                                    color:
+                                                                        textColor,
+                                                                  ),
+                                                                },
+                                                              ),
+                                                            ),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                  context,
+                                                                ),
+                                                            child: const Text(
+                                                              "Tutup",
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
-                                                    },
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(context),
-                                                    child: const Text("Tutup"),
-                                                  ),
-                                                ],
+                                                    );
+                                                  },
                                               ),
-                                            );
-                                          },
+                                          ],
+                                        ),
                                       ),
+                                    ],
                                   ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  Expanded(
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: _items.length,
-                      itemBuilder: (context, index) {
-                        final item = _items[index];
-                        return buildMenuItem(item);
-                      },
-                    ),
-                  ),
                 ],
               ),
-            ),
+      ),
     );
   }
 }

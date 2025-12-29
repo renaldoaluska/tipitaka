@@ -10,6 +10,7 @@ import '../models/sutta_text.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 enum ViewMode { translationOnly, lineByLine, sideBySide }
 
@@ -2082,62 +2083,98 @@ class _SuttaDetailState extends State<SuttaDetail> {
           children: [
             Column(
               children: [
-                SizedBox(height: MediaQuery.of(context).padding.top),
-                Card(
-                  color: cardColor,
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: cardColor,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                SizedBox(
+                  height: MediaQuery.of(context).padding.top + 70,
+                ), // Spacing untuk header
+                Expanded(child: body),
+              ],
+            ),
+
+            // TRANSPARENT HEADER
+            Positioned(
+              top: MediaQuery.of(context).padding.top,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: cardColor.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 3,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 1),
                           ),
-                          child: IconButton(
-                            icon: Icon(Icons.arrow_back, color: iconColor),
-                            onPressed: _isLoading
-                                ? null
-                                : () async {
-                                    final navigator = Navigator.of(context);
-                                    final allow = await _handleBackReplace();
-                                    if (allow && mounted) {
-                                      navigator.pop();
-                                    }
-                                  },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            widget.textData?["suttaplex"]?["original_title"] ??
-                                suttaTitle,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            child: IconButton(
+                              icon: Icon(Icons.arrow_back, color: iconColor),
+                              onPressed: _isLoading
+                                  ? null
+                                  : () async {
+                                      final navigator = Navigator.of(context);
+                                      final allow = await _handleBackReplace();
+                                      if (allow && mounted) {
+                                        navigator.pop();
+                                      }
+                                    },
+                            ),
                           ),
-                        ),
-                        ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.textData?["suttaplex"]?["original_title"] ??
+                                  suttaTitle,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.bookmark_border,
+                              color: Colors.amber,
+                              size: 22,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              // TODO: Handle bookmark functionality
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Bookmark: TO DO'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                          ),
                           IconButton(
                             icon: const Icon(
                               Icons.info_outline,
@@ -2220,7 +2257,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                               : "Legacy (HTML)",
                                         ),
 
-                                        // ✅ INI FITUR FOOTER INFO DI DIALOG
                                         if (_footerInfo.isNotEmpty) ...[
                                           const SizedBox(height: 16),
                                           const Divider(),
@@ -2254,29 +2290,29 @@ class _SuttaDetailState extends State<SuttaDetail> {
                               );
                             },
                           ),
-                        ],
-                        if (acronym.isNotEmpty) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            acronym,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: getNikayaColor(
-                                normalizeNikayaAcronym(
-                                  acronym.split(" ").first,
+                          if (acronym.isNotEmpty) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              acronym,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: getNikayaColor(
+                                  normalizeNikayaAcronym(
+                                    acronym.split(" ").first,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
-                Expanded(child: body),
-              ],
+              ),
             ),
+
             if (_tocList.isNotEmpty && !_connectionError && !isError)
               Positioned(
                 right: 0,
@@ -2317,7 +2353,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         floatingActionButton: _connectionError || isError
-            ? null // Hide FABs on error
+            ? null
             : _buildFloatingActions(isSegmented),
       ),
     );

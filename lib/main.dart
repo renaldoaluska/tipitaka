@@ -6,6 +6,7 @@ import 'screens/home.dart';
 import 'screens/pariyatti_content.dart';
 import 'screens/patipatti_page.dart';
 import 'widgets/header_depan.dart';
+import 'dart:ui';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized(); // Best practice tambah ini
@@ -154,62 +155,90 @@ class _RootPageState extends State<RootPage>
   }
 
   Widget _buildPariyattiOverlay() {
+    final transparentColor = Theme.of(
+      context,
+    ).scaffoldBackgroundColor.withValues(alpha: 0.85);
+
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
-      child: Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              const HeaderDepan(
-                // ✅ Tambah const
-                title: "Pariyatti",
-                subtitle: "Studi Dhamma",
-              ), // ❌ Hapus parameter isDarkMode & onThemeToggle
-              const SizedBox(height: 12),
-              // Quick buttons
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildQuickButton(
-                        label: "Tematik",
-                        icon: Icons.category_rounded,
-                        color: Colors.indigo.shade700,
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+          child: Container(
+            color: transparentColor,
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ✅ SOLUSI FINAL BIAR POSISI SAMA PERSIS:
+                  // Pake AppBar beneran (dibungkus SizedBox 80).
+                  // Ini maksa flutter ngitung posisi "Center" sama persis kayak di Home.
+                  SizedBox(
+                    height: 80,
+                    child: AppBar(
+                      primary:
+                          false, // Penting: Matikan safearea internal AppBar (krn kita udh di dlm SafeArea)
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      scrolledUnderElevation: 0,
+                      automaticallyImplyLeading: false,
+                      centerTitle: true, // Paksa tengah
+                      titleSpacing: 0, // Hapus margin bawaan
+                      toolbarHeight: 80, // Samain tinggi
+                      title: const HeaderDepan(
+                        title: "Pariyatti",
+                        subtitle: "Studi Dhamma",
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildQuickButton(
-                        label: "Ab-saṅgaha",
-                        icon: Icons.auto_stories_rounded,
-                        color: Colors.amber.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
+                  ),
 
-              // Tab bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    _buildTabButton(0, "Sutta", 1),
-                    const SizedBox(width: 8),
-                    _buildTabButton(1, "Abhidhamma", 2),
-                    const SizedBox(width: 8),
-                    _buildTabButton(2, "Vinaya", 3),
-                  ],
-                ),
+                  // const SizedBox(height: 12), // (Opsional, jarak ke tombol di bawahnya)
+
+                  // Quick buttons
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickButton(
+                            label: "Tematik",
+                            icon: Icons.category_rounded,
+                            color: Colors.indigo.shade700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildQuickButton(
+                            label: "Ab-saṅgaha",
+                            icon: Icons.auto_stories_rounded,
+                            color: Colors.amber.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Tab bar (Kode lanjutannya sama...)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        _buildTabButton(0, "Sutta", 1),
+                        const SizedBox(width: 8),
+                        _buildTabButton(1, "Abhidhamma", 2),
+                        const SizedBox(width: 8),
+                        _buildTabButton(2, "Vinaya", 3),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui'; // 👈 WAJIB ADA BUAT EFEK BLUR
 import '../widgets/header_depan.dart';
 
 class PatipattiPage extends StatefulWidget {
@@ -26,7 +27,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Ambil dari Theme
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
 
     return Scaffold(
@@ -34,18 +34,46 @@ class _PatipattiPageState extends State<PatipattiPage> {
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+          // const SliverToBoxAdapter(child: SizedBox(height: 16)),
           SliverToBoxAdapter(child: _buildUposathaCard()),
           SliverToBoxAdapter(child: _buildMeditationCard()),
           SliverToBoxAdapter(child: _buildParittaCard()),
+          const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
     );
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // ✅ HEADER BARU (MELAYANG + BLUR)
+  // ═══════════════════════════════════════════════════════════
   Widget _buildAppBar() {
-    return const SliverToBoxAdapter(
-      child: HeaderDepan(title: "Paṭipatti", subtitle: "Praktik Dhamma"),
+    final transparentColor = Theme.of(
+      context,
+    ).scaffoldBackgroundColor.withValues(alpha: 0.85);
+
+    return SliverAppBar(
+      pinned: true,
+      floating: true,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
+      toolbarHeight: 80,
+
+      flexibleSpace: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+          child: Container(
+            color: transparentColor, // ✅ Cuma warna aja, GAK PAKE border
+          ),
+        ),
+      ),
+
+      title: const HeaderDepan(title: "Paṭipatti", subtitle: "Praktik Dhamma"),
+      centerTitle: true,
+      titleSpacing: 0,
     );
   }
 
