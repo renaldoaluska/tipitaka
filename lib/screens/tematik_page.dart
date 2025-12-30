@@ -226,7 +226,7 @@ class _TematikPageState extends State<TematikPage> {
                         child: Text(
                           romanNumeral,
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -241,7 +241,7 @@ class _TematikPageState extends State<TematikPage> {
                           Text(
                             item["title"]!,
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -329,7 +329,7 @@ class _TematikPageState extends State<TematikPage> {
                   child: Text(
                     "Pendahuluan $roman",
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
@@ -412,7 +412,7 @@ class _TematikPageState extends State<TematikPage> {
                       child: Text(
                         item["title"]!,
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: textColor,
                         ),
@@ -518,7 +518,7 @@ class _TematikPageState extends State<TematikPage> {
                       Text(
                         item["title"]!,
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: textColor,
                         ),
@@ -635,6 +635,7 @@ class _TematikPageState extends State<TematikPage> {
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
             ),
           ],
@@ -661,7 +662,7 @@ class _TematikPageState extends State<TematikPage> {
                         "Total Bagian:",
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 14,
+                          fontSize: 12,
                         ),
                       ),
                       Text(
@@ -669,7 +670,7 @@ class _TematikPageState extends State<TematikPage> {
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                     ],
@@ -682,7 +683,7 @@ class _TematikPageState extends State<TematikPage> {
                         "Sudah Dibaca:",
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 14,
+                          fontSize: 12,
                         ),
                       ),
                       Text(
@@ -690,7 +691,7 @@ class _TematikPageState extends State<TematikPage> {
                         style: const TextStyle(
                           color: Colors.deepOrange,
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                     ],
@@ -707,13 +708,13 @@ class _TematikPageState extends State<TematikPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     "$percentage% selesai",
                     style: const TextStyle(
                       color: Colors.deepOrange,
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: 14,
                     ),
                   ),
                 ],
