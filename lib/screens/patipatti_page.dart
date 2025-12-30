@@ -434,6 +434,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           borderColor: borderColor,
                           isHorizontal: true,
                           isCentered: false,
+                          isSlider: true,
                           // width: 160,
                           onTap: () {},
                         );
@@ -1152,6 +1153,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
   // ═══════════════════════════════════════════════════════════
   // ✨ HELPER: MENU BUTTON
   // ═══════════════════════════════════════════════════════════
+  // Ganti function _buildMenuButton yang paling bawah dengan ini:
   Widget _buildMenuButton({
     required String label,
     required IconData icon,
@@ -1161,6 +1163,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
     required VoidCallback onTap,
     bool isHorizontal = false,
     bool isCentered = true,
+    bool isSlider =
+        false, // 👈 Parameter baru default false (aman buat Paritta)
     double? width,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1185,7 +1189,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
             border: Border.all(color: borderColor, width: 1),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          // Di dalam _buildMenuButton
           child: isHorizontal
               ? Row(
                   mainAxisAlignment: isCentered
@@ -1202,12 +1205,19 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       child: Icon(icon, color: color, size: 20),
                     ),
                     const SizedBox(width: 12),
-
                     // 👇 LOGIKA BARU:
-                    // Kalau ada width (fixed), pakai Expanded biar rapi.
-                    // Kalau width null (slider Derma), pakai Text biasa biar "fit" konten.
-                    width != null
-                        ? Expanded(
+                    // Kalau isSlider = true (Derma) -> Pakai Text biasa biar lebar ngikutin teks.
+                    // Kalau isSlider = false (Paritta) -> Pakai Expanded biar teks kepotong (...) kalo kepentok layar.
+                    isSlider
+                        ? Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: textColor,
+                            ),
+                          )
+                        : Expanded(
                             child: Text(
                               label,
                               style: TextStyle(
@@ -1218,20 +1228,10 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          )
-                        : Text(
-                            label,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: textColor,
-                            ),
-                            // Gak perlu maxLines/overflow biar tampil semua
                           ),
                   ],
                 )
               : Column(
-                  // ... (bagian Column biarin aja)
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
