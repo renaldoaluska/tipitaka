@@ -762,7 +762,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
         child: Column(
           children: [
             // 🏷️ HEADER STRIP
-            _buildHeaderStrip("Samādhi"),
+            _buildHeaderStrip("Bhāvanā"),
 
             Padding(
               padding: const EdgeInsets.all(16),
