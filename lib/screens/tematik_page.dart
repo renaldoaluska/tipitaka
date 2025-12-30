@@ -935,7 +935,7 @@ class _TematikPageState extends State<TematikPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "Total Sutta:",
+                        "Total Bagian:",
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 14,
