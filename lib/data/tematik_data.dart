@@ -1271,7 +1271,7 @@ class TematikData {
               "code": "MN 73",
             },
             {
-              "section": "Ladang Kebajikan Dunia",
+              "section": "Ladang Jasa Kebajikan Bagi Dunia",
               "name": "Tujuh Jenis Individu Mulia",
               "desc": "",
               "code": "MN 70",
