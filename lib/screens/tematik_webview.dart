@@ -2,12 +2,19 @@
 
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../widgets/tematik_chapter_list.dart';
 
 class TematikWebView extends StatefulWidget {
   final String url;
   final String title;
+  final int? chapterIndex; // Tambah ini untuk tau chapter mana
 
-  const TematikWebView({super.key, required this.url, required this.title});
+  const TematikWebView({
+    super.key,
+    required this.url,
+    required this.title,
+    this.chapterIndex, // Optional, kalo null berarti bukan pendahuluan chapter
+  });
 
   @override
   State<TematikWebView> createState() => _TematikWebViewState();
@@ -115,6 +122,29 @@ class _TematikWebViewState extends State<TematikWebView> {
     }
   }
 
+  void _showChapterList() {
+    if (widget.chapterIndex == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: TematikChapterList(
+          chapterIndex: widget.chapterIndex!,
+          onChecklistChanged: () {
+            // Optional: bisa refresh sesuatu kalo perlu
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,6 +214,19 @@ class _TematikWebViewState extends State<TematikWebView> {
             ),
         ],
       ),
+      // Floating button cuma muncul kalo ada chapterIndex
+      floatingActionButton: widget.chapterIndex != null
+          ? FloatingActionButton.extended(
+              onPressed: _showChapterList,
+              backgroundColor: Colors.deepOrange,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.list_alt),
+              label: const Text(
+                'Daftar Teks',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            )
+          : null,
     );
   }
 }

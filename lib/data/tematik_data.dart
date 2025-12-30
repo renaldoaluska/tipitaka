@@ -1,7 +1,5 @@
-// lib/data/tematik_data.dart
-
 class TematikData {
-  // ===== TAMBAHAN BARU: URL mapping untuk webview =====
+  // URL mapping untuk webview (tetap sama)
   static const Map<String, String> webviewUrls = {
     "apaitutematik":
         "https://tipitakaindonesia.blogspot.com/p/tematik-new.html",
@@ -29,7 +27,6 @@ class TematikData {
     "pendahuluan10":
         "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan10.html",
   };
-  // ===== AKHIR TAMBAHAN =====
 
   static const List<Map<String, String>> mainMenu = [
     {"title": "Pengenalan Fitur", "desc": "Panduan menggunakan fitur tematik"},
@@ -50,7 +47,6 @@ class TematikData {
   ];
 
   static Map<String, dynamic> getChapterDetail(int chapterIndex) {
-    // ... SISA KODE TETAP SAMA seperti yang asli ...
     switch (chapterIndex) {
       case 0:
         return {
@@ -61,19 +57,15 @@ class TematikData {
               "name": "Penjelasan singkat",
               "desc": "Apa itu tematik?",
               "code": "",
+              "ref": "", // tidak ada referensi
             },
             {
               "section": "",
               "name": "ReadingFaithfully.org",
               "desc": "Postingan sumber (Inggris)",
               "code": "",
+              "ref": "",
             },
-            //  {
-            //   "section": "",
-            //  "name": "Unduh daftar ceklis",
-            // "desc": "Berukuran A4 (Inggris)",
-            //"code": "",
-            // },
           ],
         };
 
@@ -86,17 +78,17 @@ class TematikData {
               "name": "Prakata",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
             {
               "section": "",
               "name": "Pendahuluan Umum",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
           ],
         };
-
-      // ... SEMUA CASE LAINNYA TETAP SAMA ...
 
       case 2:
         return {
@@ -107,100 +99,116 @@ class TematikData {
               "name": "Pendahuluan I",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
-
+            // Usia Tua, Penyakit, dan Kematian
             {
               "section": "Usia Tua, Penyakit, dan Kematian",
               "name": "Penuaan dan Kematian",
               "desc": "",
               "code": "SN 3.3",
+              "ref": "1(1)",
             },
             {
               "section": "Usia Tua, Penyakit, dan Kematian",
               "name": "Perumpamaan Gunung",
               "desc": "",
               "code": "SN 3.25",
+              "ref": "1(2)",
             },
             {
               "section": "Usia Tua, Penyakit, dan Kematian",
               "name": "Utusan Surgawi",
               "desc": "",
               "code": "AN 3.35",
+              "ref": "1(3)",
             },
-
+            // Kesengsaraan Kehidupan Tanpa Perenungan
             {
               "section": "Kesengsaraan Kehidupan Tanpa Perenungan",
               "name": "Anak Panah Perasaan Menyakitkan",
               "desc": "",
               "code": "SN 36.6",
+              "ref": "2(1)",
             },
             {
               "section": "Kesengsaraan Kehidupan Tanpa Perenungan",
               "name": "Perubahan dalam Kehidupan",
               "desc": "",
               "code": "AN 8.6",
+              "ref": "2(2)",
             },
             {
               "section": "Kesengsaraan Kehidupan Tanpa Perenungan",
               "name": "Kekhawatiran Karena Perubahan",
               "desc": "",
               "code": "SN 22.7",
+              "ref": "2(3)",
             },
-
+            // Dunia dalam Kekacauan
             {
               "section": "Dunia dalam Kekacauan",
               "name": "Asal-mula Konflik",
               "desc": "",
               "code": "AN 2.37",
+              "ref": "3(1)",
             },
             {
               "section": "Dunia dalam Kekacauan",
               "name": "Mengapakah Makhluk-makhluk Hidup dalam Kebencian?",
               "desc": "",
               "code": "DN 21",
+              "ref": "3(2)",
             },
             {
               "section": "Dunia dalam Kekacauan",
               "name": "Mata Rantai Gelap dari Sebab-Akibat",
               "desc": "",
               "code": "DN 15",
+              "ref": "3(3)",
             },
             {
               "section": "Dunia dalam Kekacauan",
               "name": "Akar Kekerasan dan Penindasan",
               "desc": "",
               "code": "AN 3.69",
+              "ref": "3(4)",
             },
-
+            // Tanpa Awal Yang Dapat Ditemukan
             {
               "section": "Tanpa Awal Yang Dapat Ditemukan",
               "name": "Rumput dan Ranting",
               "desc": "",
               "code": "SN 15.1",
+              "ref": "4(1)",
             },
             {
               "section": "Tanpa Awal Yang Dapat Ditemukan",
               "name": "Bola-bola Tanah",
               "desc": "",
               "code": "SN 15.2",
+              "ref": "4(2)",
             },
             {
               "section": "Tanpa Awal Yang Dapat Ditemukan",
               "name": "Gunung",
               "desc": "",
               "code": "SN 15.5",
+              "ref": "4(3)",
             },
             {
               "section": "Tanpa Awal Yang Dapat Ditemukan",
               "name": "Sungai Gangga",
               "desc": "",
               "code": "SN 15.8",
+              "ref": "4(4)",
             },
             {
               "section": "Tanpa Awal Yang Dapat Ditemukan",
               "name": "Anjing yang Terikat",
               "desc": "",
               "code": "SN 22.99",
+              "ref": "4(5)",
             },
           ],
         };
@@ -214,50 +222,56 @@ class TematikData {
               "name": "Pendahuluan II",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
             {
               "section": "Satu Orang",
               "name": "Satu Orang",
               "desc": "",
               "code": "AN 1.170-187",
+              "ref": "1",
             },
             {
               "section": "Konsepsi dan Kelahiran Sang Buddha",
               "name": "Konsepsi dan Kelahiran Sang Buddha",
               "desc": "",
               "code": "MN 123",
+              "ref": "2",
             },
-
             {
               "section": "Pencarian Pencerahan",
               "name": "Mencari Kondisi Kedamaian Luhur Tertinggi",
               "desc": "",
               "code": "MN 26",
+              "ref": "3(1)",
             },
             {
               "section": "Pencarian Pencerahan",
               "name": "Pencapaian Tiga Pengetahuan Sejati",
               "desc": "",
               "code": "MN 36",
+              "ref": "3(2)",
             },
             {
               "section": "Pencarian Pencerahan",
               "name": "Kota Tua",
               "desc": "",
               "code": "SN 12.65",
+              "ref": "3(3)",
             },
-
             {
               "section": "Keputusan Untuk Mengajar",
               "name": "Keputusan Untuk Mengajar",
               "desc": "",
               "code": "MN 26",
+              "ref": "4",
             },
             {
               "section": "Khotbah Pertama",
               "name": "Khotbah Pertama",
               "desc": "",
               "code": "SN 56.11",
+              "ref": "5",
             },
           ],
         };
@@ -271,36 +285,42 @@ class TematikData {
               "name": "Pendahuluan III",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
             {
               "section": "Bukan Doktrin Rahasia",
               "name": "Bukan Doktrin Rahasia",
               "desc": "",
               "code": "AN 3.131",
+              "ref": "1",
             },
             {
               "section": "Tanpa Dogma atau Kepercayaan Membuta",
               "name": "Tanpa Dogma atau Kepercayaan Membuta",
               "desc": "",
               "code": "AN 3.65",
+              "ref": "2",
             },
             {
               "section": "Asal-Mula Yang Terlihat dan Lenyapnya Penderitaan",
               "name": "Asal-Mula Yang Terlihat dan Lenyapnya Penderitaan",
               "desc": "",
               "code": "SN 42.11",
+              "ref": "3",
             },
             {
               "section": "Menyelidiki Sang Guru Sendiri",
               "name": "Menyelidiki Sang Guru Sendiri",
               "desc": "",
               "code": "MN 47",
+              "ref": "4",
             },
             {
               "section": "Langkah Menuju Penembusan Kebenaran",
               "name": "Langkah Menuju Penembusan Kebenaran",
               "desc": "",
               "code": "MN 95",
+              "ref": "5",
             },
           ],
         };
@@ -314,121 +334,133 @@ class TematikData {
               "name": "Pendahuluan IV",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
-
             {
               "section": "Junjung Tinggi Dhamma",
               "name": "Raja Dhamma",
               "desc": "",
               "code": "AN 3.14",
+              "ref": "1(1)",
             },
             {
               "section": "Junjung Tinggi Dhamma",
               "name": "Memuja Enam Arah",
               "desc": "",
               "code": "DN 31",
+              "ref": "1(2)",
             },
-
             {
               "section": "Keluarga:\nOrang Tua dan Anak",
               "name": "Hormat kepada Orang Tua",
               "desc": "",
               "code": "AN 4.63",
+              "ref": "2(1)(a)",
             },
             {
               "section": "Keluarga:\nOrang Tua dan Anak",
               "name": "Membalas Budi Orang Tua",
               "desc": "",
               "code": "AN 2.33",
+              "ref": "2(1)(b)",
             },
-
             {
               "section": "Keluarga:\nSuami dan Istri",
               "name": "Aneka Jenis Pernikahan",
               "desc": "",
               "code": "AN 4.53",
+              "ref": "2(2)(a)",
             },
             {
               "section": "Keluarga:\nSuami dan Istri",
               "name": "Bagaimana agar Bersatu dalam Kehidupan Mendatang",
               "desc": "",
               "code": "AN 4.55",
+              "ref": "2(2)(b)",
             },
             {
               "section": "Keluarga:\nSuami dan Istri",
               "name": "Tujuh Jenis Istri",
               "desc": "",
               "code": "AN 7.63",
+              "ref": "2(2)(c)",
             },
-
             {
               "section": "Sejahtera Kini dan Nanti",
               "name": "Sejahtera Kini dan Nanti",
               "desc": "",
               "code": "AN 8.54",
+              "ref": "3",
             },
-
             {
               "section": "Penghidupan Benar",
               "name": "Menghindari Berpenghidupan Salah",
               "desc": "",
               "code": "AN 5.177",
+              "ref": "4(1)",
             },
             {
               "section": "Penghidupan Benar",
               "name": "Pemanfaatan Kekayaan Secara Tepat",
               "desc": "",
               "code": "AN 4.61",
+              "ref": "4(2)",
             },
             {
               "section": "Penghidupan Benar",
               "name": "Kebahagiaan Perumah Tangga",
               "desc": "",
               "code": "AN 4.62",
+              "ref": "4(3)",
             },
-
             {
               "section": "Ibu Rumah Tangga",
               "name": "Ibu Rumah Tangga",
               "desc": "",
               "code": "AN 8.49",
+              "ref": "5",
             },
-
             {
               "section": "Masyarakat",
               "name": "Enam Akar Perselisihan",
               "desc": "",
               "code": "MN 104",
+              "ref": "6(1)",
             },
             {
               "section": "Masyarakat",
               "name": "Enam Asas Kehangatan",
               "desc": "",
               "code": "MN 104",
+              "ref": "6(2)",
             },
             {
               "section": "Masyarakat",
               "name": "Kemuliaan Berlaku Bagi Semua Kasta",
               "desc": "",
               "code": "MN 93",
+              "ref": "6(3)",
             },
             {
               "section": "Masyarakat",
               "name": "Tujuh Asas Stabilitas Sosial",
               "desc": "",
               "code": "DN 16",
+              "ref": "6(4)",
             },
             {
               "section": "Masyarakat",
               "name": "Raja Pemutar-Roda",
               "desc": "",
               "code": "DN 26",
+              "ref": "6(5)",
             },
             {
               "section": "Masyarakat",
               "name": "Membawa Ketenangan Bagi Negeri",
               "desc": "",
               "code": "DN 5",
+              "ref": "6(6)",
             },
           ],
         };
@@ -442,113 +474,126 @@ class TematikData {
               "name": "Pendahuluan V",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
-
             {
               "section": "Hukum Kamma",
               "name": "Empat Jenis Kamma",
               "desc": "",
               "code": "AN 4.232",
+              "ref": "1(1)",
             },
             {
               "section": "Hukum Kamma",
               "name": "Mengapa Makhluk-makhluk Mengembara Setelah Kematian",
               "desc": "",
               "code": "MN 41",
+              "ref": "1(2)",
             },
             {
               "section": "Hukum Kamma",
               "name": "Kamma dan Buahnya",
               "desc": "",
               "code": "MN 135",
+              "ref": "1(3)",
             },
-
             {
               "section": "Jasa Kebajikan (Puñña)",
               "name": "Perbuatan Baik",
               "desc": "",
               "code": "Iti 22",
+              "ref": "2(1)",
             },
             {
               "section": "Jasa Kebajikan (Puñña)",
               "name": "Tiga Landasan Jasa",
               "desc": "",
               "code": "AN 8.36",
+              "ref": "2(2)",
             },
             {
               "section": "Jasa Kebajikan (Puñña)",
               "name": "Jenis Keyakinan Terbaik",
               "desc": "",
               "code": "AN 4.34",
+              "ref": "2(3)",
             },
-
             {
               "section": "Memberi (Dāna)",
               "name": "Jika Orang-orang Mengetahui Akibat dari Memberi",
               "desc": "",
               "code": "Iti 26",
+              "ref": "3(1)",
             },
             {
               "section": "Memberi (Dāna)",
               "name": "Alasan-alasan Memberi",
               "desc": "",
               "code": "AN 8.33",
+              "ref": "3(2)",
             },
             {
               "section": "Memberi (Dāna)",
               "name": "Pemberian Makanan",
               "desc": "",
               "code": "AN 4.57",
+              "ref": "3(3)",
             },
             {
               "section": "Memberi (Dāna)",
               "name": "Persembahan Seorang Besar",
               "desc": "",
               "code": "AN 5.148",
+              "ref": "3(4)",
             },
             {
               "section": "Memberi (Dāna)",
               "name": "Saling Menyokong",
               "desc": "",
               "code": "Iti 107",
+              "ref": "3(5)",
             },
             {
               "section": "Memberi (Dāna)",
               "name": "Kelahiran Kembali Karena Memberi",
               "desc": "",
               "code": "AN 8.35",
+              "ref": "3(6)",
             },
-
             {
               "section": "Disiplin Moral (Sīla)",
               "name": "Lima Sila",
               "desc": "",
               "code": "AN 8.39",
+              "ref": "4(1)",
             },
             {
               "section": "Disiplin Moral (Sīla)",
               "name": "Pelaksanaan Uposatha",
               "desc": "",
               "code": "AN 8.41",
+              "ref": "4(2)",
             },
-
             {
               "section": "Meditasi (Bhāvanā)",
               "name": "Pengembangan Cinta Kasih",
               "desc": "",
               "code": "Iti 27",
+              "ref": "5(1)",
             },
             {
               "section": "Meditasi (Bhāvanā)",
               "name": "Empat Kediaman Luhur",
               "desc": "",
               "code": "MN 99",
+              "ref": "5(2)",
             },
             {
               "section": "Meditasi (Bhāvanā)",
               "name": "Pandangan Terang Melampaui Segalanya",
               "desc": "",
               "code": "AN 9.20",
+              "ref": "5(3)",
             },
           ],
         };
@@ -562,107 +607,116 @@ class TematikData {
               "name": "Pendahuluan VI",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
             {
               "section": "Empat Hal Mengagumkan",
               "name": "Empat Hal Mengagumkan",
               "desc": "",
               "code": "AN 4.128",
+              "ref": "1",
             },
-
             {
               "section": "Kepuasan, Bahaya, dan Jalan Bebas",
               "name": "Sebelum Pencerahan-Ku",
               "desc": "",
               "code": "AN 3.103",
+              "ref": "2(1)",
             },
             {
               "section": "Kepuasan, Bahaya, dan Jalan Bebas",
               "name": "Aku Melakukan Pencarian",
               "desc": "",
               "code": "AN 3.104",
+              "ref": "2(2)",
             },
             {
               "section": "Kepuasan, Bahaya, dan Jalan Bebas",
               "name": "Jika Tidak Ada Kepuasan",
               "desc": "",
               "code": "AN 3.105",
+              "ref": "2(3)",
             },
-
             {
               "section": "Dengan Benar Menilai Objek Kemelekatan",
               "name": "Dengan Benar Menilai Objek Kemelekatan",
               "desc": "",
               "code": "MN 13",
+              "ref": "3",
             },
-
             {
               "section": "Jebakan Kenikmatan Indrawi",
               "name": "Memotong Segala Urusan",
               "desc": "",
               "code": "MN 54",
+              "ref": "4(1)",
             },
             {
               "section": "Jebakan Kenikmatan Indrawi",
               "name": "Demam Kenikmatan Indrawi",
               "desc": "",
               "code": "MN 75",
+              "ref": "4(2)",
             },
-
             {
               "section": "Hidup Singkat dan Berlalu Cepat",
               "name": "Hidup Singkat dan Berlalu Cepat",
               "desc": "",
               "code": "AN 7.70",
+              "ref": "5",
             },
-
             {
               "section": "Empat Ringkasan Dhamma",
               "name": "Empat Ringkasan Dhamma",
               "desc": "",
               "code": "MN 82",
+              "ref": "6",
             },
-
             {
               "section": "Bahaya Dalam Pandangan (Diṭṭhi)",
               "name": "Bunga-rampai Pandangan Salah",
               "desc": "",
               "code": "AN 1.306-315",
+              "ref": "7(1)",
             },
             {
               "section": "Bahaya Dalam Pandangan (Diṭṭhi)",
               "name": "Orang Buta dan Gajah",
               "desc": "",
               "code": "Ud 6.4",
+              "ref": "7(2)",
             },
             {
               "section": "Bahaya Dalam Pandangan (Diṭṭhi)",
               "name": "Terkekang Dua Jenis Pandangan",
               "desc": "",
               "code": "Iti 49",
+              "ref": "7(3)",
             },
-
             {
               "section": "Alam Dewa dan Alam Rendah",
               "name": "Alam Dewa dan Alam Rendah",
               "desc": "",
               "code": "AN 4.125",
+              "ref": "8",
             },
-
             {
               "section": "Bahaya Saṃsāra",
               "name": "Cucuran Air Mata",
               "desc": "",
               "code": "SN 15.3",
+              "ref": "9(1)",
             },
             {
               "section": "Bahaya Saṃsāra",
               "name": "Cucuran Darah",
               "desc": "",
               "code": "SN 15.13",
+              "ref": "9(2)",
             },
           ],
         };
+
       case 8:
         return {
           "title": "VII. Jalan Pembebasan",
@@ -672,65 +726,70 @@ class TematikData {
               "name": "Pendahuluan VII",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
-
             {
               "section": "Mengapa Memasuki Jalan?",
               "name": "Panah Kelahiran, Penuaan, dan Kematian",
               "desc": "",
               "code": "MN 63",
+              "ref": "1(1)",
             },
             {
               "section": "Mengapa Memasuki Jalan?",
               "name": "Inti Kehidupan Mulia",
               "desc": "",
               "code": "MN 29",
+              "ref": "1(2)",
             },
             {
               "section": "Mengapa Memasuki Jalan?",
               "name": "Lenyapnya Nafsu (1)",
               "desc": "",
               "code": "SN 45.41",
+              "ref": "1(3)",
             },
             {
               "section": "Mengapa Memasuki Jalan?",
               "name": "Lenyapnya Nafsu (2)",
               "desc": "",
               "code": "SN 45.42-47",
+              "ref": "1(3)",
             },
             {
               "section": "Mengapa Memasuki Jalan?",
               "name": "Lenyapnya Nafsu (3)",
               "desc": "",
               "code": "SN 45.48",
+              "ref": "1(3)",
             },
-
             {
               "section": "Jalan Mulia Berunsur Delapan",
               "name": "Jalan Mulia Berunsur Delapan",
               "desc": "",
               "code": "SN 45.8",
+              "ref": "2",
             },
-
             {
               "section": "Persahabatan Baik",
               "name": "Persahabatan Baik",
               "desc": "",
               "code": "SN 45.2",
+              "ref": "3",
             },
-
             {
               "section": "Latihan Bertahap",
               "name": "Latihan Bertahap",
               "desc": "",
               "code": "MN 27",
+              "ref": "4",
             },
-
             {
               "section": "Latihan Lanjutan",
               "name": "Latihan Lanjutan",
               "desc": "",
               "code": "MN 39",
+              "ref": "5",
             },
           ],
         };
@@ -744,129 +803,147 @@ class TematikData {
               "name": "Pendahuluan VIII",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
-
             {
               "section": "Pikiran Kuncinya",
               "name": "Pikiran Kuncinya",
               "desc": "",
               "code": "AN 1.21-30",
+              "ref": "1",
             },
-
             {
               "section": "Pengembangan Kecakapan",
               "name": "Keheningan dan Pandangan Terang",
               "desc": "",
               "code": "AN 2.31",
+              "ref": "2(1)",
             },
             {
               "section": "Pengembangan Kecakapan",
               "name": "Empat Cara Mencapai Kemuliaan Arahat",
               "desc": "",
               "code": "AN 4.170",
+              "ref": "2(2)",
             },
             {
               "section": "Pengembangan Kecakapan",
               "name": "Empat Jenis Orang",
               "desc": "",
               "code": "AN 4.94",
+              "ref": "2(3)",
             },
-
             {
               "section": "Rintangan Batin",
               "name": "Rintangan Batin",
               "desc": "",
               "code": "SN 46.55",
+              "ref": "3",
             },
             {
               "section": "Pemurnian Pikiran",
               "name": "Pemurnian Pikiran",
               "desc": "",
               "code": "AN 3.101",
+              "ref": "4",
             },
             {
               "section": "Pikiran Pengganggu",
               "name": "Pikiran Pengganggu",
               "desc": "",
               "code": "MN 20",
+              "ref": "5",
             },
             {
               "section": "Pikiran Cinta Kasih",
               "name": "Pikiran Cinta Kasih",
               "desc": "",
               "code": "MN 21",
+              "ref": "6",
             },
             {
               "section": "Enam Perenungan",
               "name": "Enam Perenungan",
               "desc": "",
               "code": "AN 6.10",
+              "ref": "7",
             },
             {
               "section": "Empat Landasan Perhatian",
               "name": "Empat Landasan Perhatian",
               "desc": "",
               "code": "MN 10",
+              "ref": "8",
             },
             {
               "section": "Perhatian Pada Napas",
               "name": "Perhatian Pada Napas",
               "desc": "",
               "code": "SN 54.13",
+              "ref": "9",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (1)",
               "desc": "",
               "code": "SN 28.1",
+              "ref": "10(1)",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (2)",
               "desc": "",
               "code": "SN 28.2",
+              "ref": "10(2)",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (3)",
               "desc": "",
               "code": "SN 28.3",
+              "ref": "10(3)",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (4)",
               "desc": "",
               "code": "SN 28.4",
+              "ref": "10(4)",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (5)",
               "desc": "",
               "code": "SN 28.5",
+              "ref": "10(5)",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (6)",
               "desc": "",
               "code": "SN 28.6",
+              "ref": "10(6)",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (7)",
               "desc": "",
               "code": "SN 28.7",
+              "ref": "10(7)",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (8)",
               "desc": "",
               "code": "SN 28.8",
+              "ref": "10(8)",
             },
             {
               "section": "Tercapainya Penguasaan",
               "name": "Tercapainya Penguasaan (9)",
               "desc": "",
               "code": "SN 28.9",
+              "ref": "10(9)",
             },
           ],
         };
@@ -880,188 +957,211 @@ class TematikData {
               "name": "Pendahuluan IX",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
-
             {
               "section": "Citra Kebijaksanaan",
               "name": "Kebijaksanaan sebagai Cahaya",
               "desc": "",
               "code": "AN 4.143",
+              "ref": "1(1)",
             },
             {
               "section": "Citra Kebijaksanaan",
               "name": "Kebijaksanaan sebagai Pisau",
               "desc": "",
               "code": "MN 146",
+              "ref": "1(2)",
             },
-
             {
               "section": "Syarat Kebijaksanaan",
               "name": "Syarat Kebijaksanaan",
               "desc": "",
               "code": "AN 8.2",
+              "ref": "2",
             },
             {
               "section": "Pandangan Benar",
               "name": "Pandangan Benar",
               "desc": "",
               "code": "MN 9",
+              "ref": "3",
             },
-
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Lima Gugusan",
               "name": "Tahap-tahap Gugusan",
               "desc": "",
               "code": "SN 22.56",
+              "ref": "4(1)(a)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Lima Gugusan",
               "name": "Tanya-Jawab Mengenai Gugusan (1)",
               "desc": "",
               "code": "SN 22.82",
+              "ref": "4(1)(b)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Lima Gugusan",
               "name": "Tanya-Jawab Mengenai Gugusan (2)",
               "desc": "",
               "code": "MN 109",
+              "ref": "4(1)(b)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Lima Gugusan",
               "name": "Ciri Tanpa-Aku",
               "desc": "",
               "code": "SN 22.59",
+              "ref": "4(1)(c)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Lima Gugusan",
               "name": "Ketidakkekalan, Penderitaan, Tanpa-Aku",
               "desc": "",
               "code": "SN 22.45",
+              "ref": "4(1)(d)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Lima Gugusan",
               "name": "Segumpal Buih",
               "desc": "",
               "code": "SN 22.95",
+              "ref": "4(1)(e)",
             },
-
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Enam Landasan Indra",
               "name": "Pemahaman Penuh",
               "desc": "",
               "code": "SN 35.26",
+              "ref": "4(2)(a)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Enam Landasan Indra",
               "name": "Terbakar",
               "desc": "",
               "code": "SN 35.28",
+              "ref": "4(2)(b)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Enam Landasan Indra",
               "name": "Sesuai untuk Mencapai Nibbāna (1)",
               "desc": "",
               "code": "SN 35.147",
+              "ref": "4(2)(c)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Enam Landasan Indra",
               "name": "Sesuai untuk Mencapai Nibbāna (2)",
               "desc": "",
               "code": "SN 35.148",
+              "ref": "4(2)(c)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Enam Landasan Indra",
               "name": "Sesuai untuk Mencapai Nibbāna (3)",
               "desc": "",
               "code": "SN 35.149",
+              "ref": "4(2)(c)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Enam Landasan Indra",
               "name": "Dunia Ini Kosong",
               "desc": "",
               "code": "SN 35.85",
+              "ref": "4(2)(d)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Enam Landasan Indra",
               "name": "Kesadaran Juga Tanpa-Aku",
               "desc": "",
               "code": "SN 35.234",
+              "ref": "4(2)(e)",
             },
-
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Unsur",
               "name": "Delapan Belas Unsur",
               "desc": "",
               "code": "SN 14.1",
+              "ref": "4(3)(a)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Unsur",
               "name": "Empat Unsur (1)",
               "desc": "",
               "code": "SN 14.37",
+              "ref": "4(3)(b)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Unsur",
               "name": "Empat Unsur (2)",
               "desc": "",
               "code": "SN 14.38",
+              "ref": "4(3)(b)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Unsur",
               "name": "Empat Unsur (3)",
               "desc": "",
               "code": "SN 14.39",
+              "ref": "4(3)(b)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Unsur",
               "name": "Enam Unsur",
               "desc": "",
               "code": "MN 140",
+              "ref": "4(3)(c)",
             },
-
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Kemunculan Bersebab",
               "name": "Apakah Kemunculan Bersebab Itu?",
               "desc": "",
               "code": "SN 12.1",
+              "ref": "4(4)(a)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Kemunculan Bersebab",
               "name": "Kestabilan Dhamma",
               "desc": "",
               "code": "SN 12.20",
+              "ref": "4(4)(b)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Kemunculan Bersebab",
               "name": "Empat Puluh Empat Perihal Pengetahuan",
               "desc": "",
               "code": "SN 12.33",
+              "ref": "4(4)(c)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Kemunculan Bersebab",
               "name": "Ajaran yang Berada di Tengah",
               "desc": "",
               "code": "SN 12.15",
+              "ref": "4(4)(d)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Kemunculan Bersebab",
               "name": "Kesinambungan Kesadaran",
               "desc": "",
               "code": "SN 12.38",
+              "ref": "4(4)(e)",
             },
             {
               "section": "Lingkup Kebijaksanaan:\nMelalui Kemunculan Bersebab",
               "name": "Asal-Mula dan Lenyapnya Dunia",
               "desc": "",
               "code": "SN 12.44",
+              "ref": "4(4)(f)",
             },
-
             {
               "section":
                   "Lingkup Kebijaksanaan:\nMelalui Empat Kebenaran Mulia",
               "name": "Kebenaran dari Semua Buddha",
               "desc": "",
               "code": "SN 56.24",
+              "ref": "4(5)(a)",
             },
             {
               "section":
@@ -1069,6 +1169,7 @@ class TematikData {
               "name": "Empat Kebenaran yang Nyata",
               "desc": "",
               "code": "SN 56.20",
+              "ref": "4(5)(b)",
             },
             {
               "section":
@@ -1076,6 +1177,7 @@ class TematikData {
               "name": "Segenggam Daun",
               "desc": "",
               "code": "SN 56.31",
+              "ref": "4(5)(c)",
             },
             {
               "section":
@@ -1083,6 +1185,7 @@ class TematikData {
               "name": "Karena Tak Memahami",
               "desc": "",
               "code": "SN 56.21",
+              "ref": "4(5)(d)",
             },
             {
               "section":
@@ -1090,6 +1193,7 @@ class TematikData {
               "name": "Tebing",
               "desc": "",
               "code": "SN 56.42",
+              "ref": "4(5)(e)",
             },
             {
               "section":
@@ -1097,6 +1201,7 @@ class TematikData {
               "name": "Membuat Terobosan",
               "desc": "",
               "code": "SN 56.32",
+              "ref": "4(5)(f)",
             },
             {
               "section":
@@ -1104,127 +1209,147 @@ class TematikData {
               "name": "Hancurnya Kotoran Batin",
               "desc": "",
               "code": "SN 56.25",
+              "ref": "4(5)(g)",
             },
-
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Apakah Nibbāna Itu?",
               "desc": "",
               "code": "SN 38.1",
+              "ref": "5(1)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (1)",
               "desc": "",
               "code": "SN 43.1",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (2)",
               "desc": "",
               "code": "SN 43.2",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (3)",
               "desc": "",
               "code": "SN 43.3",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (4)",
               "desc": "",
               "code": "SN 43.4",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (5)",
               "desc": "",
               "code": "SN 43.5",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (6)",
               "desc": "",
               "code": "SN 43.6",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (7)",
               "desc": "",
               "code": "SN 43.7",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (8)",
               "desc": "",
               "code": "SN 43.8",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (9)",
               "desc": "",
               "code": "SN 43.9",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (10)",
               "desc": "",
               "code": "SN 43.10",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (11)",
               "desc": "",
               "code": "SN 43.11",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (12)",
               "desc": "",
               "code": "SN 43.12",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (13)",
               "desc": "",
               "code": "SN 43.13",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (14)",
               "desc": "",
               "code": "SN 43.14-43",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Tiga Puluh Tiga Sinonim Nibbāna (15)",
               "desc": "",
               "code": "SN 43.44",
+              "ref": "5(2)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Itulah Dasarnya",
               "desc": "",
               "code": "Ud 8.1",
+              "ref": "5(3)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Yang Tak Terlahir",
               "desc": "",
               "code": "Ud 8.3",
+              "ref": "5(4)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Dua Unsur Nibbāna",
               "desc": "",
               "code": "Iti 44",
+              "ref": "5(5)",
             },
             {
               "section": "Tujuan Kebijaksanaan",
               "name": "Api dan Samudra",
               "desc": "",
               "code": "MN 72",
+              "ref": "5(6)",
             },
           ],
         };
@@ -1238,213 +1363,243 @@ class TematikData {
               "name": "Pendahuluan X",
               "desc": "oleh Bhikkhu Bodhi",
               "code": "",
+              "ref": "",
             },
-
             {
               "section": "Ladang Jasa Kebajikan Bagi Dunia",
               "name": "Delapan Individu yang Layak Menerima Persembahan",
               "desc": "",
               "code": "AN 8.59",
+              "ref": "1(1)",
             },
             {
               "section": "Ladang Jasa Kebajikan Bagi Dunia",
               "name": "Pembedaan Melalui Indra (1)",
               "desc": "",
               "code": "SN 48.18",
+              "ref": "1(2)",
             },
             {
               "section": "Ladang Jasa Kebajikan Bagi Dunia",
               "name": "Pembedaan Melalui Indra (2)",
               "desc": "",
               "code": "SN 48.10",
+              "ref": "1(2)",
             },
             {
               "section": "Ladang Jasa Kebajikan Bagi Dunia",
               "name": "Dalam Dhamma yang Telah Dibabarkan Sempurna",
               "desc": "",
               "code": "MN 22",
+              "ref": "1(3)",
             },
             {
               "section": "Ladang Jasa Kebajikan Bagi Dunia",
               "name": "Ajaran Yang Lengkap",
               "desc": "",
               "code": "MN 73",
+              "ref": "1(4)",
             },
             {
               "section": "Ladang Jasa Kebajikan Bagi Dunia",
               "name": "Tujuh Jenis Individu Mulia",
               "desc": "",
               "code": "MN 70",
+              "ref": "1(5)",
             },
-
             {
               "section": "Pemasuk-Arus (Sotāpanna)",
               "name": "Empat Faktor yang Mengarahkan ke Pemasuk-Arus",
               "desc": "",
               "code": "SN 55.5",
+              "ref": "2(1)",
             },
             {
               "section": "Pemasuk-Arus (Sotāpanna)",
               "name": "Memasuki Jalan Kebenaran yang Pasti",
               "desc": "",
               "code": "SN 25.1",
+              "ref": "2(2)",
             },
             {
               "section": "Pemasuk-Arus (Sotāpanna)",
               "name": "Terobosan Mencapai Dhamma",
               "desc": "",
               "code": "SN 13.1",
+              "ref": "2(3)",
             },
             {
               "section": "Pemasuk-Arus (Sotāpanna)",
               "name": "Empat Faktor Pemasuk-Arus",
               "desc": "",
               "code": "SN 55.2",
+              "ref": "2(4)",
             },
             {
               "section": "Pemasuk-Arus (Sotāpanna)",
               "name": "Lebih Baik Daripada Kekuasaan Atas Bumi",
               "desc": "",
               "code": "SN 55.1",
+              "ref": "2(5)",
             },
-
             {
               "section": "Yang-Tak-Kembali (Anāgāmi)",
               "name": "Meninggalkan Lima Belenggu Rendah",
               "desc": "",
               "code": "MN 64",
+              "ref": "3(1)",
             },
             {
               "section": "Yang-Tak-Kembali (Anāgāmi)",
               "name": "Empat Jenis Orang",
               "desc": "",
               "code": "AN 4.169",
+              "ref": "3(2)",
             },
             {
               "section": "Yang-Tak-Kembali (Anāgāmi)",
               "name": "Enam Hal yang Mengandung Pengetahuan Sejati",
               "desc": "",
               "code": "SN 55.3",
+              "ref": "3(3)",
             },
             {
               "section": "Yang-Tak-Kembali (Anāgāmi)",
               "name": "Lima Jenis Yang-Tak-Kembali",
               "desc": "",
               "code": "SN 46.3",
+              "ref": "3(4)",
             },
-
             {
               "section": "Arahat",
               "name": "Melenyapkan Keangkuhan 'Aku' Yang Tersisa",
               "desc": "",
               "code": "SN 22.89",
+              "ref": "4(1)",
             },
             {
               "section": "Arahat",
               "name": "Siswa Yang Masih Berlatih dan Arahat",
               "desc": "",
               "code": "SN 48.53",
+              "ref": "4(2)",
             },
             {
               "section": "Arahat",
               "name": "Bhikkhu yang Penghalangnya Telah Diangkat",
               "desc": "",
               "code": "MN 22",
+              "ref": "4(3)",
             },
             {
               "section": "Arahat",
               "name": "Sembilan Hal yang Tak Mungkin Dilakukan Arahat",
               "desc": "",
               "code": "AN 9.7",
+              "ref": "4(4)",
             },
             {
               "section": "Arahat",
               "name": "Pikiran yang Tak Tergoyahkan",
               "desc": "",
               "code": "AN 9.26",
+              "ref": "4(5)",
             },
             {
               "section": "Arahat",
               "name": "Sepuluh Kekuatan Seorang Bhikkhu Arahat",
               "desc": "",
               "code": "AN 10.90",
+              "ref": "4(6)",
             },
             {
               "section": "Arahat",
               "name": "Sang Bijaksana Yang Damai",
               "desc": "",
               "code": "MN 140",
+              "ref": "4(7)",
             },
             {
               "section": "Arahat",
               "name": "Sungguh Bahagia Para Arahat",
               "desc": "",
               "code": "SN 22.76",
+              "ref": "4(8)",
             },
-
             {
               "section": "Tathāgata",
               "name": "Sang Buddha dan Para Arahat",
               "desc": "",
               "code": "SN 22.58",
+              "ref": "5(1)",
             },
             {
               "section": "Tathāgata",
               "name": "Demi Kesejahteraan Banyak Makhluk",
               "desc": "",
               "code": "Iti 84",
+              "ref": "5(2)",
             },
             {
               "section": "Tathāgata",
               "name": "Ucapan Agung Sāriputta",
               "desc": "",
               "code": "SN 47.12",
+              "ref": "5(3)",
             },
             {
               "section": "Tathāgata",
               "name": "Kekuatan dan Landasan Bagi Keberanian",
               "desc": "",
               "code": "MN 12",
+              "ref": "5(4)",
             },
             {
               "section": "Tathāgata",
               "name": "Manifestasi Cahaya Agung",
               "desc": "",
               "code": "SN 56.38",
+              "ref": "5(5)",
             },
             {
               "section": "Tathāgata",
               "name": "Orang yang Menghendaki Kebaikan Kita",
               "desc": "",
               "code": "MN 19",
+              "ref": "5(6)",
             },
             {
               "section": "Tathāgata",
               "name": "Sang Singa",
               "desc": "",
               "code": "SN 22.78",
+              "ref": "5(7)",
             },
             {
               "section": "Tathāgata",
               "name": "Mengapa Beliau Disebut Tathāgata? (1)",
               "desc": "",
               "code": "AN 4.23",
+              "ref": "5(8)",
             },
             {
               "section": "Tathāgata",
               "name": "Mengapa Beliau Disebut Tathāgata? (2)",
               "desc": "",
               "code": "Iti 112",
+              "ref": "5(8)",
             },
           ],
         };
+
       default:
         return {"title": "", "items": []};
     }
   }
 
+  // Helper function untuk parse sutta code (tetap sama)
   static String parseSuttaCode(String code) {
     if (code.isEmpty) return "";
-    return code.toLowerCase().replaceAll(" ", "");
+    return code.replaceAll(" ", "").toLowerCase();
   }
 }

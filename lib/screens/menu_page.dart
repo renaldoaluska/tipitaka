@@ -138,7 +138,10 @@ class _MenuPageState extends State<MenuPage> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(16),
                   ),
-                  child: Suttaplex(uid: item.uid),
+                  child: Suttaplex(
+                    uid: item.uid,
+                    sourceMode: "menu_page", // ✅ Mode dari MenuPage
+                  ),
                 ),
               ),
             );

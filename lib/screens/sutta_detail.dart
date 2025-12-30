@@ -22,6 +22,11 @@ class SuttaDetail extends StatefulWidget {
   final bool openedFromSuttaDetail;
   final String? originalSuttaUid;
 
+  // ✅ Flag untuk tracking "entry point" (dari mana user masuk pertama kali)
+  final String? entryPoint; // "menu_page" | "tematik" | "search" | null
+  // ✅ 1. TAMBAH INI (Parameter pembawa pesan)
+  final bool isNavigated;
+
   const SuttaDetail({
     super.key,
     required this.uid,
@@ -29,16 +34,24 @@ class SuttaDetail extends StatefulWidget {
     required this.textData,
     this.openedFromSuttaDetail = false,
     this.originalSuttaUid,
+    this.entryPoint, // Default null = dari SuttaDetail sendiri (via book button)// ✅ 2. TAMBAH INI (Default false buat yg pertama dibuka)
+    this.isNavigated = false,
   });
 
   @override
   State<SuttaDetail> createState() => _SuttaDetailState();
 }
 
-enum SuttaSnackType { translatorFallback, firstText, lastText }
+enum SuttaSnackType {
+  translatorFallback,
+  firstText,
+  lastText,
+  disabledForTematik, // ✅ TAMBAH INI
+}
 
 class _SuttaDetailState extends State<SuttaDetail> {
   // --- NAV CONTEXT & STATE ---
+  late bool _hasNavigatedBetweenSuttas; // ✅ 3. Ubah jadi 'late' (hapus = false)
   String? _parentVaggaId;
 
   bool _isFirst = false;
@@ -73,6 +86,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   @override
   void initState() {
     super.initState();
+    _hasNavigatedBetweenSuttas = widget.isNavigated;
     _loadPreferences();
 
     final bool isSegmented = widget.textData?["segmented"] == true;
@@ -443,6 +457,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Future<bool> _handleBackReplace() async {
+    // Resolve parent vagga kalau belum ada
     if (_parentVaggaId == null) {
       final resolved = await _resolveVaggaUid(widget.uid);
       if (mounted && resolved != null) {
@@ -452,22 +467,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
       }
     }
 
-    bool shouldShowDialog = false;
-
-    if (widget.openedFromSuttaDetail) {
-      shouldShowDialog = true;
-    } else {
-      shouldShowDialog = (_parentVaggaId != null);
-    }
-
-    if (!shouldShowDialog) {
-      if (!mounted) return false;
-      Navigator.pop(context);
-      return true;
-    }
-
     if (!mounted) return false;
 
+    // ✅ DIALOG SELALU MUNCUL (sesuai kebutuhan)
     final shouldLeave = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -477,9 +479,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
           children: [
             Icon(
               Icons.logout_rounded,
-              color: Theme.of(context)
-                  .colorScheme
-                  .primary, // Atau .onSurface kalau mau putih/hitam polosan
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 12),
             Flexible(
@@ -531,44 +531,134 @@ class _SuttaDetailState extends State<SuttaDetail> {
     if (shouldLeave != true) return false;
     if (!mounted) return false;
 
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    // ✅ NAVIGATION BASED ON ENTRY POINT
 
-    final rootPrefix =
-        RegExp(r'^[A-Za-z]+(?:-[A-Za-z]+)?').stringMatch(widget.uid) ?? "";
-    if (rootPrefix.isNotEmpty && rootPrefix != _parentVaggaId) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          settings: RouteSettings(name: '/$rootPrefix'),
-          builder: (_) => MenuPage(uid: rootPrefix),
-        ),
-      );
+    // CASE A: Dari Tematik/Search → Pop sampai first route (back ke Tematik/Search)
+    if (widget.entryPoint == "tematik" || widget.entryPoint == "search") {
+      // Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pop();
+      return false;
     }
 
-    if (_parentVaggaId != null) {
-      String rawAcronym =
-          widget.textData?["root_text"]?["acronym"]?.toString() ?? "";
-      if (rawAcronym.isEmpty) {
-        rawAcronym =
-            RegExp(r'^[A-Za-z]+(?:-[A-Za-z]+)?').stringMatch(widget.uid) ?? "";
+    // CASE B: Dari MenuPage → Rebuild MenuPage tree dengan parent vagga
+    // CASE B: Dari MenuPage → Rebuild MenuPage tree dengan parent vagga
+    if (widget.entryPoint == "menu_page") {
+      // ✅ 1. Kalau gak prev/next → pop biasa (balik ke SuttaPlex yg lama)
+      if (!_hasNavigatedBetweenSuttas) {
+        Navigator.of(context).pop();
+        return false;
       }
-      rawAcronym = rawAcronym.replaceAll("-", " ");
-      const fullUpperSet = {"DN", "MN", "SN", "AN"};
-      String formattedAcronym = fullUpperSet.contains(rawAcronym.toUpperCase())
-          ? rawAcronym.toUpperCase()
-          : rawAcronym.isNotEmpty
-          ? rawAcronym[0].toUpperCase() + rawAcronym.substring(1)
-          : "";
 
+      // ✅ 2. Kalau udah prev/next → REBUILD TOTAL
+      Navigator.of(context).popUntil((route) => route.isFirst);
+
+      // --- STACK 1: ROOT (Tetap) ---
+      final rootPrefix =
+          RegExp(r'^[A-Za-z]+(?:-[A-Za-z]+)?').stringMatch(widget.uid) ?? "";
+      if (rootPrefix.isNotEmpty && rootPrefix != _parentVaggaId) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            settings: RouteSettings(name: '/$rootPrefix'),
+            builder: (_) => MenuPage(uid: rootPrefix),
+          ),
+        );
+      }
+
+      // --- STACK 2: VAGGA (Tetap) ---
+      if (_parentVaggaId != null) {
+        // ... (Logika acronym sama kayak sebelumnya) ...
+        String rawAcronym =
+            widget.textData?["root_text"]?["acronym"]?.toString() ?? "";
+        // ... (kode acronym cleaner lu yg lama) ...
+        if (rawAcronym.isEmpty) {
+          rawAcronym =
+              RegExp(r'^[A-Za-z]+(?:-[A-Za-z]+)?').stringMatch(widget.uid) ??
+              "";
+        }
+        rawAcronym = rawAcronym.replaceAll("-", " ");
+        const fullUpperSet = {"DN", "MN", "SN", "AN"};
+        String formattedAcronym =
+            fullUpperSet.contains(rawAcronym.toUpperCase())
+            ? rawAcronym.toUpperCase()
+            : rawAcronym.isNotEmpty
+            ? rawAcronym[0].toUpperCase() + rawAcronym.substring(1)
+            : "";
+
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            settings: RouteSettings(name: '/vagga/$_parentVaggaId'),
+            builder: (_) =>
+                MenuPage(uid: _parentVaggaId!, parentAcronym: formattedAcronym),
+          ),
+        );
+      }
+
+      // ✅ --- STACK 3: SUTTAPLEX (JURUS TRANSPARAN PAGE + FIX APPBAR) ---
       Navigator.of(context).push(
-        MaterialPageRoute(
-          settings: RouteSettings(name: '/vagga/$_parentVaggaId'),
-          builder: (_) =>
-              MenuPage(uid: _parentVaggaId!, parentAcronym: formattedAcronym),
+        PageRouteBuilder(
+          opaque: false,
+          barrierColor: Colors.black54,
+          barrierDismissible: true,
+          settings: RouteSettings(name: '/suttaplex/${widget.uid}'),
+          pageBuilder: (context, animation, secondaryAnimation) {
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.85,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+
+                      // ✅ FIX DUA APPBAR: Ilangin padding status bar di dalam sheet
+                      child: MediaQuery.removePadding(
+                        context: context,
+                        removeTop: true, // 🔥 Ini kuncinya!
+                        child: Suttaplex(
+                          uid: widget.uid,
+                          sourceMode: "sutta_detail",
+                          initialData:
+                              widget.textData?["suttaplex"]
+                                  as Map<String, dynamic>?,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(0.0, 1.0);
+            const end = Offset.zero;
+            const curve = Curves.easeOutCubic;
+            var tween = Tween(
+              begin: begin,
+              end: end,
+            ).chain(CurveTween(curve: curve));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
         ),
       );
-    }
 
-    return false;
+      return false;
+    } // End of if (widget.entryPoint == "menu_page")
+
+    // CASE C: Dari SuttaDetail sendiri (via book button) → Pop biasa aja
+    Navigator.pop(context);
+    return true;
   }
 
   void _replaceToRoute(String route, {bool slideFromLeft = false}) {
@@ -638,6 +728,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
             textData: mergedData,
             openedFromSuttaDetail: true,
             originalSuttaUid: null,
+            entryPoint: widget.entryPoint, // ✅ Forward entry point
           ),
           transitionsBuilder: (_, animation, _, child) {
             final offsetBegin = slideFromLeft
@@ -819,6 +910,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Future<void> _navigateToSutta({required bool isPrevious}) async {
+    // ✅ Set flag di awal fungsi
+    setState(() {
+      _hasNavigatedBetweenSuttas = true;
+    });
+
     final segmented = widget.textData?["segmented"] == true;
     final key = isPrevious ? "previous" : "next";
 
@@ -912,6 +1008,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
             textData: mergedData,
             openedFromSuttaDetail: true,
             originalSuttaUid: null,
+            entryPoint: widget.entryPoint, // ✅ Forward entry point
+            isNavigated: true, // Biar Sutta B tau kalau dia bukan Sutta pertama
           ),
           transitionsBuilder: (_, animation, _, child) {
             final offsetBegin = isPrevious
@@ -956,18 +1054,27 @@ class _SuttaDetailState extends State<SuttaDetail> {
     messenger.hideCurrentSnackBar();
 
     String message;
+    IconData icon;
+
     switch (type) {
       case SuttaSnackType.translatorFallback:
         message =
             "Teks $uid ($lang) oleh $author tak ditemukan, silakan ganti versi terjemahan di ";
+        icon = Icons.menu_book;
         break;
       case SuttaSnackType.firstText:
         message =
             "Teks $uid sudah terawal, ganti kitab dengan keluar terlebih dahulu ";
+        icon = Icons.arrow_circle_left;
         break;
       case SuttaSnackType.lastText:
         message =
             "Teks $uid sudah terakhir, ganti kitab dengan keluar terlebih dahulu ";
+        icon = Icons.arrow_circle_left;
+        break;
+      case SuttaSnackType.disabledForTematik: // ✅ TAMBAH CASE INI
+        message = "Dinonaktifkan untuk fitur Tematik";
+        icon = Icons.block;
         break;
     }
 
@@ -978,33 +1085,46 @@ class _SuttaDetailState extends State<SuttaDetail> {
             style: const TextStyle(color: Colors.white, fontSize: 16),
             children: [
               TextSpan(text: message),
-              if (type == SuttaSnackType.translatorFallback)
-                const WidgetSpan(
+              if (type !=
+                  SuttaSnackType
+                      .disabledForTematik) // ✅ Skip icon kalau Tematik
+                WidgetSpan(
                   alignment: PlaceholderAlignment.middle,
-                  child: Icon(Icons.menu_book, color: Colors.white, size: 18),
-                ),
-              if (type == SuttaSnackType.firstText ||
-                  type == SuttaSnackType.lastText)
-                const WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: Icon(
-                    Icons.arrow_circle_left,
-                    color: Colors.white,
-                    size: 18,
-                  ),
+                  child: Icon(icon, color: Colors.white, size: 18),
                 ),
             ],
           ),
         ),
-        backgroundColor: Colors.deepOrange.shade400,
+        backgroundColor: type == SuttaSnackType.disabledForTematik
+            ? Colors
+                  .grey
+                  .shade700 // ✅ Warna abu-abu untuk Tematik
+            : Colors.deepOrange.shade400,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  void _goToPrevSutta() => _navigateToSutta(isPrevious: true);
-  void _goToNextSutta() => _navigateToSutta(isPrevious: false);
+  void _goToPrevSutta() {
+    // _hasNavigatedBetweenSuttas = true; // ← Set true
+    // Cek kalau dari Tematik
+    if (widget.entryPoint == "tematik") {
+      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
+      return;
+    }
+    _navigateToSutta(isPrevious: true);
+  }
+
+  void _goToNextSutta() {
+    //_hasNavigatedBetweenSuttas = true; // ← Set true
+    // Cek kalau dari Tematik
+    if (widget.entryPoint == "tematik") {
+      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
+      return;
+    }
+    _navigateToSutta(isPrevious: false);
+  }
 
   void _updateParentAnchorOnMove(
     Map<String, dynamic>? root,
@@ -2358,6 +2478,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
         : Colors.grey[300]!.withValues(alpha: 0.9);
     final disabledFg = Colors.grey;
 
+    // ✅ Tambah check untuk Tematik
+    final isTematik = widget.entryPoint == "tematik";
+    final isPrevDisabled = _isFirst || _isLoading || isTematik;
+    final isNextDisabled = _isLast || _isLoading || isTematik;
+
     Color getBgColor(bool isDisabled) => isDisabled
         ? disabledBg
         : Theme.of(context).colorScheme.primary.withValues(alpha: 0.9);
@@ -2369,15 +2494,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
       children: [
         FloatingActionButton(
           heroTag: "btn_prev",
-          backgroundColor: getBgColor(_isFirst || _isLoading),
-          foregroundColor: getFgColor(_isFirst || _isLoading),
+          backgroundColor: getBgColor(isPrevDisabled),
+          foregroundColor: getFgColor(isPrevDisabled),
           onPressed: () {
-            if (_isFirst) {
+            if (isTematik) {
+              _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
+            } else if (_isFirst) {
               _showSuttaSnackBar(SuttaSnackType.firstText, uid: widget.uid);
             } else if (!_isLoading) {
               _goToPrevSutta();
             }
           },
+
           child: const Icon(Icons.arrow_back_ios_new),
         ),
         const SizedBox(width: 12),
@@ -2411,15 +2539,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
         const SizedBox(width: 12),
         FloatingActionButton(
           heroTag: "btn_next",
-          backgroundColor: getBgColor(_isLast || _isLoading),
-          foregroundColor: getFgColor(_isLast || _isLoading),
+          backgroundColor: getBgColor(isNextDisabled),
+          foregroundColor: getFgColor(isNextDisabled),
           onPressed: () {
-            if (_isLast) {
+            if (isTematik) {
+              _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
+            } else if (_isLast) {
               _showSuttaSnackBar(SuttaSnackType.lastText, uid: widget.uid);
             } else if (!_isLoading) {
               _goToNextSutta();
             }
           },
+
           child: const Icon(Icons.arrow_forward_ios),
         ),
       ],
@@ -2608,6 +2739,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
         heightFactor: 0.85,
         child: Suttaplex(
           uid: widget.uid,
+          sourceMode:
+              "sutta_detail", // ✅ Mode dari SuttaDetail (via book button)
           onSelect: (newUid, lang, authorUid, textData) {
             _replaceToSutta(
               newUid,

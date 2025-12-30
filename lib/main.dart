@@ -201,6 +201,7 @@ class _RootPageState extends State<RootPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // ... (Bagian AppBar tetap sama, tidak berubah) ...
                   SizedBox(
                     height: 80,
                     child: AppBar(
@@ -218,94 +219,60 @@ class _RootPageState extends State<RootPage>
                       ),
                     ),
                   ),
+
+                  // ✅ BAGIAN TOMBOL DIPERBAIKI (Lebih Bersih)
+                  // Di dalam _buildPariyattiOverlay
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
                         Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.indigo.shade700.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () {
-                                  Future.delayed(
-                                    const Duration(milliseconds: 120),
-                                    () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const TematikPage(),
-                                        ),
-                                      );
-                                    },
+                          child: _buildQuickButton(
+                            label: "Tematik",
+                            icon: Icons.category_rounded,
+                            color: Colors.indigo.shade700,
+                            // ❌ Hapus isHorizontal: true, karena otomatis horizontal sekarang
+                            onTap: () {
+                              Future.delayed(
+                                const Duration(milliseconds: 120),
+                                () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const TematikPage(),
+                                    ),
                                   );
                                 },
-                                child: _buildQuickButton(
-                                  label: "Tematik",
-                                  icon: Icons.category_rounded,
-                                  color: Colors.indigo.shade700,
-                                ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.amber.shade700.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () {
-                                  Future.delayed(
-                                    const Duration(milliseconds: 120),
-                                    () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Saṅgaha: TO DO'),
-                                          duration: Duration(milliseconds: 800),
-                                        ),
-                                      );
-                                    },
+                          child: _buildQuickButton(
+                            label: "Saṅgaha",
+                            icon: Icons.auto_stories_rounded,
+                            color: Colors.amber.shade800,
+                            // ❌ Hapus isHorizontal: true, di sini juga
+                            onTap: () {
+                              Future.delayed(
+                                const Duration(milliseconds: 120),
+                                () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Saṅgaha: TO DO'),
+                                      duration: Duration(milliseconds: 800),
+                                    ),
                                   );
                                 },
-                                child: _buildQuickButton(
-                                  label: "Ab-saṅgaha",
-                                  icon: Icons.auto_stories_rounded,
-                                  color: Colors.amber.shade700,
-                                ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                         ),
                       ],
                     ),
                   ),
+                  // ... (Bagian Tab Button di bawah tetap sama) ...
                   const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -332,69 +299,104 @@ class _RootPageState extends State<RootPage>
   Widget _buildQuickButton({
     required String label,
     required IconData icon,
-    required Color color,
+    required Color color, // Ini warna aksen (Indigo/Amber)
+    required VoidCallback onTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final displayColor = isDark ? Color.lerp(color, Colors.white, 0.3)! : color;
 
-    final red = (displayColor.r * 255).round();
-    final green = (displayColor.g * 255).round();
-    final blue = (displayColor.b * 255).round();
+    // 1. Tentukan Warna Background & Border (Logika asli main.dart)
+    Color bgColor;
+    Color borderColor;
 
-    final bgAlpha = isDark ? 51 : 26;
-    final borderAlpha = isDark ? 128 : 77;
+    // 2. Warna Ikon (Tetap berwarna biar cantik)
+    Color iconColor;
 
-    final bgColor = Color.fromARGB(bgAlpha, red, green, blue);
+    // 3. Warna Teks (WAJIB HITAM/PUTIH sesuai request)
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final arrowColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    if (isDark) {
+      // Dark Mode: Glassy Transparan
+      bgColor = color.withValues(alpha: 0.15);
+      borderColor = color.withValues(alpha: 0.3);
+      // Ikon di dark mode dibikin agak terang dikit dari warna aslinya
+      iconColor = Color.lerp(color, Colors.white, 0.3)!;
+    } else {
+      // Light Mode: Solid Pastel
+      // Campur putih 85% + warna 15%
+      bgColor = Color.lerp(Colors.white, color, 0.15)!;
+      borderColor = Color.lerp(Colors.white, color, 0.3)!;
+      // Ikon pakai warna asli (gelap/tajam)
+      iconColor = color;
+    }
+
     return Container(
+      height: 54, // Sedikit lebih tinggi biar touch-friendly
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Color.fromARGB(borderAlpha, red, green, blue),
-          width: 1.5,
-        ),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14), // Sedikit lebih rounded
+        border: Border.all(color: borderColor, width: 1),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: color.withValues(alpha: 0.1), // Shadow halus warna senada
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+        ],
       ),
       child: Material(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          // ⬇️ Ripple timing: delay ringan biar efek sempat muncul
-          onTap: () {
-            if (label == "Tematik") {
-              Future.delayed(const Duration(milliseconds: 120), () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TematikPage()),
-                );
-              });
-            } else if (label == "Ab-saṅgaha") {
-              Future.delayed(const Duration(milliseconds: 120), () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Saṅgaha: TO DO'),
-                    duration: Duration(milliseconds: 800),
-                  ),
-                );
-              });
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          splashColor: color.withValues(alpha: 0.15),
+          highlightColor: color.withValues(alpha: 0.05),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 16, color: displayColor),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: displayColor,
+                // 1. KOTAK IKON
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.black26
+                        : Colors.white.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: iconColor, // Ikon tetap Indigo/Amber
                   ),
                 ),
-                const Spacer(),
-                Icon(Icons.arrow_forward_ios, size: 12, color: displayColor),
+
+                const SizedBox(width: 12),
+
+                // 2. TEKS (Putih/Hitam)
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: textColor, // ✅ Ikutin tema (Hitam/Putih)
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+
+                // 3. PANAH
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: arrowColor.withValues(alpha: 0.5), // Panah agak samar
+                ),
+                const SizedBox(width: 4),
               ],
             ),
           ),
@@ -433,7 +435,8 @@ class _RootPageState extends State<RootPage>
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: FontWeight.w500, // 👈 Pake bold biar teges
+                //fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 color: isActive ? Colors.deepOrange : baseColor,
               ),
             ),

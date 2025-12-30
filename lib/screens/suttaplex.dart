@@ -19,11 +19,14 @@ class Suttaplex extends StatefulWidget {
 
   final Map<String, dynamic>? initialData;
 
+  final String sourceMode;
+
   const Suttaplex({
     super.key,
     required this.uid,
     this.onSelect,
     this.initialData,
+    this.sourceMode = "sutta_detail", // ✅ TAMBAH INI (default dari book button)
   });
   @override
   State<Suttaplex> createState() => _SuttaplexState();
@@ -272,20 +275,43 @@ class _SuttaplexState extends State<Suttaplex> {
                   if (!mounted) return;
 
                   if (widget.onSelect != null) {
+                    // Mode: Callback (ganti versi dari SuttaDetail)
                     widget.onSelect!(targetUid, lang, safeAuthorUid, textData);
                     Navigator.pop(context);
                   } else {
-                    Navigator.of(context, rootNavigator: true).push(
-                      MaterialPageRoute(
-                        builder: (_) => SuttaDetail(
-                          uid: targetUid,
-                          lang: lang,
-                          textData: textData,
-                          openedFromSuttaDetail: false,
-                          originalSuttaUid: null,
+                    // Mode: Buka SuttaDetail baru
+                    if (widget.sourceMode == "sutta_detail") {
+                      // ✅ Dari SuttaDetail → REPLACE (cegah dobel screen)
+                      Navigator.of(
+                        context,
+                        rootNavigator: true,
+                      ).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => SuttaDetail(
+                            uid: targetUid,
+                            lang: lang,
+                            textData: textData,
+                            entryPoint:
+                                null, // Gak ada entry point (dari SuttaDetail sendiri)
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } else {
+                      // 🔥 FIX: Tutup modal Suttaplex dulu, baru push SuttaDetail
+                      //Navigator.pop(context); // ✅ Tutup modal bottomsheet
+
+                      Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                          builder: (_) => SuttaDetail(
+                            uid: targetUid,
+                            lang: lang,
+                            textData: textData,
+                            entryPoint: widget
+                                .sourceMode, // ✅ Forward "tematik" atau "menu_page"
+                          ),
+                        ),
+                      );
+                    }
                   }
                 } catch (e) {
                   debugPrint("Error loading sutta: $e");
