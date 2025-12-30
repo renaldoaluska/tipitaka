@@ -82,9 +82,47 @@ class _PatipattiPageState extends State<PatipattiPage> {
         "icon": Icons.info_outline,
       },
       {
-        "type": "link",
+        "type": "group",
         "label": "I. Upacara & Pāṭha",
         "icon": Icons.spa_outlined,
+        "items": [
+          {
+            "label": "Tujuh Bulan Kandungan",
+            "icon": Icons.pregnant_woman_rounded,
+          },
+          {"label": "Menjelang Kelahiran", "icon": Icons.child_care_rounded},
+          {
+            "label": "Pemberkahan Kelahiran",
+            "icon": Icons.child_friendly_rounded,
+          },
+          {"label": "Ulang Tahun, Turun Tanah", "icon": Icons.cake_outlined},
+          {"label": "Potong Rambut", "icon": Icons.content_cut_rounded},
+          {"label": "Peletakan Batu Pertama", "icon": Icons.foundation_rounded},
+          {"label": "Rumah & Usaha Baru", "icon": Icons.home_work_outlined},
+          {
+            "label": "Pembersihan Tempat",
+            "icon": Icons.cleaning_services_outlined,
+          },
+          {
+            "label": "Tirta Untuk Orang Sakit",
+            "icon": Icons.local_hospital_outlined,
+          },
+          {"label": "Tanam Di Sawah", "icon": Icons.nature_people_outlined},
+          {"label": "Pengukuhan Janji Jabatan", "icon": Icons.badge_outlined},
+          {"label": "Janji Di Pengadilan", "icon": Icons.gavel_rounded},
+          {"label": "Wisuda Upāsaka/upāsikā", "icon": Icons.school_outlined},
+          {"label": "Upacara Perkawinan", "icon": Icons.handshake_outlined},
+          {"label": "Upacara Kematian", "icon": Icons.local_florist_outlined},
+          {
+            "label": "Peringatan Kematian (Berkala)",
+            "icon": Icons.event_repeat_rounded,
+          },
+          {
+            "label": "Peringatan Kematian (Ziarah)",
+            "icon": Icons.yard_outlined,
+          },
+          {"label": "Catatan", "icon": Icons.note_alt_outlined},
+        ],
       },
       {
         "type": "link",
@@ -923,7 +961,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ✨ HELPER: EXPANSION GROUP
+  // ✨ HELPER: EXPANSION GROUP (FIX HOVER ROUNDED)
+  // Menggunakan Material + Clip.antiAlias agar splash/hover tidak kotak
   // ═══════════════════════════════════════════════════════════
   Widget _buildExpansionGroup({
     required String title,
@@ -937,40 +976,68 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ? const Color(0xFF6D4C1F)
         : const Color(0xFFFFE0B2);
     final textColor = Theme.of(context).colorScheme.onSurface;
+    final iconBoxColor = isDark
+        ? Colors.black26
+        : Colors.white.withValues(alpha: 0.6);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: lightBg.withOpacity(0.3),
+      padding: const EdgeInsets.only(bottom: 10),
+      // 🟢 GANTI CONTAINER -> MATERIAL
+      child: Material(
+        color: Colors.transparent, // Transparan aja, warna diurus ExpansionTile
+        clipBehavior:
+            Clip.antiAlias, // 👈 INI KUNCINYA (Gunting efek hover biar rounded)
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor, width: 1),
+          side: BorderSide(color: borderColor, width: 1),
         ),
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
+            // Warna Background
+            backgroundColor: lightBg.withValues(alpha: 0.3),
+            collapsedBackgroundColor: lightBg,
+
+            // Reset Shape bawaan ExpansionTile (biar gak numpuk border)
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
+            collapsedShape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
+
+            // Padding
             tilePadding: const EdgeInsets.symmetric(
               horizontal: 10,
               vertical: 0,
             ),
             childrenPadding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-            collapsedShape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+
+            // Header Content
+            leading: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: iconBoxColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(sectionIcon, color: accentColor, size: 20),
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            leading: Icon(sectionIcon, color: accentColor, size: 20),
             title: Text(
               title,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
                 color: textColor,
               ),
             ),
-            iconColor: accentColor,
-            collapsedIconColor: accentColor.withOpacity(0.6),
+            trailing: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: textColor.withValues(alpha: 0.4),
+              size: 20,
+            ),
+
+            // Isi Anak-anaknya
             children: items.map((item) {
               return Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -982,7 +1049,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                   borderColor: borderColor,
                   isHorizontal: true,
                   onTap: () {
-                    // TODO: Navigasi
                     print("Buka ${item['label']}");
                   },
                 ),
