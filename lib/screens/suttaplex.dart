@@ -73,7 +73,7 @@ class _SuttaplexState extends State<Suttaplex> {
               maxLength: 100, // 🔥 MAX 100 KARAKTER
               maxLines: 3,
               decoration: const InputDecoration(
-                hintText: "Contoh: Ini sutta favorit saya... (atau kosongkan)",
+                hintText: "Contoh: Favorit saya... (atau kosongkan)",
                 border: OutlineInputBorder(),
               ),
             ),
@@ -524,12 +524,17 @@ class _SuttaplexState extends State<Suttaplex> {
                   return TextButton.icon(
                     icon: Icon(
                       isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                      color: Colors.amber,
+                      color: Theme.of(context).colorScheme.secondary, // adaptif
                       size: 20,
                     ),
                     label: Text(
                       isBookmarked ? "Hapus Penanda" : "Tambah Penanda",
-                      style: const TextStyle(fontSize: 13, color: Colors.amber),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.secondary, // adaptif
+                      ),
                     ),
                     onPressed: _fetchingText
                         ? null

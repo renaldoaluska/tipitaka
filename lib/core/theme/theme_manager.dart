@@ -59,6 +59,7 @@ class ThemeManager extends ChangeNotifier {
       surface: Colors.white,
       onSurface: Colors.black,
       onSurfaceVariant: Colors.grey[600]!,
+      secondary: Colors.blueGrey,
     ),
     useMaterial3: true,
   );
@@ -73,6 +74,7 @@ class ThemeManager extends ChangeNotifier {
       surface: Colors.grey[850]!,
       onSurface: Colors.white,
       onSurfaceVariant: Colors.grey[400]!,
+      secondary: Colors.amber,
     ),
     useMaterial3: true,
   );
