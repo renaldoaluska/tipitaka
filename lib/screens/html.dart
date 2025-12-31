@@ -21,13 +21,14 @@ class HtmlReaderPage extends StatefulWidget {
 }
 
 class _HtmlReaderPageState extends State<HtmlReaderPage> {
-  late WebViewController _controller;
+  WebViewController? _controller;
 
   // --- State Utama ---
   double _textZoom = 80.0;
   bool _isLoading = true;
   late int _currentIndex;
   bool _isScrolled = false;
+  bool _isWebViewInitialized = false;
 
   // --- Search State ---
   final TextEditingController _searchController = TextEditingController();
@@ -39,7 +40,15 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _loadZoomPreference();
-    _initWebView();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isWebViewInitialized) {
+      _initWebView();
+      _isWebViewInitialized = true;
+    }
   }
 
   @override
@@ -66,18 +75,71 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         ? widget.chapterFiles[_currentIndex]
         : 'about:blank';
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..enableZoom(false) // Disable pinch zoom
+      ..setBackgroundColor(Theme.of(context).scaffoldBackgroundColor)
+      ..enableZoom(false)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (url) => setState(() => _isLoading = true),
+          onPageStarted: (url) {
+            if (mounted) {
+              setState(() => _isLoading = true);
+            }
+
+            // Inject CSS INLINE supaya langsung apply
+            final bgColor = isDark ? '#1a1a1a' : '#ffffff';
+            final textColor = isDark ? '#e0e0e0' : '#000000';
+
+            _controller?.runJavaScript('''
+            (function() {
+              var style = document.createElement('style');
+              style.id = 'flutter-theme-inject';
+              style.innerHTML = `
+                html, body {
+                  background-color: $bgColor !important;
+                  color: $textColor !important;
+                  transition: none !important;
+                }
+                body.mode-dark {
+                  background-color: #1a1a1a !important;
+                  color: #e0e0e0 !important;
+                }
+                body.mode-light {
+                  background-color: #ffffff !important;
+                  color: #000000 !important;
+                }
+              `;
+              
+              if (document.head) {
+                // Hapus style lama kalau ada
+                var oldStyle = document.getElementById('flutter-theme-inject');
+                if (oldStyle) oldStyle.remove();
+                
+                // Insert di PALING AWAL supaya langsung kebaca
+                document.head.insertBefore(style, document.head.firstChild);
+              }
+              
+              // Set class juga
+              document.documentElement.classList.add('${isDark ? 'mode-dark' : 'mode-light'}');
+              if (document.body) {
+                document.body.classList.add('${isDark ? 'mode-dark' : 'mode-light'}');
+              }
+            })();
+          ''');
+          },
           onPageFinished: (url) {
-            setState(() => _isLoading = false);
             _applyViewport();
             _applyTextZoom();
             _applyThemeMode();
+
+            // Delay dikit biar smooth
+            Future.delayed(const Duration(milliseconds: 80), () {
+              if (mounted) {
+                setState(() => _isLoading = false);
+              }
+            });
           },
           onNavigationRequest: (NavigationRequest request) {
             for (int i = 0; i < widget.chapterFiles.length; i++) {
@@ -105,7 +167,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   Future<void> _scrollToTop() async {
-    await _controller.runJavaScript(
+    await _controller?.runJavaScript(
       'window.scrollTo({top: 0, behavior: "smooth"});',
     );
   }
@@ -116,14 +178,14 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         _currentIndex = newIndex;
         _isLoading = true;
       });
-      _controller.loadFlutterAsset(widget.chapterFiles[_currentIndex]);
+      _controller?.loadFlutterAsset(widget.chapterFiles[_currentIndex]);
     }
   }
 
   Future<void> _applyTextZoom() async {
     try {
       final zoom = _textZoom.round();
-      await _controller.runJavaScript('document.body.style.zoom = "$zoom%";');
+      await _controller?.runJavaScript('document.body.style.zoom = "$zoom%";');
     } catch (e) {
       debugPrint('Zoom error: $e');
     }
@@ -133,31 +195,47 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final isDarkApp = Theme.of(context).brightness == Brightness.dark;
     final String className = isDarkApp ? 'mode-dark' : 'mode-light';
 
-    await _controller.runJavaScript('''
+    await _controller?.runJavaScript('''
       document.body.classList.remove('mode-dark', 'mode-light');
       document.body.classList.add('$className');
     ''');
   }
 
   Future<void> _runSearch(String query, {bool next = false}) async {
-    if (query.isEmpty) return;
+    if (query.isEmpty || _controller == null) return;
 
-    await _controller.runJavaScript(
+    await _controller!.runJavaScript(
       'window.find("$query", false, ${next ? "false" : "true"}, true)',
     );
 
     try {
-      final result = await _controller.runJavaScriptReturningResult('''
-        (function() {
-          try {
-            var bodyText = document.body.innerText;
-            var query = "$query";
-            if (!query) return 0;
-            var matches = bodyText.match(new RegExp(query.replace(/[.*+?^\\\$()|[\\]\\\\]/g, '\\\\\$&'), "gi"));
-            return matches ? matches.length : 0;
-          } catch(e) { return 0; }
-        })();
-      ''');
+      // Escape query untuk JavaScript
+      final escapedQuery = query
+          .replaceAll('\\', '\\\\')
+          .replaceAll('"', '\\"')
+          .replaceAll('\n', '\\n');
+
+      final result = await _controller!.runJavaScriptReturningResult(
+        r'''
+  (function() {
+    try {
+      var bodyText = document.body.innerText || "";
+      var query = "''' +
+            escapedQuery +
+            r'''";
+      if (!query) return 0;
+      
+      var escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var regex = new RegExp(escapedQuery, "gi");
+      var matches = bodyText.match(regex);
+      
+      return matches ? matches.length : 0;
+    } catch(e) { 
+      return 0; 
+    }
+  })();
+''',
+      );
 
       int count = 0;
       if (result is int) {
@@ -169,17 +247,27 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       if (mounted) setState(() => _totalMatches = count);
     } catch (e) {
       debugPrint("JS Search Error: $e");
+      if (mounted) setState(() => _totalMatches = 0);
     }
   }
 
   void _clearSearch() {
-    _controller.runJavaScript('window.getSelection().removeAllRanges();');
+    _controller?.runJavaScript('window.getSelection().removeAllRanges();');
     _searchController.clear();
     setState(() => _totalMatches = 0);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_controller == null) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const Center(
+          child: CircularProgressIndicator(color: Colors.deepOrange),
+        ),
+      );
+    }
+
     final bool isFirst = _currentIndex <= 0;
     final bool isLast = _currentIndex >= widget.chapterFiles.length - 1;
     final double topPadding = MediaQuery.of(context).padding.top + 80;
@@ -205,7 +293,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
               },
               child: Padding(
                 padding: EdgeInsets.only(top: topPadding),
-                child: WebViewWidget(controller: _controller),
+                child: WebViewWidget(controller: _controller!),
               ),
             ),
             if (_isLoading)
@@ -329,8 +417,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   Widget _buildFloatingActions(bool isPrevDisabled, bool isNextDisabled) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final disabledBg = isDark
-        ? Colors.grey[800]!.withValues(alpha: 0.9)
-        : Colors.grey[300]!.withValues(alpha: 0.9);
+        ? Colors.grey[800]!.withValues(alpha: .9)
+        : Colors.grey[300]!.withValues(alpha: .9);
     final disabledFg = Colors.grey;
 
     Color getBgColor(bool isDisabled, {Color? activeColor}) {
@@ -455,8 +543,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          "${displayZoom}%", // bukan langsung _textZoom
-                          //"${_textZoom.toInt()}%",
+                          "$displayZoom%",
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -679,8 +766,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   Future<void> _applyViewport() async {
-    // Script JS untuk mencari meta viewport, kalau belum ada dibuat baru.
-    // Lalu memaksa content-nya menjadi settingan yang kamu mau.
     const String jsCode = '''
       (function() {
         var meta = document.querySelector('meta[name="viewport"]');
@@ -694,7 +779,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     ''';
 
     try {
-      await _controller.runJavaScript(jsCode);
+      await _controller?.runJavaScript(jsCode);
     } catch (e) {
       debugPrint('Viewport injection error: $e');
     }
