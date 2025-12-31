@@ -1597,7 +1597,7 @@ class TematikData {
     }
   }
 
-  // Helper function untuk parse sutta code (tetap sama)
+  // Helper function untuk parse sutta code
   static String parseSuttaCode(String code) {
     if (code.isEmpty) return "";
     return code.replaceAll(" ", "").toLowerCase();

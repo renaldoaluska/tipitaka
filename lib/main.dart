@@ -201,7 +201,6 @@ class _RootPageState extends State<RootPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ... (Bagian AppBar tetap sama, tidak berubah) ...
                   SizedBox(
                     height: 80,
                     child: AppBar(
@@ -272,7 +271,6 @@ class _RootPageState extends State<RootPage>
                       ],
                     ),
                   ),
-                  // ... (Bagian Tab Button di bawah tetap sama) ...
                   const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),

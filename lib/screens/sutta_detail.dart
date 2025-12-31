@@ -593,7 +593,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         );
       }
 
-      // ✅ --- STACK 3: SUTTAPLEX (JURUS TRANSPARAN PAGE + FIX APPBAR) ---
+      // --- STACK 3: SUTTAPLEX ---
       Navigator.of(context).push(
         PageRouteBuilder(
           opaque: false,
