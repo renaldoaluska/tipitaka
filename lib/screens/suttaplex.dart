@@ -3,6 +3,7 @@ import '../services/sutta.dart';
 import 'sutta_detail.dart';
 import 'package:flutter_html/flutter_html.dart';
 import '../styles/nikaya_style.dart';
+import '../services/history.dart';
 
 const Color kLockedColor = Colors.grey;
 
@@ -52,6 +53,44 @@ class _SuttaplexState extends State<Suttaplex> {
     } else {
       _fetchSuttaplex();
     }
+  }
+
+  Future<String?> _showBookmarkDialog(BuildContext context) async {
+    final controller = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Tambah Penanda"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Tambahkan catatan (opsional, max 100 karakter):"),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLength: 100, // 🔥 MAX 100 KARAKTER
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: "Contoh: Ini sutta favorit saya... (atau kosongkan)",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null), // Cancel
+            child: const Text("Batal"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text("Simpan"),
+          ),
+        ],
+      ),
+    );
   }
 
   // ✅ Process translations: filter & sort (zero data manipulation)
@@ -299,18 +338,23 @@ class _SuttaplexState extends State<Suttaplex> {
                     } else {
                       // 🔥 FIX: Tutup modal Suttaplex dulu, baru push SuttaDetail
                       //Navigator.pop(context); // ✅ Tutup modal bottomsheet
-
-                      Navigator.of(context, rootNavigator: true).push(
+                      // 1. Tambah 'await'. Ini bikin Suttaplex "nunggu" sampai SuttaDetail ditutup.
+                      await Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
                           builder: (_) => SuttaDetail(
                             uid: targetUid,
                             lang: lang,
                             textData: textData,
-                            entryPoint: widget
-                                .sourceMode, // ✅ Forward "tematik" atau "menu_page"
+                            entryPoint: widget.sourceMode,
                           ),
                         ),
                       );
+
+                      // 2. Begitu SuttaDetail ditutup (kode lanjut jalan ke sini),
+                      // panggil setState buat refresh tampilan Suttaplex (termasuk ikon bookmark).
+                      if (mounted) {
+                        setState(() {});
+                      }
                     }
                   }
                 } catch (e) {
@@ -461,13 +505,87 @@ class _SuttaplexState extends State<Suttaplex> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: cardColor, // ✅ Ganti Colors.white
+        backgroundColor: cardColor,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.close, color: iconColor), // ✅ Ganti Colors.black
+          icon: Icon(Icons.close, color: iconColor),
           onPressed: _fetchingText ? null : () => Navigator.pop(context),
         ),
         title: null,
+        actions: [
+          // 🔥 TOMBOL BOOKMARK
+          StatefulBuilder(
+            builder: (context, setBookmarkState) {
+              return FutureBuilder<bool>(
+                future: HistoryService.isBookmarked(widget.uid),
+                builder: (context, snapshot) {
+                  final isBookmarked = snapshot.data ?? false;
+
+                  return TextButton.icon(
+                    icon: Icon(
+                      isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                      color: Colors.amber,
+                      size: 20,
+                    ),
+                    label: Text(
+                      isBookmarked ? "Hapus Penanda" : "Tambah Penanda",
+                      style: const TextStyle(fontSize: 13, color: Colors.amber),
+                    ),
+                    onPressed: _fetchingText
+                        ? null
+                        : () async {
+                            final scaffoldMessenger = ScaffoldMessenger.of(
+                              context,
+                            );
+
+                            if (isBookmarked) {
+                              // 🔥 HAPUS LANGSUNG
+                              await HistoryService.removeBookmark(widget.uid);
+                            } else {
+                              // 🔥 DIALOG INPUT CATATAN (OPSIONAL)
+                              if (!context.mounted) {
+                                return; // ✅ Cek sebelum dialog
+                              }
+                              final note = await _showBookmarkDialog(context);
+                              if (note == null) return; // User cancel
+
+                              final bookmarkItem = {
+                                'uid': widget.uid,
+                                'title':
+                                    _sutta?["original_title"] ??
+                                    _sutta?["translated_title"] ??
+                                    widget.uid,
+                                'acronym': _sutta?["acronym"] ?? "",
+                                'note': note,
+                              };
+
+                              await HistoryService.toggleBookmark(bookmarkItem);
+                            }
+
+                            // ✅ Cek mounted sebelum update state
+                            if (!mounted) return;
+
+                            setBookmarkState(() {});
+
+                            // ✅ Pakai reference yang sudah disimpan
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  isBookmarked
+                                      ? 'Dihapus dari Penanda'
+                                      : 'Ditambahkan ke Penanda',
+                                ),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(width: 8), // Spacing dari edge kanan
+        ],
       ),
       body: Stack(
         children: [

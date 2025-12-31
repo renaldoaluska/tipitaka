@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
-import 'package:tipitaka/screens/tematik_page.dart';
+import 'screens/tematik_page.dart';
+import 'data/html_data.dart';
 import 'core/theme/theme_manager.dart';
 import 'screens/home.dart';
 import 'screens/pariyatti_content.dart';
 import 'screens/patipatti_page.dart';
 import 'widgets/header_depan.dart';
 import 'dart:ui';
+import 'screens/html.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -105,6 +107,8 @@ class _RootPageState extends State<RootPage>
   late AnimationController _fabController;
   late Animation<double> _fabAnimation;
 
+  String? _patipattiHighlight; // 👈 INI HARUS ADA!
+
   @override
   void initState() {
     super.initState();
@@ -126,20 +130,46 @@ class _RootPageState extends State<RootPage>
     super.dispose();
   }
 
-  void _navigateToPage(int index) {
-    if (index >= 0 && index <= 4 && _currentIndex != index && mounted) {
+  // tambah parameter highlight
+  void _navigateToPage(int index, {String? highlightSection}) {
+    if (index >= 0 && index <= 4 && mounted) {
       HapticFeedback.selectionClick();
+
+      // Simpan history Pariyatti (kalau lagi di sana)
       if (_currentIndex >= 1 && _currentIndex <= 3) {
         _lastPariyattiPage = _currentIndex;
       }
+
+      // Logic Highlight (tetap dipakai)
+      if (index == 4 && highlightSection != null) {
+        _patipattiHighlight = highlightSection;
+
+        // Auto reset highlight
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) setState(() => _patipattiHighlight = null);
+        });
+      }
+
       setState(() => _currentIndex = index);
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_pageController.hasClients && mounted) {
-          _pageController.animateToPage(
-            index,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
+        if (_pageController.hasClients) {
+          // 🔥 CEK JARAK: Seberapa jauh targetnya?
+          int distance =
+              (_pageController.page?.round() ?? _currentIndex) - index;
+
+          // Kalau jaraknya lebih dari 1 halaman (misal Home -> Patipatti),
+          // Langsung JUMP aja biar gak glitch ngelewatin Pariyatti.
+          if (distance.abs() > 1) {
+            _pageController.jumpToPage(index);
+          } else {
+            // Kalau tetanggaan, baru pakai animasi smooth
+            _pageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
         }
       });
     }
@@ -153,12 +183,20 @@ class _RootPageState extends State<RootPage>
 
   @override
   Widget build(BuildContext context) {
+    // Di dalam main.dart
+
     final pages = [
-      const Home(),
+      Home(
+        onNavigate: (int index, {String? highlightSection}) {
+          _navigateToPage(index, highlightSection: highlightSection);
+        },
+      ),
       const PariyattiContent(tab: 0),
       const PariyattiContent(tab: 1),
       const PariyattiContent(tab: 2),
-      const PatipattiPage(),
+
+      // 👇 PASTIKAN SEPERTI INI (Tanpa ValueKey)
+      PatipattiPage(highlightSection: _patipattiHighlight),
     ];
 
     return Scaffold(
@@ -168,7 +206,17 @@ class _RootPageState extends State<RootPage>
           PageView(
             controller: _pageController,
             onPageChanged: (index) {
-              if (mounted) setState(() => _currentIndex = index);
+              if (mounted) {
+                setState(() => _currentIndex = index);
+                // ⚠️ KOMENTARI DULU BARIS DI BAWAH INI
+                // if (index != 4) _patipattiHighlight = null;
+
+                // Biarkan _patipattiHighlight tetap ada nilainya sampai
+                // nanti ditimpa/diupdate manual. Ini lebih aman.
+
+                // 👈 Reset highlight kalau user scroll manual
+                // if (index != 4) _patipattiHighlight = null;
+              }
             },
             physics: const BouncingScrollPhysics(),
             children: pages,
@@ -235,6 +283,7 @@ class _RootPageState extends State<RootPage>
                               Future.delayed(
                                 const Duration(milliseconds: 120),
                                 () {
+                                  if (!mounted) return; // ✅ Cek dulu
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -252,18 +301,21 @@ class _RootPageState extends State<RootPage>
                             label: "Saṅgaha",
                             icon: Icons.auto_stories_rounded,
                             color: Colors.amber.shade800,
-                            // ❌ Hapus isHorizontal: true, di sini juga
                             onTap: () {
-                              Future.delayed(
-                                const Duration(milliseconds: 120),
-                                () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Saṅgaha: TO DO'),
-                                      duration: Duration(milliseconds: 800),
-                                    ),
-                                  );
-                                },
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  // HAPUS kata 'const' di depan HtmlReaderPage
+                                  // (karena DaftarIsi.abh biasanya bukan konstanta compile-time)
+                                  builder: (_) => HtmlReaderPage(
+                                    title: 'Abhidhammatthasaṅgaha',
+
+                                    // 👇 Panggil list dari file data kamu di sini
+                                    chapterFiles: DaftarIsi.abh,
+
+                                    initialIndex: 0,
+                                  ),
+                                ),
                               );
                             },
                           ),
@@ -504,7 +556,11 @@ class _RootPageState extends State<RootPage>
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _navigateToPage(targetPage),
+          onTap: () {
+            // 👈 Reset highlight kalau klik manual dari bottom nav
+            if (targetPage == 4) _patipattiHighlight = null;
+            _navigateToPage(targetPage);
+          },
           borderRadius: BorderRadius.circular(12),
           hoverColor: Colors.deepOrange.withValues(alpha: 0.12),
           splashColor: Colors.deepOrange.withValues(alpha: 0.25),

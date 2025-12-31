@@ -1,0 +1,7 @@
+html{padding:3px;}
+body{border-radius:10px;padding:10px;}
+.nama{font-weight:bold;}
+.judul{font-weight:bold;white-space: pre-line;}
+.pali{white-space: pre-line;}
+.indo{font-style:italic;white-space: pre-line;}
+.note{font-size:smaller;white-space: pre-line;border-top:2px solid #616161;margin-top:20px;}

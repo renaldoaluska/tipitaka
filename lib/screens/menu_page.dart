@@ -49,6 +49,19 @@ class _MenuPageState extends State<MenuPage> {
         _items = items;
         _loading = false;
       });
+
+      // --- PASANG INI (Mulai) ---
+      debugPrint("🔍 [MenuPage] UID yang diminta: ${widget.uid}");
+      debugPrint(
+        "🔍 [MenuPage] Parent Acronym (Kiriman): '${widget.parentAcronym}'",
+      );
+      debugPrint(
+        "🔍 [MenuPage] Root Acronym (Dari API): '${root?["acronym"]}'",
+      );
+      debugPrint("🔍 [MenuPage] Root Name: '${root?["root_name"]}'");
+      debugPrint("🔍 [MenuPage] Child Range: '${root?["child_range"]}'");
+      debugPrint("🔍 [MenuPage] _rootAcronym Akhir: '$_rootAcronym'");
+      // --- PASANG INI (Selesai) ---
     } catch (e) {
       debugPrint("Error fetch menu: $e");
       setState(() => _loading = false);
@@ -98,7 +111,7 @@ class _MenuPageState extends State<MenuPage> {
                 item.acronym.replaceFirst("Patthana", "Pat"),
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                   color: getNikayaColor(displayAcronym),
                 ),
               )
@@ -164,6 +177,23 @@ class _MenuPageState extends State<MenuPage> {
     final hasBlurb = previewBlurb.isNotEmpty;
     final isLong = previewBlurb.length > 60;
 
+    // --- PASANG INI (Mulai) ---
+    if (_root != null) {
+      bool condition1 = _rootAcronym.isNotEmpty;
+      bool condition2 =
+          _rootAcronym.trim().toUpperCase() !=
+          (_root?["root_name"] ?? "").trim().toUpperCase();
+      bool condition3 = (_root?["child_range"] ?? "").isEmpty;
+
+      debugPrint("🔍 [MenuPage Logic] Acronym Not Empty? $condition1");
+      debugPrint("🔍 [MenuPage Logic] Beda sama Root Name? $condition2");
+      debugPrint("🔍 [MenuPage Logic] Child Range Empty? $condition3");
+      debugPrint(
+        "🔍 [MenuPage Logic] KESIMPULAN: Tampil Header Kecil? ${condition1 && condition2 && condition3}",
+      );
+    }
+    // --- PASANG INI (Selesai) ---
+
     return Scaffold(
       appBar: null,
       backgroundColor: bgColor,
@@ -197,7 +227,6 @@ class _MenuPageState extends State<MenuPage> {
                       ),
                     ],
                   ),
-
                   // FLOATING TRANSPARENT HEADER
                   if (_root != null)
                     Positioned(

@@ -72,8 +72,10 @@ class ExploreTab extends StatelessWidget {
                         softWrap: true,
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.amber : Colors.grey[700],
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant, // 🔥 ABU-ABU
                           letterSpacing: 0.8,
                         ),
                       ),

@@ -92,7 +92,7 @@ class _TematikPageState extends State<TematikPage> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -106,9 +106,9 @@ class _TematikPageState extends State<TematikPage> {
                 sigmaY: _isScrolled ? 10.0 : 0.0,
               ),
               child: Container(
-                color: Theme.of(
-                  context,
-                ).colorScheme.surface.withOpacity(_isScrolled ? 0.85 : 1.0),
+                color: Theme.of(context).colorScheme.surface.withValues(
+                  alpha: _isScrolled ? 0.85 : 1.0,
+                ),
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
@@ -118,7 +118,7 @@ class _TematikPageState extends State<TematikPage> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -256,7 +256,7 @@ class _TematikPageState extends State<TematikPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            "$done/$total selesai",
+                            "$done/$total selesai (${(percent * 100).toStringAsFixed(0)}%)",
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.deepOrange,
@@ -291,9 +291,12 @@ class _TematikPageState extends State<TematikPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.deepOrange.withOpacity(0.08),
+        color: Colors.deepOrange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.deepOrange.withOpacity(0.3), width: 1),
+        border: Border.all(
+          color: Colors.deepOrange.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -315,7 +318,7 @@ class _TematikPageState extends State<TematikPage> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.deepOrange.withOpacity(0.15),
+                    color: Colors.deepOrange.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -329,7 +332,7 @@ class _TematikPageState extends State<TematikPage> {
                   child: Text(
                     "Pendahuluan $roman",
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
@@ -338,7 +341,7 @@ class _TematikPageState extends State<TematikPage> {
                 Icon(
                   Icons.arrow_forward_ios,
                   size: 14,
-                  color: Colors.deepOrange.withOpacity(0.7),
+                  color: Colors.deepOrange.withValues(alpha: 0.7),
                 ),
               ],
             ),
@@ -374,165 +377,152 @@ class _TematikPageState extends State<TematikPage> {
   ) {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    //final cardColor = Theme.of(context).colorScheme.surface;
 
-    return Container(
+    // UBAH DARI SINI: Pakai Card biasa, bukan Container dengan dekorasi manual
+    return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      // Elevation ikut default theme, jadi sama persis kayak card chapter lain
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (_) => AlertDialog(
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                title: Row(
-                  children: [
-                    Icon(
-                      chapterIndex == 0 ? Icons.info_outline : Icons.menu_book,
-                      color: Colors.deepOrange,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        item["title"]!,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
+                children: [
+                  Icon(
+                    chapterIndex == 0 ? Icons.info_outline : Icons.menu_book,
+                    color: Colors.deepOrange,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      item["title"]!,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
                       ),
                     ),
-                  ],
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: items.map((sutta) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Theme.of(context).dividerColor,
-                            width: 1,
-                          ),
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _handleSpecialCase(
-                                context,
-                                chapterIndex,
-                                items.indexOf(sutta),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 12,
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          sutta["name"]!,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: textColor,
-                                          ),
-                                        ),
-                                        if (sutta["desc"]!.isNotEmpty) ...[
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            sutta["desc"]!,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: subtextColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    size: 20,
-                                    color: subtextColor,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Tutup"),
                   ),
                 ],
               ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  chapterIndex == 0 ? Icons.info_outline : Icons.menu_book,
-                  color: Colors.deepOrange,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item["title"]!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: items.map((sutta) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Card(
+                      elevation: 0, // Dalam dialog biasanya flat atau stroke
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.3), // Sedikit bedain
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _handleSpecialCase(
+                            context,
+                            chapterIndex,
+                            items.indexOf(sutta),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      sutta["name"]!,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    if (sutta["desc"]!.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        sutta["desc"]!,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: subtextColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                size: 20,
+                                color: subtextColor,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item["desc"]!,
-                        style: TextStyle(fontSize: 12, color: subtextColor),
-                      ),
-                    ],
-                  ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Tutup"),
                 ),
               ],
             ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                chapterIndex == 0 ? Icons.info_outline : Icons.menu_book,
+                color: Colors.deepOrange,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item["title"]!,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item["desc"]!,
+                      style: TextStyle(fontSize: 12, color: subtextColor),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -620,7 +610,7 @@ class _TematikPageState extends State<TematikPage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.deepOrange.withOpacity(0.1),
+                color: Colors.deepOrange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -646,10 +636,10 @@ class _TematikPageState extends State<TematikPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.deepOrange.withOpacity(0.05),
+                color: Colors.deepOrange.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.deepOrange.withOpacity(0.2),
+                  color: Colors.deepOrange.withValues(alpha: 0.2),
                   width: 1,
                 ),
               ),
@@ -766,11 +756,17 @@ class _TematikPageState extends State<TematikPage> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('tematik_checklist');
+
+              if (!mounted) return;
               setState(() => _checkedSuttas.clear());
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+
+              navigator.pop();
+              scaffoldMessenger.showSnackBar(
                 const SnackBar(content: Text("Progres berhasil direset")),
               );
             },

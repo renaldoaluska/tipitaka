@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/header_depan.dart';
+import 'package:flutter_custom_tabs/flutter_custom_tabs.dart';
+import '../screens/html.dart';
+import '../data/html_data.dart';
 
 class PatipattiPage extends StatefulWidget {
-  const PatipattiPage({super.key});
+  final String? highlightSection;
+  const PatipattiPage({super.key, this.highlightSection});
 
   @override
   State<PatipattiPage> createState() => _PatipattiPageState();
 }
 
 class _PatipattiPageState extends State<PatipattiPage> {
+  // Keys untuk scroll
+  final GlobalKey _dermaKey = GlobalKey();
+  final GlobalKey _uposathaKey = GlobalKey();
+  final GlobalKey _meditasiKey = GlobalKey();
+  final GlobalKey _parittaKey = GlobalKey();
+
+  String? _highlightedSection;
   // ═══════════════════════════════════════════════════════════
   // 🌑 STATE UPOSATHA
   // ═══════════════════════════════════════════════════════════
@@ -67,7 +78,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
   // 💰 STATE DERMA
   // ═══════════════════════════════════════════════════════════
   final List<Map<String, dynamic>> _dermaLinks = [
-    {"label": "Dana Sangha", "icon": Icons.volunteer_activism_rounded},
+    {"label": "Dana Everyday", "icon": Icons.volunteer_activism_rounded},
     {"label": "Pembangunan", "icon": Icons.foundation_rounded},
     {"label": "Buku Dhamma", "icon": Icons.menu_book_rounded},
     {"label": "Obat-obatan", "icon": Icons.medical_services_rounded},
@@ -86,6 +97,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
         "type": "link",
         "label": "Panduan Pembacaan",
         "icon": Icons.info_outline,
+        "files": DaftarIsi.parSti0,
       },
       {
         "type": "group",
@@ -95,6 +107,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           {
             "label": "Tujuh Bulan Kandungan",
             "icon": Icons.pregnant_woman_rounded,
+            //    "id": "parSti1",
           },
           {"label": "Menjelang Kelahiran", "icon": Icons.child_care_rounded},
           {
@@ -218,6 +231,196 @@ class _PatipattiPageState extends State<PatipattiPage> {
   void initState() {
     super.initState();
     _loadPreferences();
+
+    // Cek jika ada highlight saat pertama kali dibuat
+    if (widget.highlightSection != null) {
+      _scheduleScroll(widget.highlightSection!);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant PatipattiPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Cek jika ada update data dari parent (main.dart)
+    if (widget.highlightSection != oldWidget.highlightSection &&
+        widget.highlightSection != null) {
+      _scheduleScroll(widget.highlightSection!);
+    }
+  }
+
+  Future<void> _launchCustomTab(BuildContext context, String url) async {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    try {
+      await launchUrl(
+        Uri.parse(url),
+        customTabsOptions: const CustomTabsOptions(
+          showTitle: true,
+          urlBarHidingEnabled: true,
+          shareState: CustomTabsShareState.on,
+          instantAppsEnabled: true,
+        ),
+        safariVCOptions: SafariViewControllerOptions(
+          preferredBarTintColor: isDarkMode ? Colors.grey[900] : Colors.orange,
+          preferredControlTintColor: Colors.white,
+          barCollapsingEnabled: true,
+        ),
+      );
+    } catch (e) {
+      // ✅ Fix: Check if widget is still mounted before using context
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error membuka $url: $e")));
+      }
+    }
+  }
+
+  // Letakkan di bawah, dekat dengan method build atau dispose
+  void _openHtmlBook(BuildContext context, String title, List<String>? files) {
+    if (files != null && files.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HtmlReaderPage(
+            title: title,
+            chapterFiles: files,
+            initialIndex: 0,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Konten '$title' belum tersedia.")),
+      );
+    }
+  }
+
+  // 👇 FUNGSI BARU: Menjadwalkan scroll dengan delay aman
+  // 👇 GANTI BAGIAN INI
+  void _scheduleScroll(String section) {
+    // Kita coba scroll dengan mekanisme retry (coba berulang)
+    // Maksimal mencoba 10 kali (total ~2 detik)
+    _attemptScroll(section, 0);
+  }
+
+  void _attemptScroll(String section, int attempt) {
+    if (!mounted) return;
+
+    // Tentukan target key
+    GlobalKey? targetKey;
+    switch (section) {
+      case 'derma':
+        targetKey = _dermaKey;
+        break;
+      case 'uposatha':
+        targetKey = _uposathaKey;
+        break;
+      case 'meditasi':
+        targetKey = _meditasiKey;
+        break;
+      case 'paritta':
+        targetKey = _parittaKey;
+        break;
+    }
+
+    // 🕵️ CEK: Apakah kuncinya sudah nempel di widget dan punya context?
+    if (targetKey != null && targetKey.currentContext != null) {
+      Scrollable.ensureVisible(
+        targetKey.currentContext!,
+        duration: const Duration(
+          milliseconds: 800,
+        ), // Agak lambatin dikit biar smooth
+        curve: Curves.easeOutCubic,
+        alignment: 0.1, // Posisi item di 10% dari atas layar
+      );
+
+      // Nyalain efek highlight
+      setState(() => _highlightedSection = section);
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _highlightedSection = null);
+      });
+    } else {
+      // ❌ Kalau belum ketemu
+      if (attempt < 10) {
+        // Tunggu 200ms, lalu coba lagi
+        Future.delayed(const Duration(milliseconds: 200), () {
+          _attemptScroll(section, attempt + 1);
+        });
+      }
+      //else {
+      //   print('💀 Nyerah. Context $section gak ketemu-ketemu.');
+      //}
+    }
+  }
+
+  /* void _scrollToSection(String section) {
+    print('🚀 Mencoba scroll ke: $section');
+    GlobalKey? targetKey;
+
+    switch (section) {
+      case 'derma':
+        targetKey = _dermaKey;
+        break;
+      case 'uposatha':
+        targetKey = _uposathaKey;
+        break;
+      case 'meditasi':
+        targetKey = _meditasiKey;
+        break;
+      case 'paritta':
+        targetKey = _parittaKey;
+        break;
+    }
+
+    // Pastikan Key dan Context-nya sudah ada (Valid)
+    if (targetKey != null && targetKey.currentContext != null) {
+      print('✅ Context ditemukan. Scrolling...');
+      Scrollable.ensureVisible(
+        targetKey.currentContext!,
+        duration: const Duration(
+          milliseconds: 600,
+        ), // Durasi scroll lebih santai
+        curve: Curves.easeInOutCubic, // Curve lebih smooth
+        alignment: 0.1, // Posisi sedikit di bawah header
+      );
+
+      // Efek Glow/Highlight
+      setState(() => _highlightedSection = section);
+
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _highlightedSection = null);
+      });
+    } else {
+      print('❌ Gagal Scroll: Context belum siap/null untuk $section');
+      // Opsional: Coba lagi sekali lagi jika gagal (Retry mechanism)
+      // Future.delayed(const Duration(milliseconds: 200), () => _scrollToSection(section));
+    }
+  }
+*/
+  // Wrapper untuk highlight
+  Widget _buildHighlightWrapper({
+    required String sectionKey,
+    required GlobalKey globalKey,
+    required Widget child,
+  }) {
+    final isHighlighted = _highlightedSection == sectionKey;
+
+    return AnimatedContainer(
+      key: globalKey,
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        boxShadow: isHighlighted
+            ? [
+                BoxShadow(
+                  color: Colors.deepOrange.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
+      ),
+      child: child,
+    );
   }
 
   String _getMoonIcon(String phaseName) {
@@ -225,13 +428,15 @@ class _PatipattiPageState extends State<PatipattiPage> {
     if (lower.contains('new') ||
         lower.contains('baru') ||
         lower.contains('imlek') ||
-        lower.contains('tilem'))
+        lower.contains('tilem')) {
       return '🌑';
+    }
     if (lower.contains('full') ||
         lower.contains('penuh') ||
         lower.contains('purnama') ||
-        lower.contains('cap go meh'))
+        lower.contains('cap go meh')) {
       return '🌕';
+    }
     if (lower.contains('first') || lower.contains('awal')) return '🌓';
     if (lower.contains('last') || lower.contains('akhir')) return '🌗';
     return '🌑';
@@ -316,8 +521,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
   Widget _buildHeaderStrip(String text) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark
-        ? Colors.white.withOpacity(0.05)
-        : Colors.grey.withOpacity(0.08);
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.grey.withValues(alpha: 0.08);
     final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Container(
@@ -327,7 +532,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
         color: bgColor,
         border: Border(
           bottom: BorderSide(
-            color: Theme.of(context).dividerColor.withOpacity(0.05),
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.05),
             width: 1,
           ),
         ),
@@ -359,92 +564,98 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ? const Color(0xFF2D6A64)
         : const Color(0xFFB2DFDB);
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Card(
-        color: cardColor,
-        elevation: 0.5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias, // Gunting konten biar header gak lancip
-        child: Column(
-          children: [
-            // 🏷️ HEADER STRIP
-            _buildHeaderStrip("Dāna"),
+    return _buildHighlightWrapper(
+      sectionKey: 'derma',
+      globalKey: _dermaKey,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        child: Card(
+          color: cardColor,
+          elevation: 0.5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias, // Gunting konten biar header gak lancip
+          child: Column(
+            children: [
+              // 🏷️ HEADER STRIP
+              _buildHeaderStrip("Dāna"),
 
-            // KONTEN UTAMA (Dipisah padding)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: lightBg,
-                          shape: BoxShape.circle,
+              // KONTEN UTAMA (Dipisah padding)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: lightBg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.spa_rounded,
+                            color: accentColor,
+                            size: 24,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.spa_rounded,
-                          color: accentColor,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Derma",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Derma",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
                               ),
-                            ),
-                            Text(
-                              "Praktik Memberi",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: subtextColor,
+                              Text(
+                                "Praktik Memberi",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: subtextColor,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 54,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _dermaLinks.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final item = _dermaLinks[index];
-                        return _buildMenuButton(
-                          label: item['label'],
-                          icon: item['icon'],
-                          color: accentColor,
-                          lightBg: lightBg.withOpacity(0.5),
-                          borderColor: borderColor,
-                          isHorizontal: true,
-                          isCentered: false,
-                          isSlider: true,
-                          // width: 160,
-                          onTap: () {},
-                        );
-                      },
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 54,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _dermaLinks.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final item = _dermaLinks[index];
+                          return _buildMenuButton(
+                            label: item['label'],
+                            icon: item['icon'],
+                            color: accentColor,
+                            lightBg: lightBg.withValues(alpha: 0.5),
+                            borderColor: borderColor,
+                            isHorizontal: true,
+                            isCentered: false,
+                            isSlider: true,
+                            // width: 160,
+                            onTap: () {},
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -473,266 +684,275 @@ class _PatipattiPageState extends State<PatipattiPage> {
       currentData['phases'],
     );
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Card(
-        color: cardColor,
-        elevation: 0.5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            // 🏷️ HEADER STRIP
-            _buildHeaderStrip("Sīla"),
+    return _buildHighlightWrapper(
+      sectionKey: 'uposatha',
+      globalKey: _uposathaKey,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        child: Card(
+          color: cardColor,
+          elevation: 0.5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // 🏷️ HEADER STRIP
+              _buildHeaderStrip("Sīla"),
 
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: lightBg,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.nightlight_round,
-                          color: accentColor,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Uposatha",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                            ),
-                            Text(
-                              "Pengamalan Puasa",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: subtextColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      AnimatedOpacity(
-                        duration: const Duration(milliseconds: 300),
-                        opacity: _isLoadingUposatha ? 0.5 : 1.0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cardColor,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: borderColor),
-                          ),
-                          child: Text(
-                            nextLabel,
-                            style: const TextStyle(
-                              color: accentColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: lightBg.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: borderColor.withOpacity(0.5)),
-                    ),
-                    child: Row(
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        const Icon(
-                          Icons.school_outlined,
-                          size: 18,
-                          color: accentColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "Versi",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: subtextColor,
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: lightBg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.nightlight_round,
+                            color: accentColor,
+                            size: 24,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 14),
                         Expanded(
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedUposathaVersion,
-                              isExpanded: true,
-                              icon: const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 20,
-                                color: accentColor,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Uposatha",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
                               ),
+                              Text(
+                                "Pengamalan Puasa",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: subtextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          opacity: _isLoadingUposatha ? 0.5 : 1.0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: borderColor),
+                            ),
+                            child: Text(
+                              nextLabel,
                               style: const TextStyle(
-                                fontSize: 13,
                                 color: accentColor,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
                               ),
-                              items: _uposathaVersions.map((version) {
-                                return DropdownMenuItem(
-                                  value: version,
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      version,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (value) async {
-                                if (value != null &&
-                                    value != _selectedUposathaVersion) {
-                                  setState(() => _isLoadingUposatha = true);
-                                  await Future.delayed(
-                                    const Duration(milliseconds: 500),
-                                  );
-                                  setState(() {
-                                    _selectedUposathaVersion = value;
-                                    _isLoadingUposatha = false;
-                                  });
-                                  _savePreference(_keyUposatha, value);
-                                }
-                              },
-                              selectedItemBuilder: (BuildContext context) {
-                                return _uposathaVersions.map((String value) {
-                                  return Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      value,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: accentColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  );
-                                }).toList();
-                              },
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    height: 85,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).dividerColor.withValues(alpha: 0.1),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 2,
                       ),
-                    ),
-                    child: _isLoadingUposatha
-                        ? const Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: accentColor,
-                              ),
-                            ),
-                          )
-                        : AnimatedOpacity(
-                            duration: const Duration(milliseconds: 300),
-                            opacity: _isLoadingUposatha ? 0.0 : 1.0,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: phasesRaw.map((phaseData) {
-                                String icon = _getMoonIcon(
-                                  phaseData["phase_name"]!,
-                                );
-                                String date = phaseData["date"]!;
-                                return Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      icon,
-                                      style: const TextStyle(fontSize: 22),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      date,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: textColor,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }).toList(),
+                      decoration: BoxDecoration(
+                        color: lightBg.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: borderColor.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.school_outlined,
+                            size: 18,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Versi",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: subtextColor,
                             ),
                           ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMenuButton(
-                          label: "Kalender",
-                          icon: Icons.calendar_today,
-                          color: accentColor,
-                          lightBg: lightBg,
-                          borderColor: borderColor,
-                          isHorizontal: true,
-                          onTap: () {},
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedUposathaVersion,
+                                isExpanded: true,
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 20,
+                                  color: accentColor,
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: accentColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                items: _uposathaVersions.map((version) {
+                                  return DropdownMenuItem(
+                                    value: version,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        version,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (value) async {
+                                  if (value != null &&
+                                      value != _selectedUposathaVersion) {
+                                    setState(() => _isLoadingUposatha = true);
+                                    await Future.delayed(
+                                      const Duration(milliseconds: 500),
+                                    );
+                                    setState(() {
+                                      _selectedUposathaVersion = value;
+                                      _isLoadingUposatha = false;
+                                    });
+                                    _savePreference(_keyUposatha, value);
+                                  }
+                                },
+                                selectedItemBuilder: (BuildContext context) {
+                                  return _uposathaVersions.map((String value) {
+                                    return Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        value,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: accentColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList();
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      height: 85,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: 0.1),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildMenuButton(
-                          label: "Panduan",
-                          icon: Icons.article_outlined,
-                          color: accentColor,
-                          lightBg: lightBg,
-                          borderColor: borderColor,
-                          isHorizontal: true,
-                          onTap: () {},
+                      child: _isLoadingUposatha
+                          ? const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: accentColor,
+                                ),
+                              ),
+                            )
+                          : AnimatedOpacity(
+                              duration: const Duration(milliseconds: 300),
+                              opacity: _isLoadingUposatha ? 0.0 : 1.0,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: phasesRaw.map((phaseData) {
+                                  String icon = _getMoonIcon(
+                                    phaseData["phase_name"]!,
+                                  );
+                                  String date = phaseData["date"]!;
+                                  return Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        icon,
+                                        style: const TextStyle(fontSize: 22),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        date,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: textColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMenuButton(
+                            label: "Kalender",
+                            icon: Icons.calendar_today,
+                            color: accentColor,
+                            lightBg: lightBg,
+                            borderColor: borderColor,
+                            isHorizontal: true,
+                            onTap: () {},
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildMenuButton(
+                            label: "Panduan",
+                            icon: Icons.article_outlined,
+                            color: accentColor,
+                            lightBg: lightBg,
+                            borderColor: borderColor,
+                            isHorizontal: true,
+                            onTap: () {},
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -753,108 +973,114 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ? const Color(0xFF6D2C2C)
         : const Color(0xFFFFCDD2);
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Card(
-        color: cardColor,
-        elevation: 0.5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            // 🏷️ HEADER STRIP
-            _buildHeaderStrip("Bhāvanā"),
+    return _buildHighlightWrapper(
+      sectionKey: 'meditasi',
+      globalKey: _meditasiKey,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        child: Card(
+          color: cardColor,
+          elevation: 0.5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // 🏷️ HEADER STRIP
+              _buildHeaderStrip("Bhāvanā"),
 
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: lightBg,
-                          shape: BoxShape.circle,
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: lightBg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.self_improvement_rounded,
+                            color: accentColor,
+                            size: 24,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.self_improvement_rounded,
-                          color: accentColor,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Meditasi",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Meditasi",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
                               ),
-                            ),
-                            Text(
-                              "Pengembangan Batin",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: subtextColor,
+                              Text(
+                                "Pengembangan Batin",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: subtextColor,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMenuButton(
-                          label: "Timer",
-                          icon: Icons.timer_outlined,
-                          color: accentColor,
-                          lightBg: lightBg,
-                          borderColor: borderColor,
-                          isHorizontal: false,
-                          isCentered: false,
-                          onTap: () {},
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMenuButton(
+                            label: "Timer",
+                            icon: Icons.timer_outlined,
+                            color: accentColor,
+                            lightBg: lightBg,
+                            borderColor: borderColor,
+                            isHorizontal: false,
+                            isCentered: false,
+                            onTap: () {},
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildMenuButton(
-                          label: "Audio",
-                          icon: Icons.headphones_rounded,
-                          color: accentColor,
-                          lightBg: lightBg,
-                          borderColor: borderColor,
-                          isHorizontal: false,
-                          isCentered: false,
-                          onTap: () {},
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildMenuButton(
+                            label: "Audio",
+                            icon: Icons.headphones_rounded,
+                            color: accentColor,
+                            lightBg: lightBg,
+                            borderColor: borderColor,
+                            isHorizontal: false,
+                            isCentered: false,
+                            onTap: () {},
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildMenuButton(
-                          label: "Video",
-                          icon: Icons.play_circle_outline,
-                          color: accentColor,
-                          lightBg: lightBg,
-                          borderColor: borderColor,
-                          isHorizontal: false,
-                          isCentered: false,
-                          onTap: () {},
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildMenuButton(
+                            label: "Video",
+                            icon: Icons.play_circle_outline,
+                            color: accentColor,
+                            lightBg: lightBg,
+                            borderColor: borderColor,
+                            isHorizontal: false,
+                            isCentered: false,
+                            onTap: () {},
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -878,187 +1104,201 @@ class _PatipattiPageState extends State<PatipattiPage> {
     final List<Map<String, dynamic>> currentList =
         _parittaData[_selectedParittaTradition] ?? [];
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Card(
-        color: cardColor,
-        elevation: 0.5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            // 🏷️ HEADER STRIP
-            _buildHeaderStrip("Bhāvanā"),
+    return _buildHighlightWrapper(
+      sectionKey: 'paritta',
+      globalKey: _parittaKey,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        child: Card(
+          color: cardColor,
+          elevation: 0.5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // 🏷️ HEADER STRIP
+              _buildHeaderStrip("Bhāvanā"),
 
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: lightBg,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.book_rounded,
-                          color: accentColor,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Paritta",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                            ),
-                            Text(
-                              "Syair Perlindungan",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: subtextColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: lightBg.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: borderColor.withOpacity(0.5)),
-                    ),
-                    child: Row(
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
                       children: [
-                        const Icon(
-                          Icons.school_outlined,
-                          size: 18,
-                          color: accentColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "Tradisi",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: subtextColor,
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: lightBg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.book_rounded,
+                            color: accentColor,
+                            size: 24,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 14),
                         Expanded(
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedParittaTradition,
-                              isExpanded: true,
-                              icon: const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 20,
-                                color: accentColor,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Paritta",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
                               ),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: accentColor,
-                                fontWeight: FontWeight.w600,
+                              Text(
+                                "Syair Perlindungan",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: subtextColor,
+                                ),
                               ),
-                              items: _parittaData.keys.map((String key) {
-                                return DropdownMenuItem(
-                                  value: key,
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      key,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (value) async {
-                                if (value != null &&
-                                    value != _selectedParittaTradition) {
-                                  setState(() => _isLoadingParitta = true);
-                                  await Future.delayed(
-                                    const Duration(milliseconds: 500),
-                                  );
-                                  setState(() {
-                                    _selectedParittaTradition = value;
-                                    _isLoadingParitta = false;
-                                  });
-                                  _savePreference(_keyParitta, value);
-                                }
-                              },
-                            ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Divider(
-                    height: 1,
-                    thickness: 0.5,
-                    color: isDark ? Colors.white12 : Colors.black12,
-                  ),
-                  const SizedBox(height: 12),
-                  _isLoadingParitta
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 40),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: accentColor,
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: lightBg.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: borderColor.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.school_outlined,
+                            size: 18,
+                            color: accentColor,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Tradisi",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: subtextColor,
                             ),
                           ),
-                        )
-                      : AnimatedOpacity(
-                          duration: const Duration(milliseconds: 300),
-                          opacity: _isLoadingParitta ? 0.0 : 1.0,
-                          child: Column(
-                            children: currentList.map((item) {
-                              if (item['type'] == 'group') {
-                                return _buildExpansionGroup(
-                                  title: item['label'],
-                                  sectionIcon: item['icon'],
-                                  items: item['items'],
-                                  accentColor: accentColor,
-                                  lightBg: lightBg,
-                                );
-                              } else {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _buildMenuButton(
-                                    label: item['label'],
-                                    icon: item['icon'],
-                                    color: accentColor,
-                                    lightBg: lightBg,
-                                    borderColor: borderColor,
-                                    isHorizontal: true,
-                                    onTap: () {},
-                                  ),
-                                );
-                              }
-                            }).toList(),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedParittaTradition,
+                                isExpanded: true,
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 20,
+                                  color: accentColor,
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: accentColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                items: _parittaData.keys.map((String key) {
+                                  return DropdownMenuItem(
+                                    value: key,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        key,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (value) async {
+                                  if (value != null &&
+                                      value != _selectedParittaTradition) {
+                                    setState(() => _isLoadingParitta = true);
+                                    await Future.delayed(
+                                      const Duration(milliseconds: 500),
+                                    );
+                                    setState(() {
+                                      _selectedParittaTradition = value;
+                                      _isLoadingParitta = false;
+                                    });
+                                    _savePreference(_keyParitta, value);
+                                  }
+                                },
+                              ),
+                            ),
                           ),
-                        ),
-                ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      color: isDark ? Colors.white12 : Colors.black12,
+                    ),
+                    const SizedBox(height: 12),
+                    _isLoadingParitta
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 40),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: accentColor,
+                              ),
+                            ),
+                          )
+                        : AnimatedOpacity(
+                            duration: const Duration(milliseconds: 300),
+                            opacity: _isLoadingParitta ? 0.0 : 1.0,
+                            child: Column(
+                              children: currentList.map((item) {
+                                if (item['type'] == 'group') {
+                                  return _buildExpansionGroup(
+                                    title: item['label'],
+                                    sectionIcon: item['icon'],
+                                    items: item['items'],
+                                    accentColor: accentColor,
+                                    lightBg: lightBg,
+                                  );
+                                } else {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _buildMenuButton(
+                                      label: item['label'],
+                                      icon: item['icon'],
+                                      color: accentColor,
+                                      lightBg: lightBg,
+                                      borderColor: borderColor,
+                                      isHorizontal: true,
+                                      onTap: () {
+                                        _openHtmlBook(
+                                          context,
+                                          item['label'],
+                                          item['files'],
+                                        );
+                                      },
+                                    ),
+                                  );
+                                }
+                              }).toList(),
+                            ),
+                          ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1125,11 +1365,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                 color: textColor,
               ),
             ),
-            trailing: Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: textColor.withValues(alpha: 0.4),
-              size: 20,
-            ),
             children: items.map((item) {
               return Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -1140,7 +1375,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                   lightBg: lightBg,
                   borderColor: borderColor,
                   isHorizontal: true,
-                  onTap: () {},
+                  onTap: () {
+                    _openHtmlBook(context, item['label'], item['files']);
+                  },
                 ),
               );
             }).toList(),

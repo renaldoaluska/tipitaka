@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../styles/nikaya_style.dart';
 import 'menu_page.dart';
+import 'suttaplex.dart';
 
 class PariyattiContent extends StatefulWidget {
   final int tab; // 0=Sutta, 1=Abhidhamma, 2=Vinaya
@@ -518,6 +519,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
   Widget _buildKitabTile(Map<String, String> kitab, String acronym) {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    final cardColor = Theme.of(context).colorScheme.surface;
 
     return ListTile(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -543,15 +545,42 @@ class _PariyattiContentState extends State<PariyattiContent> {
           color: getNikayaColor(acronym),
         ),
       ),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MenuPage(
-            uid: kitab["url"] ?? kitab["acronym"]!.toLowerCase(),
-            parentAcronym: acronym,
-          ),
-        ),
-      ),
+      onTap: () {
+        final uid = kitab["url"] ?? kitab["acronym"]!.toLowerCase();
+
+        // 🔥 LOGIC KHUSUS: Cek apakah ini Patimokkha (Bu/Bi)?
+        if (uid == "pli-tv-bu-pm" || uid == "pli-tv-bi-pm") {
+          // Jika YA, buka Suttaplex (Langsung baca teks)
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: cardColor,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (_) => FractionallySizedBox(
+              heightFactor: 0.85,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                child: Suttaplex(
+                  uid: uid,
+                  sourceMode: "pariyatti", // Penanda entry point
+                ),
+              ),
+            ),
+          );
+        } else {
+          // Jika TIDAK (Folder biasa), buka MenuPage
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MenuPage(uid: uid, parentAcronym: acronym),
+            ),
+          );
+        }
+      },
     );
   }
 }

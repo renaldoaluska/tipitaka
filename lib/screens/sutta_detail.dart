@@ -11,6 +11,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
+import '../services/history.dart';
 
 enum ViewMode { translationOnly, lineByLine, sideBySide }
 
@@ -98,6 +99,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     _parseHtmlIfNeeded();
     _initNavigationContext();
+
+    _saveToHistory();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ScaffoldMessenger.of(context).clearMaterialBanners();
@@ -258,8 +261,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final maxIndex = _allMatches.length - 1;
     if (index < 0) {
       index = maxIndex;
-    } else if (index > maxIndex)
+    } else if (index > maxIndex) {
       index = 0;
+    }
 
     if (index >= 0 && index < _allMatches.length) {
       _currentMatchIndex = index;
@@ -456,8 +460,94 @@ class _SuttaDetailState extends State<SuttaDetail> {
     setState(() {});
   }
 
+  // ✅ HELPER BARU: SATU PINTU UNTUK SEMUA NAVIGASI MENU
+  // Fungsi ini otomatis ngitung Acronym "Bu Pj" dkk sebelum buka halaman.
+  void _openMenuPage(String targetUid) {
+    String derivedAcronym = "";
+    final uid = targetUid.toLowerCase().trim();
+
+    // --- FILTER 1: KHUSUS VINAYA (Manual Mapping) ---
+    // --- FILTER 1: KHUSUS VINAYA (Manual Mapping) ---
+    if (uid.startsWith("pli-tv-")) {
+      if (uid.contains("bu-vb-pj")) {
+        derivedAcronym = "Bu Pj";
+      } else if (uid.contains("bu-vb-ss")) {
+        derivedAcronym = "Bu Ss";
+      } else if (uid.contains("bu-vb-ay")) {
+        derivedAcronym = "Bu Ay";
+      } else if (uid.contains("bu-vb-np")) {
+        derivedAcronym = "Bu Np";
+      } else if (uid.contains("bu-vb-pc")) {
+        derivedAcronym = "Bu Pc";
+      } else if (uid.contains("bu-vb-pd")) {
+        derivedAcronym = "Bu Pd";
+      } else if (uid.contains("bu-vb-sk")) {
+        derivedAcronym = "Bu Sk";
+      } else if (uid.contains("bu-vb-as")) {
+        derivedAcronym = "Bu As";
+      } else if (uid.contains("bi-vb-pj")) {
+        derivedAcronym = "Bi Pj";
+      } else if (uid.contains("bi-vb-ss")) {
+        derivedAcronym = "Bi Ss";
+      } else if (uid.contains("bi-vb-np")) {
+        derivedAcronym = "Bi Np";
+      } else if (uid.contains("bi-vb-pc")) {
+        derivedAcronym = "Bi Pc";
+      } else if (uid.contains("bi-vb-pd")) {
+        derivedAcronym = "Bi Pd";
+      } else if (uid.contains("bi-vb-sk")) {
+        derivedAcronym = "Bi Sk";
+      } else if (uid.contains("bi-vb-as")) {
+        derivedAcronym = "Bi As";
+      } else if (uid.contains("kd")) {
+        derivedAcronym = "Kd";
+      } else if (uid.contains("pvr")) {
+        derivedAcronym = "Pvr";
+      } else if (uid.contains("bu-pm")) {
+        derivedAcronym = "Bu";
+      } else if (uid.contains("bi-pm")) {
+        derivedAcronym = "Bi";
+      }
+    }
+    // --- FILTER 2: 4 NIKAYA UTAMA ---
+    else if (uid.startsWith("dn") ||
+        uid.startsWith("mn") ||
+        uid.startsWith("sn") ||
+        uid.startsWith("an")) {
+      if (uid.length >= 2) {
+        derivedAcronym = uid.substring(0, 2).toUpperCase();
+      }
+    }
+    // --- FILTER 3: KHUDDAKA & LAINNYA ---
+    else {
+      final match = RegExp(r'^[a-z]+(?:-[a-z]+)?').stringMatch(uid);
+      if (match != null) {
+        String raw = match.replaceAll("-", " ").trim();
+        derivedAcronym = raw
+            .split(" ")
+            .map(
+              (str) =>
+                  str.isNotEmpty ? str[0].toUpperCase() + str.substring(1) : "",
+            )
+            .join(" ");
+      }
+    }
+
+    debugPrint("🚀 [OPEN MENU] UID: $targetUid -> ACRONYM: '$derivedAcronym'");
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        settings: RouteSettings(name: '/vagga/$targetUid'),
+        builder: (_) => MenuPage(
+          uid: targetUid,
+          parentAcronym: derivedAcronym, // ✅ INI KUNCINYA
+        ),
+      ),
+    );
+  }
+
   Future<bool> _handleBackReplace() async {
-    // Resolve parent vagga kalau belum ada
+    // 1. Resolve Parent Vagga (sama kayak sebelumnya)
     if (_parentVaggaId == null) {
       final resolved = await _resolveVaggaUid(widget.uid);
       if (mounted && resolved != null) {
@@ -469,7 +559,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     if (!mounted) return false;
 
-    // ✅ DIALOG SELALU MUNCUL (sesuai kebutuhan)
+    // 2. Dialog Konfirmasi
     final shouldLeave = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -506,9 +596,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
                   child: const Text("Batal"),
                 ),
               ),
@@ -516,9 +603,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
               Expanded(
                 child: FilledButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
                   child: const Text("Ya, Keluar"),
                 ),
               ),
@@ -531,134 +615,101 @@ class _SuttaDetailState extends State<SuttaDetail> {
     if (shouldLeave != true) return false;
     if (!mounted) return false;
 
-    // ✅ NAVIGATION BASED ON ENTRY POINT
+    // ---------------------------------------------------------
+    // 🔥 LOGIC NAVIGASI UTAMA (CLEAN & DRY)
+    // ---------------------------------------------------------
 
-    // CASE A: Dari Tematik/Search → Pop sampai first route (back ke Tematik/Search)
-    if (widget.entryPoint == "tematik" || widget.entryPoint == "search") {
-      // Navigator.of(context).popUntil((route) => route.isFirst);
-      Navigator.of(context).pop();
-      return false;
+    // SKENARIO 1: Belum Navigasi (Masih di Sutta Awal)
+    // Berlaku untuk SEMUA entry point (Menu, History, Search, dll).
+    // Cukup 'pop' biasa untuk kembali ke layar sebelumnya (list history, search result, dll).
+    if (!_hasNavigatedBetweenSuttas) {
+      return true; // System pop akan jalan otomatis
     }
 
-    // CASE B: Dari MenuPage → Rebuild MenuPage tree dengan parent vagga
-    // CASE B: Dari MenuPage → Rebuild MenuPage tree dengan parent vagga
+    // SKENARIO 2: Sudah Navigasi (User sudah pindah Sutta)
+    // Kita harus 'Reset' tampilan agar fokus ke Suttaplex sutta yang sekarang sedang aktif.
+
+    // A. Reset Stack: Hapus semua tumpukan layar sampai ke layar utama (Home)
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    // B. Rebuild Parent Stack
     if (widget.entryPoint == "menu_page") {
-      // ✅ 1. Kalau gak prev/next → pop biasa (balik ke SuttaPlex yg lama)
-      if (!_hasNavigatedBetweenSuttas) {
-        Navigator.of(context).pop();
-        return false;
-      }
-
-      // ✅ 2. Kalau udah prev/next → REBUILD TOTAL
-      Navigator.of(context).popUntil((route) => route.isFirst);
-
-      // --- STACK 1: ROOT (Tetap) ---
-      final rootPrefix =
-          RegExp(r'^[A-Za-z]+(?:-[A-Za-z]+)?').stringMatch(widget.uid) ?? "";
+      // 1. Push Root (Root juga harus pake helper biar Acronym-nya bener!)
+      final rootPrefix = widget.uid.replaceAll(RegExp(r'\d.*$'), '');
       if (rootPrefix.isNotEmpty && rootPrefix != _parentVaggaId) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            settings: RouteSettings(name: '/$rootPrefix'),
-            builder: (_) => MenuPage(uid: rootPrefix),
-          ),
-        );
+        // 🔥 GANTI: PAKE HELPER BARU
+        _openMenuPage(rootPrefix);
       }
 
-      // --- STACK 2: VAGGA (Tetap) ---
+      // 2. Push Vagga
       if (_parentVaggaId != null) {
-        // ... (Logika acronym sama kayak sebelumnya) ...
-        String rawAcronym =
-            widget.textData?["root_text"]?["acronym"]?.toString() ?? "";
-        // ... (kode acronym cleaner lu yg lama) ...
-        if (rawAcronym.isEmpty) {
-          rawAcronym =
-              RegExp(r'^[A-Za-z]+(?:-[A-Za-z]+)?').stringMatch(widget.uid) ??
-              "";
-        }
-        rawAcronym = rawAcronym.replaceAll("-", " ");
-        const fullUpperSet = {"DN", "MN", "SN", "AN"};
-        String formattedAcronym =
-            fullUpperSet.contains(rawAcronym.toUpperCase())
-            ? rawAcronym.toUpperCase()
-            : rawAcronym.isNotEmpty
-            ? rawAcronym[0].toUpperCase() + rawAcronym.substring(1)
-            : "";
-
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            settings: RouteSettings(name: '/vagga/$_parentVaggaId'),
-            builder: (_) =>
-                MenuPage(uid: _parentVaggaId!, parentAcronym: formattedAcronym),
-          ),
-        );
+        // 🔥 GANTI: PAKE HELPER BARU
+        _openMenuPage(_parentVaggaId!);
       }
+    }
 
-      // --- STACK 3: SUTTAPLEX ---
-      Navigator.of(context).push(
-        PageRouteBuilder(
-          opaque: false,
-          barrierColor: Colors.black54,
-          barrierDismissible: true,
-          settings: RouteSettings(name: '/suttaplex/${widget.uid}'),
-          pageBuilder: (context, animation, secondaryAnimation) {
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(color: Colors.transparent),
-                  ),
+    // C. (Shared Logic) Tampilkan Suttaplex
+    // Ini dijalankan baik untuk Menu Page maupun Default (History/Search)
+    // asalkan user sudah berpindah sutta.
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black54,
+        barrierDismissible: true,
+        settings: RouteSettings(name: '/suttaplex/${widget.uid}'),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(color: Colors.transparent),
                 ),
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.85,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    child: Material(
-                      color: Theme.of(context).colorScheme.surface,
-
-                      // ✅ FIX DUA APPBAR: Ilangin padding status bar di dalam sheet
-                      child: MediaQuery.removePadding(
-                        context: context,
-                        removeTop: true, // 🔥 Ini kuncinya!
-                        child: Suttaplex(
-                          uid: widget.uid,
-                          sourceMode: "sutta_detail",
-                          initialData:
-                              widget.textData?["suttaplex"]
-                                  as Map<String, dynamic>?,
-                        ),
+              ),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.85,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: Material(
+                    color: Theme.of(context).colorScheme.surface,
+                    // Fix padding status bar
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      removeTop: true,
+                      child: Suttaplex(
+                        uid: widget.uid, // UID Sutta yang SEDANG aktif
+                        sourceMode: "sutta_detail",
+                        initialData:
+                            widget.textData?["suttaplex"]
+                                as Map<String, dynamic>?,
                       ),
                     ),
                   ),
                 ),
-              ],
-            );
-          },
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(0.0, 1.0);
-            const end = Offset.zero;
-            const curve = Curves.easeOutCubic;
-            var tween = Tween(
-              begin: begin,
-              end: end,
-            ).chain(CurveTween(curve: curve));
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-        ),
-      );
+              ),
+            ],
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, 1.0);
+          const end = Offset.zero;
+          const curve = Curves.easeOutCubic;
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
 
-      return false;
-    } // End of if (widget.entryPoint == "menu_page")
-
-    // CASE C: Dari SuttaDetail sendiri (via book button) → Pop biasa aja
-    Navigator.pop(context);
-    return true;
+    return false; // Return false karena kita sudah handle navigasi secara manual
   }
 
   void _replaceToRoute(String route, {bool slideFromLeft = false}) {
@@ -1772,6 +1823,32 @@ class _SuttaDetailState extends State<SuttaDetail> {
     };
   }
 
+  Future<void> _saveToHistory() async {
+    final metadata = _getMetadata();
+
+    final historyItem = {
+      'uid': widget.uid,
+      'title':
+          widget.textData?["suttaplex"]?["translated_title"] ??
+          widget.textData?["suttaplex"]?["original_title"] ??
+          widget.textData?["root_text"]?["title"] ??
+          widget.uid,
+      'original_title':
+          widget.textData?["suttaplex"]?["original_title"] ??
+          widget.textData?["root_text"]?["title"] ??
+          "",
+      'acronym':
+          widget.textData?["suttaplex"]?["acronym"] ??
+          widget.textData?["root_text"]?["acronym"] ??
+          "",
+      'author': metadata["author"],
+      'lang_name': metadata["langName"],
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    await HistoryService.addToHistory(historyItem);
+  }
+
   Widget _buildInfoRow(IconData icon, String label, String value) {
     final iconColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final labelColor = Theme.of(context).colorScheme.onSurface;
@@ -2271,23 +2348,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.bookmark_border,
-                                color: Colors.amber,
-                                size: 22,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Bookmark: TO DO'),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                            ),
                             IconButton(
                               icon: const Icon(
                                 Icons.info_outline,

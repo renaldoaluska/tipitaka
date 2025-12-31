@@ -1,0 +1,146 @@
+@font-face {
+    font-family: fontKu;
+    src: url("file:///android_res/font/reguler.ttf")
+}
+@font-face {
+    font-family: fontKuMedium;
+    src: url("file:///android_res/font/medium.ttf")
+}
+
+/* --- BASE STYLES --- */
+body {
+    font-family: fontKu;
+    font-size: 13pt;
+    line-height: 26px;
+    margin-bottom: 100px; /* Space bawah lebih gede biar ga ketutup tombol */
+    padding: 10px;
+    word-wrap: break-word;
+    background: #fff; /* Fallback */
+    color: #000;      /* Fallback */
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Link tidak ada garis bawah */
+a { text-decoration: none; }
+
+/* STYLE ITEM LIST (DAFTAR ISI) - Mirip File Tree */
+.daftar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Jarak antar item */
+}
+
+.daftar-child {
+    padding: 12px 16px;
+    border-radius: 6px; /* Sudut agak kotak dikit kayak VS Code */
+    border-left: 4px solid #4caf50; /* ✅ Indikator Hijau (Mirip dot di gambar) */
+    transition: transform 0.1s, background-color 0.2s;
+    font-family: fontKuMedium;
+    font-weight: 500;
+    font-size: 14pt;
+}
+
+.daftar-child span{
+    font-weight: normal;
+}
+
+/* Efek pencet */
+.daftar-child:active {
+    transform: scale(0.98);
+}
+
+/* Subtitle di daftar isi (dindo) */
+.dindo {
+    display: block;
+    margin-top: 4px;
+    font-size: 11pt !important;
+    font-family: fontKu;
+    opacity: 0.8;
+}
+
+/* --- KONTEN AYAT/ISI --- */
+.isi {
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 15px 0;
+    border: 1px solid transparent; /* Biar rapi */
+}
+
+.nomor { margin-top: 20px; font-size: 0.9em; opacity: 0.7; }
+.isi ul, .isi ol { padding-left: 20px; }
+
+/* Typography Header */
+h1 { font-size: 18pt; padding: 10px 0; margin: 15px 0; border-bottom: 1px solid rgba(128,128,128,0.3); }
+h2 { font-size: 16pt; margin-top: 20px; }
+h3 { font-size: 14pt; }
+
+/* Span Indo (Terjemahan di Header) */
+h1 span.indo, h2 span.indo, h3 span.indo {
+    font-weight: normal;
+    display: block;
+    margin-top: 5px;
+    font-size: 0.8em !important;
+    opacity: 0.9;
+}
+
+/* Paragraf & Terjemahan */
+p { font-weight: bold; margin-bottom: 8px; }
+p.indo { font-weight: normal; margin-bottom: 15px; }
+
+/* Footnote / Guide */
+p.footnote, p.guide { font-weight: normal; font-style: italic; opacity: 0.7; font-size: 0.9em; }
+
+/* Item Disabled */
+.disabled { opacity: 0.4; pointer-events: none; border-left-color: grey; }
+
+
+/* ========================================= */
+/* 🎨 TEMA (DIKONTROL DARI FLUTTER)        */
+/* ========================================= */
+
+/* 🌙 DARK MODE */
+body.mode-dark {
+    background: #212121 !important; /* Hitam pekat */
+    color: #e0e0e0 !important;      /* Putih gading */
+}
+
+/* Style List Dark */
+body.mode-dark .daftar-child {
+    background: #303030 !important; /* Abu gelap ala VS Code */
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+body.mode-dark .dindo { color: #aaaaaa !important; }
+
+/* Style Isi/Ayat Dark */
+body.mode-dark .isi {
+    background: #1e1e1e !important;
+    border-color: #333;
+}
+body.mode-dark p { color: #ffa726 !important; /* Orange Pali */ }
+body.mode-dark p.indo { color: #e0e0e0 !important; }
+body.mode-dark a { color: #80cbc4 !important; }
+
+
+/* ☀️ LIGHT MODE */
+body.mode-light {
+    background: #f5f5f5 !important; /* Abu sangat muda */
+    color: #212121 !important;
+}
+
+/* Style List Light */
+body.mode-light .daftar-child {
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+body.mode-light .dindo { color: #616161 !important; }
+
+/* Style Isi/Ayat Light */
+body.mode-light .isi {
+    background: #ffffff !important;
+    border-color: #e0e0e0;
+}
+body.mode-light p { color: #d84315 !important; /* Orange Tua Pali */ }
+body.mode-light p.indo { color: #212121 !important; }
+body.mode-light a { color: #00695c !important; }

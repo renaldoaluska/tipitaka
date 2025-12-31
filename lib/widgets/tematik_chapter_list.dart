@@ -227,7 +227,7 @@ class _TematikChapterListState extends State<TematikChapterList> {
           final code = s["code"] ?? "";
           if (code.isEmpty) return const SizedBox.shrink();
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 4), // Ganti dari 8 jadi 4
             child: _buildSuttaItem(s, code),
           );
         }).toList(),
@@ -270,60 +270,76 @@ class _TematikChapterListState extends State<TematikChapterList> {
       }
     }
 
-    return ExpansionTile(
-      leading: Icon(
-        allDone ? Icons.check_circle : Icons.folder_outlined,
-        color: allDone ? Colors.green : Colors.deepOrange,
-        size: 20,
-      ),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (refRange.isNotEmpty) ...[
-            Text(
-              refRange,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.2,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2), // Margin kiri kanan
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.symmetric(horizontal: 4),
+        childrenPadding: EdgeInsets.zero,
+        collapsedShape: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+            width: 0.5,
+          ),
+        ),
+        shape: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+            width: 0.5,
+          ),
+        ),
+        leading: Icon(
+          allDone ? Icons.check_circle : Icons.folder_outlined,
+          color: allDone ? Colors.green : Colors.deepOrange,
+          size: 20,
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (refRange.isNotEmpty) ...[
+                    Text(
+                      refRange,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
+                  Text(
+                    section,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(width: 12),
+            Text(
+              "$done/$total",
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  section,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                "$done/$total",
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
+        children: suttas.map((s) {
+          final code = s["code"] ?? "";
+          if (code.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(right: 12, top: 4), // Hapus left: 12
+            child: _buildSuttaItem(s, code),
+          );
+        }).toList(),
       ),
-      trailing: const Icon(Icons.expand_more, size: 20),
-      children: suttas.map((s) {
-        final code = s["code"] ?? "";
-        if (code.isEmpty) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.only(left: 12, right: 12, top: 4),
-          child: _buildSuttaItem(s, code),
-        );
-      }).toList(),
     );
   }
 
@@ -341,20 +357,21 @@ class _TematikChapterListState extends State<TematikChapterList> {
     final romanNumeral = _getRomanNumeral();
 
     return Container(
+      margin: const EdgeInsets.only(left: 10), // Cuma kiri aja
       decoration: BoxDecoration(
         color: isChecked
-            ? Colors.deepOrange.withOpacity(0.05)
+            ? Colors.deepOrange.withValues(alpha: 0.05)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isChecked
-              ? Colors.deepOrange.withOpacity(0.2)
+              ? Colors.deepOrange.withValues(alpha: 0.2)
               : Colors.transparent,
           width: 1,
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
         child: Row(
           children: [
             // Checkbox
@@ -378,68 +395,77 @@ class _TematikChapterListState extends State<TematikChapterList> {
               ),
             ),
             const SizedBox(width: 12),
-            // Content sutta
+            // Content sutta dengan hover
             Expanded(
-              child: InkWell(
-                onTap: () => _openSuttaplex(context, code),
-                borderRadius: BorderRadius.circular(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (ref.isNotEmpty && romanNumeral.isNotEmpty) ...[
-                      Text(
-                        "$romanNumeral,$ref",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ],
-                    Row(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _openSuttaplex(context, code),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            sutta["name"]!,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: textColor,
-                              decoration: isChecked
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                              decorationColor: subtextColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: nikayaColor.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: nikayaColor.withOpacity(0.4),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Text(
-                            code,
+                        if (ref.isNotEmpty && romanNumeral.isNotEmpty) ...[
+                          Text(
+                            "$romanNumeral,$ref",
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: nikayaColor,
-                              letterSpacing: 0.3,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.2,
                             ),
                           ),
+                        ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                sutta["name"]!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: textColor,
+                                  decoration: isChecked
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  decorationColor: subtextColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: nikayaColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: nikayaColor.withValues(alpha: 0.4),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Text(
+                                code,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: nikayaColor,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
