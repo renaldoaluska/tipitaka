@@ -105,7 +105,7 @@ class _MenuPageState extends State<MenuPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
             fontSize: 14,
             color: textColor,
           ),

@@ -34,7 +34,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
     },
     {
       "acronym": "SN",
-      "name": "Saṃyuttanikāya",
+      "name": "Saṁyuttanikāya",
       "desc": "Kumpulan Bertaut",
       "range": "SN 1–56",
     },
@@ -458,7 +458,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
                       title: Text(
                         "Khuddakanikāya",
                         style: TextStyle(
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                           fontSize: 14,
                           color: textColor, // ✅ Dinamis
                         ),
@@ -528,7 +528,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
       title: Text(
         kitab["name"]!,
         style: TextStyle(
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           fontSize: 14,
           color: textColor, // ✅ Dinamis
         ),

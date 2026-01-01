@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ThemeManager extends ChangeNotifier {
   // Ganti key biar gak bentrok sama settingan lama
@@ -61,6 +62,8 @@ class ThemeManager extends ChangeNotifier {
       onSurfaceVariant: Colors.grey[600]!,
       secondary: Colors.blueGrey,
     ),
+    textTheme: GoogleFonts.notoSansTextTheme(), // ✅ TAMBAH INI
+    primaryTextTheme: GoogleFonts.notoSansTextTheme(), // ✅ TAMBAH INI
     useMaterial3: true,
   );
 
@@ -75,6 +78,14 @@ class ThemeManager extends ChangeNotifier {
       onSurface: Colors.white,
       onSurfaceVariant: Colors.grey[400]!,
       secondary: Colors.amber,
+    ),
+    textTheme: GoogleFonts.notoSansTextTheme(
+      // ✅ TAMBAH INI
+      ThemeData.dark().textTheme,
+    ),
+    primaryTextTheme: GoogleFonts.notoSansTextTheme(
+      // ✅ TAMBAH INI
+      ThemeData.dark().primaryTextTheme,
     ),
     useMaterial3: true,
   );

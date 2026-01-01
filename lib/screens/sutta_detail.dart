@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:html_unescape/html_unescape.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tipitaka/screens/menu_page.dart';
 import 'package:tipitaka/screens/suttaplex.dart';
 import 'package:tipitaka/services/sutta.dart';
 import 'package:tipitaka/styles/nikaya_style.dart';
+import '../core/theme/theme_manager.dart';
 import '../models/sutta_text.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'dart:async';
@@ -50,6 +52,8 @@ enum SuttaSnackType {
   disabledForTematik, // ✅ TAMBAH INI
 }
 
+enum ReaderTheme { light, light2, sepia, dark, dark2 }
+
 class _SuttaDetailState extends State<SuttaDetail> {
   // --- NAV CONTEXT & STATE ---
   late bool _hasNavigatedBetweenSuttas; // ✅ 3. Ubah jadi 'late' (hapus = false)
@@ -63,7 +67,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   bool _isHtmlParsed = false;
   RegExp? _cachedSearchRegex;
   ViewMode _viewMode = ViewMode.lineByLine;
-  double _fontSize = 18.0;
+  double _fontSize = 16.0;
 
   // ✅ Variabel info Footer
   String _footerInfo = "";
@@ -78,6 +82,77 @@ class _SuttaDetailState extends State<SuttaDetail> {
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
+
+  // Default awal kita set Light dulu (cuma placeholder)
+  // Nanti di _loadPreferences kita timpa sesuai logika kamu
+  ReaderTheme _readerTheme = ReaderTheme.light;
+
+  // Helper biar kodingan di build bersih & sinkron sama ThemeManager
+  Map<String, Color> get _themeColors {
+    // 1. Ambil warna System HP (Buat UI App Bar & Drawer biar gak aneh)
+    final systemScheme = Theme.of(context).colorScheme;
+    final uiCardColor = systemScheme.surface;
+    final uiIconColor = systemScheme.onSurface;
+
+    // 2. Panggil ThemeManager buat nyontek warna background asli
+    final tm = ThemeManager();
+
+    switch (_readerTheme) {
+      // --- TERANG 1 (Standard: Full ThemeManager) ---
+      case ReaderTheme.light:
+        final t = tm.lightTheme;
+        return {
+          'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
+          'text': t.colorScheme.onSurface, // ✅ Hitam (Standard)
+          'note': t.colorScheme.onSurfaceVariant,
+          'card': uiCardColor,
+          'icon': uiIconColor,
+        };
+
+      // --- TERANG 2 (Soft: Bg ThemeManager, Teks Abu) ---
+      case ReaderTheme.light2:
+        final t = tm.lightTheme;
+        return {
+          'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
+          'text': const Color(0xFF424242), // ✨ Custom: Abu Tua Soft
+          'note': Colors.grey[500]!,
+          'card': uiCardColor,
+          'icon': uiIconColor,
+        };
+
+      // --- SEPIA (Full Custom) ---
+      case ReaderTheme.sepia:
+        return {
+          'bg': const Color(0xFFF4ECD8), // ✨ Custom: Krem
+          'text': const Color(0xFF5D4037), // ✨ Custom: Coklat
+          'note': const Color(0xFF8D6E63),
+          'card': uiCardColor,
+          'icon': uiIconColor,
+        };
+
+      // --- GELAP 1 (Standard: Full ThemeManager) ---
+      case ReaderTheme.dark:
+        final t = tm.darkTheme;
+        return {
+          'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
+          'text': t.colorScheme.onSurface, // ✅ Putih (Standard)
+          'note': t.colorScheme.onSurfaceVariant,
+          'card': uiCardColor,
+          'icon': uiIconColor,
+        };
+
+      // --- GELAP 2 (Soft: Bg ThemeManager, Teks Abu) ---
+      case ReaderTheme.dark2:
+        final t = tm.darkTheme;
+        return {
+          'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
+          'text': const Color(0xFFB0BEC5), // ✨ Custom: Abu Kebiruan
+          'note': Colors.grey[600]!,
+          'card': uiCardColor,
+          'icon': uiIconColor,
+        };
+    }
+  }
 
   // --- DAFTAR ISI ---
   final List<Map<String, dynamic>> _tocList = [];
@@ -110,12 +185,41 @@ class _SuttaDetailState extends State<SuttaDetail> {
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+
+    // 1. Coba ambil settingan user
+    int? savedIndex = prefs.getInt('reader_theme_index');
+
+    // 2. Tentukan tema
+    ReaderTheme targetTheme;
+
+    if (savedIndex != null) {
+      // ✅ KASUS A: User udah pernah setting, ikutin maunya user
+      if (savedIndex >= 0 && savedIndex < ReaderTheme.values.length) {
+        targetTheme = ReaderTheme.values[savedIndex];
+      } else {
+        targetTheme = ReaderTheme.light;
+      }
+    } else {
+      // ✅ KASUS B: Belum pernah setting (Default)
+      // Cek tema HP sekarang (Gelap/Terang)
+      final brightness = Theme.of(context).brightness;
+
+      if (brightness == Brightness.dark) {
+        targetTheme = ReaderTheme.dark; // Kalau HP gelap -> Mode Baca Gelap
+      } else {
+        targetTheme = ReaderTheme.light; // Kalau HP terang -> Mode Baca Terang
+      }
+    }
+
     setState(() {
-      _fontSize = prefs.getDouble('sutta_font_size') ?? 18.0;
+      _fontSize = prefs.getDouble('sutta_font_size') ?? 16.0;
       final savedMode = prefs.getInt('sutta_view_mode');
       if (savedMode != null && savedMode < ViewMode.values.length) {
         _viewMode = ViewMode.values[savedMode];
       }
+
+      // Update tema baca
+      _readerTheme = targetTheme;
     });
   }
 
@@ -123,6 +227,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('sutta_font_size', _fontSize);
     await prefs.setInt('sutta_view_mode', _viewMode.index);
+
+    // Simpan index enum
+    await prefs.setInt('reader_theme_index', _readerTheme.index);
   }
 
   bool get _isRootOnly {
@@ -547,7 +654,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Future<bool> _handleBackReplace() async {
-    // 1. Resolve Parent Vagga (sama kayak sebelumnya)
+    // 1. Resolve Parent Vagga (Logika Backend)
     if (_parentVaggaId == null) {
       final resolved = await _resolveVaggaUid(widget.uid);
       if (mounted && resolved != null) {
@@ -559,98 +666,171 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     if (!mounted) return false;
 
-    // 2. Dialog Konfirmasi
+    // 2. Tampilkan Dialog Konfirmasi (UI Baru)
     final shouldLeave = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: Row(
-          children: [
-            Icon(
-              Icons.logout_rounded,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                "Keluar dari mode baca?",
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          "Posisi subbagian telah disesuaikan, tak semua bukaan dipertahankan.\n\n(Untuk ganti versi teks, Anda bisa akses menu di bawah.)",
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+      builder: (ctx) {
+        final colorScheme = Theme.of(context).colorScheme;
+
+        return AlertDialog(
+          backgroundColor: colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(
+          // Judul dengan Icon
+          title: Row(
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text("Batal"),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text("Ya, Keluar"),
+              Icon(Icons.logout_rounded, color: colorScheme.primary),
+              const SizedBox(width: 12),
+              const Flexible(
+                child: Text(
+                  "Sudahi sesi baca?",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Anda akan kembali ke menu utama dan riwayat navigasi saat ini akan direset.",
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ✅ KOTAK TIPS PINTAR
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  // Warna background tipis banget biar gak norak
+                  color: colorScheme.secondaryContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline_rounded,
+                      size: 20,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.onSurface,
+                            height: 1.4,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text: "Ingin ganti penerjemah? Gunakan tombol ",
+                            ),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                child: Icon(
+                                  Icons.translate_rounded, // Icon Buku
+                                  size: 16,
+                                  // ✅ WARNA OTOMATIS (Hitam di Light, Putih di Dark)
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            const TextSpan(
+                              text: " di menu bawah tanpa perlu keluar.",
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text("Batal"),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: FilledButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+
+                      // ✅ GANTI JADI INI:
+                      // Pake 'primary' biar warnanya Oren ngikut tema aplikasi
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                    ),
+                    child: const Text("Keluar"),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
 
+    // Cek hasil dialog
     if (shouldLeave != true) return false;
     if (!mounted) return false;
 
     // ---------------------------------------------------------
-    // 🔥 LOGIC NAVIGASI UTAMA (CLEAN & DRY)
+    // 🔥 LOGIC NAVIGASI UTAMA (Sesuai kode sebelumnya)
     // ---------------------------------------------------------
 
-    // SKENARIO 1: Belum Navigasi (Masih di Sutta Awal)
-    // Berlaku untuk SEMUA entry point (Menu, History, Search, dll).
-    // Cukup 'pop' biasa untuk kembali ke layar sebelumnya (list history, search result, dll).
+    // SKENARIO 1: Belum pindah-pindah sutta, langsung pop aja
     if (!_hasNavigatedBetweenSuttas) {
-      return true; // System pop akan jalan otomatis
+      return true;
     }
 
-    // SKENARIO 2: Sudah Navigasi (User sudah pindah Sutta)
-    // Kita harus 'Reset' tampilan agar fokus ke Suttaplex sutta yang sekarang sedang aktif.
+    // SKENARIO 2: Udah navigasi jauh, kita reset stack-nya
 
-    // A. Reset Stack: Hapus semua tumpukan layar sampai ke layar utama (Home)
+    // A. Reset sampai Home
     Navigator.of(context).popUntil((route) => route.isFirst);
 
-    // B. Rebuild Parent Stack
+    // B. Buka ulang Menu Page (Vagga) kalau entry point-nya dari Menu
     if (widget.entryPoint == "menu_page") {
-      // 1. Push Root (Root juga harus pake helper biar Acronym-nya bener!)
       final rootPrefix = widget.uid.replaceAll(RegExp(r'\d.*$'), '');
       if (rootPrefix.isNotEmpty && rootPrefix != _parentVaggaId) {
-        // 🔥 GANTI: PAKE HELPER BARU
         _openMenuPage(rootPrefix);
       }
-
-      // 2. Push Vagga
       if (_parentVaggaId != null) {
-        // 🔥 GANTI: PAKE HELPER BARU
         _openMenuPage(_parentVaggaId!);
       }
     }
 
-    // C. (Shared Logic) Tampilkan Suttaplex
-    // Ini dijalankan baik untuk Menu Page maupun Default (History/Search)
-    // asalkan user sudah berpindah sutta.
+    // C. Tampilin Modal Suttaplex lagi (Biar user gak bingung tiba-tiba ilang)
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
@@ -675,12 +855,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   ),
                   child: Material(
                     color: Theme.of(context).colorScheme.surface,
-                    // Fix padding status bar
                     child: MediaQuery.removePadding(
                       context: context,
                       removeTop: true,
                       child: Suttaplex(
-                        uid: widget.uid, // UID Sutta yang SEDANG aktif
+                        uid: widget.uid,
                         sourceMode: "sutta_detail",
                         initialData:
                             widget.textData?["suttaplex"]
@@ -709,7 +888,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       ),
     );
 
-    return false; // Return false karena kita sudah handle navigasi secara manual
+    return false; // Kita handle navigasi manual, jadi return false
   }
 
   void _replaceToRoute(String route, {bool slideFromLeft = false}) {
@@ -1104,28 +1283,94 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
 
-    String message;
-    IconData icon;
+    List<InlineSpan> contentSpans = [];
+    Color bgColor = Theme.of(context).colorScheme.inverseSurface;
+
+    // ✅ AMBIL AKRONIM (Misal: "DN", "MN", "Dhp", dll)
+    // Kalau gak ada, fallback ke UID atau "kitab ini"
+    String acronym =
+        widget.textData?["suttaplex"]?["acronym"] ??
+        widget.textData?["root_text"]?["acronym"] ??
+        uid ??
+        "kitab ini";
 
     switch (type) {
       case SuttaSnackType.translatorFallback:
-        message =
-            "Teks $uid ($lang) oleh $author tak ditemukan, silakan ganti versi terjemahan di ";
-        icon = Icons.menu_book;
+        bgColor = Colors.deepOrange.shade400;
+        contentSpans = [
+          TextSpan(
+            text:
+                "Teks $uid ($lang) tidak tersedia. Ganti versi terjemahan melalui tombol ",
+          ),
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Icon(
+                Icons.translate_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+          const TextSpan(text: " di menu bawah."),
+        ];
         break;
+
       case SuttaSnackType.firstText:
-        message =
-            "Teks $uid sudah terawal, ganti kitab dengan keluar terlebih dahulu ";
-        icon = Icons.arrow_circle_left;
+        bgColor = Colors.deepOrange.shade400;
+        contentSpans = [
+          // ✅ TEXT DENGAN AKRONIM
+          TextSpan(text: "Anda berada di awal ($acronym). Gunakan tombol "),
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Icon(
+                Icons.arrow_back_rounded, // Icon Back
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+          const TextSpan(text: " untuk kembali ke menu."),
+        ];
         break;
+
       case SuttaSnackType.lastText:
-        message =
-            "Teks $uid sudah terakhir, ganti kitab dengan keluar terlebih dahulu ";
-        icon = Icons.arrow_circle_left;
+        bgColor = Colors.deepOrange.shade400;
+        contentSpans = [
+          // ✅ TEXT DENGAN AKRONIM
+          TextSpan(
+            text: "Anda telah mencapai akhir ($acronym). Gunakan tombol ",
+          ),
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Icon(
+                Icons.arrow_back_rounded, // Icon Back
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+          const TextSpan(text: " untuk kembali ke menu."),
+        ];
         break;
-      case SuttaSnackType.disabledForTematik: // ✅ TAMBAH CASE INI
-        message = "Dinonaktifkan untuk fitur Tematik";
-        icon = Icons.block;
+
+      case SuttaSnackType.disabledForTematik:
+        bgColor = Colors.grey.shade800;
+        contentSpans = [
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(Icons.block_rounded, color: Colors.white, size: 18),
+            ),
+          ),
+          const TextSpan(text: "Navigasi dimatikan pada mode Tematik."),
+        ];
         break;
     }
 
@@ -1133,26 +1378,19 @@ class _SuttaDetailState extends State<SuttaDetail> {
       SnackBar(
         content: RichText(
           text: TextSpan(
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-            children: [
-              TextSpan(text: message),
-              if (type !=
-                  SuttaSnackType
-                      .disabledForTematik) // ✅ Skip icon kalau Tematik
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: Icon(icon, color: Colors.white, size: 18),
-                ),
-            ],
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              height: 1.4,
+            ),
+            children: contentSpans,
           ),
         ),
-        backgroundColor: type == SuttaSnackType.disabledForTematik
-            ? Colors
-                  .grey
-                  .shade700 // ✅ Warna abu-abu untuk Tematik
-            : Colors.deepOrange.shade400,
+        backgroundColor: bgColor,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -1292,6 +1530,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   data: formattedComm,
                   style: {
                     "body": Style(
+                      fontFamily: GoogleFonts.notoSerif().fontFamily,
                       fontSize: FontSize(fontSize),
                       margin: Margins.zero,
                       padding: HtmlPaddings.zero,
@@ -1351,12 +1590,24 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final isHeader = headerRegex.hasMatch(verseNum);
     final isH3 = isHeader && !isH1 && !isH2;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // ✅ FIX: AMBIL WARNA DARI _themeColors (JANGAN DARI CONTEXT/SYSTEM)
+    final colors = _themeColors; // Panggil getter sakti kita
 
-    final paliBodyColor = isDark ? Colors.amber[200]! : Colors.deepOrange[900]!;
-    final headerColor = Theme.of(context).colorScheme.onSurface;
+    // Warna Pali: Kalau Dark Mode/Sepia pake warna emas/coklat, kalau Light pake coklat tua
+    // Kita bisa ambil logika simpel: Text Color utama
+    final mainTextColor = colors['text']!;
+
+    // Warna Pali (Body Text)
+    // Kalau Sepia/Light -> Coklat (ambil dari _themeColors['text'])
+    // Kalau Dark -> Emas pudar (Hardcode dikit gapapa buat variasi)
+    final isDarkReader = _readerTheme == ReaderTheme.dark;
+    final paliBodyColor = isDarkReader
+        ? const Color(0xFFD4A574)
+        : const Color(0xFF8B4513);
+
+    final headerColor = mainTextColor; // Judul ngikut warna teks utama
     final paliColor = isPaliOnly ? headerColor : paliBodyColor;
-    final transBodyColor = Theme.of(context).colorScheme.onSurface;
+    final transBodyColor = mainTextColor; // Terjemahan ngikut warna teks utama
 
     TextStyle paliStyle, transStyle;
     double topPadding, bottomPadding;
@@ -1365,7 +1616,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
       topPadding = 16.0;
       bottomPadding = 16.0;
       paliStyle = TextStyle(
-        fontSize: _fontSize * 1.6,
+        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontSize: _fontSize * 1.10, // ← H1 jadi 1.3
         fontWeight: FontWeight.w900,
         color: headerColor,
         height: 1.2,
@@ -1376,7 +1628,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
       topPadding = 8.0;
       bottomPadding = 12.0;
       paliStyle = TextStyle(
-        fontSize: _fontSize * 1.4,
+        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontSize: _fontSize * 1.05, // ← H2 jadi 1.2
         fontWeight: FontWeight.bold,
         color: headerColor.withValues(alpha: 0.87),
         height: 1.3,
@@ -1386,7 +1639,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
       topPadding = 16.0;
       bottomPadding = 8.0;
       paliStyle = TextStyle(
-        fontSize: _fontSize * 1.2,
+        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontSize: _fontSize * 1, // ← H3 jadi 1.1
         fontWeight: FontWeight.w700,
         color: headerColor.withValues(alpha: 0.87),
         height: 1.4,
@@ -1396,12 +1650,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
       topPadding = 0.0;
       bottomPadding = 8.0;
       paliStyle = TextStyle(
-        fontSize: _fontSize * 0.9,
+        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontSize: isPaliOnly ? _fontSize : _fontSize * 0.8, // ← CONDITIONAL
         fontWeight: FontWeight.w500,
         color: paliColor,
         height: 1.5,
       );
       transStyle = TextStyle(
+        fontFamily: GoogleFonts.notoSerif().fontFamily,
         fontSize: _fontSize,
         fontWeight: FontWeight.normal,
         color: transBodyColor,
@@ -1430,7 +1686,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     Map<String, String> translationSegs,
     Map<String, String> commentarySegs,
   ) {
-    final config = _getHeaderConfig(key);
+    final config = _getHeaderConfig(key, isPaliOnly: _isRootOnly);
 
     var pali = paliSegs[key] ?? "";
     if (pali.trim().isEmpty) pali = "...";
@@ -1497,6 +1753,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       data: contentWithHighlight,
       style: {
         "body": Style(
+          fontFamily: GoogleFonts.notoSerif().fontFamily,
           fontSize: FontSize(baseStyle.fontSize ?? _fontSize),
           fontWeight: baseStyle.fontWeight,
           color: baseStyle.color,
@@ -1748,6 +2005,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Widget _buildVerseNumber(SuttaHeaderConfig config) {
+    // ✅ FIX: Ambil warna note/nomor dari tema
+    final noteColor = _themeColors['note'];
+
     return SelectionContainer.disabled(
       child: Padding(
         padding: EdgeInsets.only(top: config.isH1 || config.isH2 ? 6.0 : 0.0),
@@ -1755,7 +2015,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
           config.verseNum,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            //color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: noteColor, // ✅ Pake warna yang bener
             height: 1.5,
           ),
         ),
@@ -1850,25 +2111,26 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
-    final iconColor = Theme.of(context).colorScheme.onSurfaceVariant;
-    final labelColor = Theme.of(context).colorScheme.onSurface;
-    final valueColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    // ✅ FIX: Ambil warna dari tema baca, bukan System HP
+    final colors = _themeColors;
+    final mainColor = colors['text']!;
+    final subColor = colors['note']!; // atau colors['icon']
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: iconColor),
+        Icon(icon, size: 18, color: subColor),
         const SizedBox(width: 8),
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: TextStyle(fontSize: 14, color: valueColor),
+              style: TextStyle(fontSize: 14, color: subColor),
               children: [
                 TextSpan(
                   text: "$label: ",
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: labelColor,
+                    color: mainColor,
                   ),
                 ),
                 TextSpan(
@@ -1936,13 +2198,20 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Ambil palet warna dari tema baca saat ini
+    final colors = _themeColors;
+
+    // 2. Assign ke variabel (pake ! karena kita yakin datanya ada)
+    final bgColor = colors['bg']!;
+    final textColor = colors['text']!;
+    // 👉 Buat UI (Header, Card, Drawer) -> PAKSA Pake System Theme (Theme.of(context))
+    // Jadi walaupun Reader-nya Sepia, Header-nya tetep Putih/Hitam standar HP.
+    final cardColor = colors['card']!; // Otomatis ikut System
+    final iconColor = colors['icon']!; // Otomatis ikut System
+
     final metadata = _getMetadata();
 
-    final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    final cardColor = Theme.of(context).colorScheme.surface;
-    final textColor = Theme.of(context).colorScheme.onSurface;
-    final iconColor = Theme.of(context).iconTheme.color;
-
+    // ... lanjut ke bawah (Scaffold dll)
     final String suttaTitle =
         widget.textData?["root_text"]?["title"] ??
         widget.textData?["translation"]?["title"] ??
@@ -2081,6 +2350,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 data: content,
                 style: {
                   "body": Style(
+                    fontFamily: GoogleFonts.notoSerif().fontFamily,
                     fontSize: FontSize(_fontSize),
                     lineHeight: LineHeight(1.6),
                     margin: Margins.only(left: 10, right: 10),
@@ -2194,8 +2464,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
           }
           return;
         }
+
+        // ✅ LOGIC BARU: CEK DRAWER (DAFTAR ISI) DULU
+        // Kalau Daftar Isi lagi kebuka, tombol Back fungsinya cuma buat nutup drawer
+        if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+          Navigator.of(context).pop(); // Tutup drawer
+          return; // Stop, jangan lanjut tampilin dialog exit
+        }
+
+        // Kalau Drawer GAK kebuka, baru jalanin logic dialog exit yang lama
         final navigator = Navigator.of(context);
         final allow = await _handleBackReplace();
+
         if (allow && widget.textData != null) {
           widget.textData!.remove("initial_vagga_uid");
         }
@@ -2205,6 +2485,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       },
       child: Scaffold(
         key: _scaffoldKey,
+        // ... sisa kode Scaffold ke bawah gak usah diubah ...
         appBar: null,
         backgroundColor: bgColor,
         // INI WARNA BODY
@@ -2213,6 +2494,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         //: Colors.grey[100],
         endDrawer: _tocList.isNotEmpty
             ? Drawer(
+                // Drawer background otomatis ngikut tema App (bukan Sepia)
                 child: Column(
                   children: [
                     DrawerHeader(
@@ -2222,7 +2504,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: textColor,
+                            // ✅ GANTI INI: Biar ngikut tema HP (Hitam/Putih), bukan Sepia
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -2244,7 +2527,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                 fontWeight: level == 1
                                     ? FontWeight.bold
                                     : FontWeight.normal,
-                                color: textColor,
+                                // ✅ GANTI INI JUGA:
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             onTap: () {
@@ -2286,6 +2570,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: Container(
                   decoration: BoxDecoration(
+                    // ✅ FIX 1: Warna langsung ditaruh di sini (SOLID), tanpa transparansi
+                    color: Theme.of(context).colorScheme.surface,
+
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -2340,8 +2627,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     suttaTitle,
                                 style: TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor,
+                                  fontWeight: FontWeight
+                                      .bold, // ✅ FIX 2: Pastikan warna teks kontras
+                                  color: iconColor,
+                                  //color: textColor,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -2486,37 +2775,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
               ),
             ),
 
-            if (_tocList.isNotEmpty && !_connectionError && !isError)
-              Positioned(
-                right: 0,
-                top: 0,
-                bottom: 0,
-                child: Center(
-                  child: Material(
-                    color: Theme.of(
-                      context,
-                    ).primaryColor.withValues(alpha: 0.9),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      bottomLeft: Radius.circular(12),
-                    ),
-                    child: InkWell(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        bottomLeft: Radius.circular(12),
-                      ),
-                      onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 8,
-                        ),
-                        child: Icon(Icons.list, color: Colors.white, size: 28),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             if (_isLoading)
               Container(
                 color: Colors.black54,
@@ -2533,87 +2791,175 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Widget _buildFloatingActions(bool isSegmented) {
-    final disabledBg = Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey[800]!.withValues(alpha: 0.9)
-        : Colors.grey[300]!.withValues(alpha: 0.9);
-    final disabledFg = Colors.grey;
-
-    // ✅ Tambah check untuk Tematik
+    // 1. Cek Logic (Hanya loading yang bener-bener matikan tombol)
     final isTematik = widget.entryPoint == "tematik";
-    final isPrevDisabled = _isFirst || _isLoading || isTematik;
-    final isNextDisabled = _isLast || _isLoading || isTematik;
 
-    Color getBgColor(bool isDisabled) => isDisabled
-        ? disabledBg
-        : Theme.of(context).colorScheme.primary.withValues(alpha: 0.9);
+    // Kita hapus isPrevDisabled/isNextDisabled buat onTap
+    // Jadi tombol tetap clickable meski di awal/akhir (buat nampilin pesan)
 
-    Color getFgColor(bool isDisabled) => isDisabled ? disabledFg : Colors.white;
+    final bool showToc = _tocList.isNotEmpty && !_connectionError;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        FloatingActionButton(
-          heroTag: "btn_prev",
-          backgroundColor: getBgColor(isPrevDisabled),
-          foregroundColor: getFgColor(isPrevDisabled),
-          onPressed: () {
-            if (isTematik) {
-              _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
-            } else if (_isFirst) {
-              _showSuttaSnackBar(SuttaSnackType.firstText, uid: widget.uid);
-            } else if (!_isLoading) {
-              _goToPrevSutta();
-            }
-          },
+    // Warna
+    final containerColor = isDark ? const Color(0xFF2C2C2C) : Colors.white;
+    final shadowColor = Colors.black.withValues(alpha: 0.15);
+    final activeColor = Theme.of(context).colorScheme.primary;
+    final iconColor = Theme.of(context).colorScheme.onSurface;
 
-          child: const Icon(Icons.arrow_back_ios_new),
-        ),
-        const SizedBox(width: 12),
-        FloatingActionButton(
-          heroTag: "btn_cari",
-          backgroundColor: (_isLoading)
-              ? disabledBg
-              : Theme.of(context).colorScheme.primary.withValues(alpha: 0.9),
-          foregroundColor: (_isLoading) ? disabledFg : Colors.white,
-          onPressed: _isLoading ? null : _openSearchModal,
-          child: const Icon(Icons.search),
-        ),
-        const SizedBox(width: 12),
-        FloatingActionButton(
-          heroTag: "btn_suttaplex",
-          backgroundColor: _isLoading
-              ? disabledBg
-              : Colors.deepOrange.withValues(alpha: 0.9),
-          foregroundColor: _isLoading ? disabledFg : Colors.white,
-          onPressed: _isLoading ? null : _openSuttaplexModal,
-          child: const Icon(Icons.menu_book),
-        ),
-        const SizedBox(width: 12),
-        FloatingActionButton(
-          heroTag: "btn_tampilan",
-          backgroundColor: getBgColor(_isLoading),
-          foregroundColor: getFgColor(_isLoading),
-          onPressed: () => _openViewSettingsModal(isSegmented),
-          child: const Icon(Icons.visibility),
-        ),
-        const SizedBox(width: 12),
-        FloatingActionButton(
-          heroTag: "btn_next",
-          backgroundColor: getBgColor(isNextDisabled),
-          foregroundColor: getFgColor(isNextDisabled),
-          onPressed: () {
-            if (isTematik) {
-              _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
-            } else if (_isLast) {
-              _showSuttaSnackBar(SuttaSnackType.lastText, uid: widget.uid);
-            } else if (!_isLoading) {
-              _goToNextSutta();
-            }
-          },
+    // Warna khusus buat tombol mentok (tetep keliatan tapi agak pudar)
+    final disabledClickableColor = Colors.grey.withValues(alpha: 0.5);
 
-          child: const Icon(Icons.arrow_forward_ios),
+    Widget buildBtn({
+      required IconData icon,
+      required VoidCallback? onTap,
+      bool isActive = false,
+      String tooltip = "",
+      // Parameter baru buat override warna kalau tombol "mentok"
+      Color? customIconColor,
+    }) {
+      // Tentukan warna icon:
+      // 1. Kalau Loading (onTap null) -> Abu mati
+      // 2. Kalau Custom (Mentok) -> Abu pudar (disabledClickableColor)
+      // 3. Normal -> Hitam/Putih (iconColor)
+      Color finalColor;
+      if (onTap == null) {
+        finalColor = Colors.grey.withValues(alpha: 0.3);
+      } else if (customIconColor != null) {
+        finalColor = customIconColor;
+      } else if (isActive) {
+        finalColor = activeColor;
+      } else {
+        finalColor = iconColor;
+      }
+
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Tooltip(
+            message: tooltip,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              decoration: isActive
+                  ? BoxDecoration(
+                      color: activeColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    )
+                  : null,
+              child: Icon(icon, color: finalColor, size: 24),
+            ),
+          ),
         ),
-      ],
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: containerColor,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 2,
+          ),
+        ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // --- TOMBOL PREV ---
+          buildBtn(
+            icon: Icons.chevron_left_rounded,
+            tooltip: "Sebelumnya",
+            // Kalau mentok (_isFirst/Tematik), warnanya pudar. Tapi tetep bisa diklik!
+            customIconColor: (_isFirst || isTematik)
+                ? disabledClickableColor
+                : null,
+            // Cuma disable kalau lagi LOADING
+            onTap: _isLoading
+                ? null
+                : () {
+                    if (isTematik) {
+                      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
+                    } else if (_isFirst) {
+                      _showSuttaSnackBar(
+                        SuttaSnackType.firstText,
+                        uid: widget.uid,
+                      );
+                    } else {
+                      _goToPrevSutta();
+                    }
+                  },
+          ),
+
+          Container(
+            width: 1,
+            height: 24,
+            color: Colors.grey.withValues(alpha: 0.2),
+          ),
+
+          // --- TENGAH (TOOLS) ---
+          buildBtn(
+            icon: Icons.menu_book_rounded,
+            tooltip: "Info Sutta & Terjemahan",
+            onTap: _isLoading ? null : _openSuttaplexModal,
+          ),
+          buildBtn(
+            icon: Icons.search_rounded,
+            tooltip: "Cari Teks",
+            onTap: _isLoading ? null : _openSearchModal,
+          ),
+
+          buildBtn(
+            icon: Icons.text_fields_rounded,
+            tooltip: "Tampilan",
+            onTap: () => _openViewSettingsModal(isSegmented),
+          ),
+
+          if (showToc)
+            buildBtn(
+              icon: Icons.list_alt_rounded,
+              tooltip: "Daftar Isi",
+              onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+            ),
+          Container(
+            width: 1,
+            height: 24,
+            color: Colors.grey.withValues(alpha: 0.2),
+          ),
+
+          // --- TOMBOL NEXT ---
+          buildBtn(
+            icon: Icons.chevron_right_rounded,
+            tooltip: "Selanjutnya",
+            // Kalau mentok (_isLast/Tematik), warnanya pudar.
+            customIconColor: (_isLast || isTematik)
+                ? disabledClickableColor
+                : null,
+            onTap: _isLoading
+                ? null
+                : () {
+                    if (isTematik) {
+                      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
+                    } else if (_isLast) {
+                      _showSuttaSnackBar(
+                        SuttaSnackType.lastText,
+                        uid: widget.uid,
+                      );
+                    } else {
+                      _goToNextSutta();
+                    }
+                  },
+          ),
+        ],
+      ),
     );
   }
 
@@ -2878,6 +3224,82 @@ class _SuttaDetailState extends State<SuttaDetail> {
                       ],
                     ),
                     const SizedBox(height: 24), // Jarak ke konten
+
+                    Text(
+                      "Tema Baca",
+
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+
+                    // ... (Kode Text "Tema Baca" di atasnya) ...
+                    const SizedBox(height: 12),
+
+                    // ✅ GANTI ROW LAMA DENGAN INI (Bisa discroll)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          // 1. Terang (Full Black)
+                          _buildThemeOption(
+                            context,
+                            ReaderTheme.light,
+                            Colors.white,
+                            Colors.black,
+                            "Terang",
+                            () => setModalState(() {}),
+                          ),
+                          const SizedBox(width: 16), // Jarak antar tombol
+                          // 2. Terang 2 (Soft)
+                          _buildThemeOption(
+                            context,
+                            ReaderTheme.light2,
+                            Colors.grey[50]!,
+                            const Color(0xFF424242), // Preview Text Abu Tua
+                            "Terang 2",
+                            () => setModalState(() {}),
+                          ),
+                          const SizedBox(width: 16),
+
+                          // 3. Sepia
+                          _buildThemeOption(
+                            context,
+                            ReaderTheme.sepia,
+                            const Color(0xFFF4ECD8),
+                            const Color(0xFF5D4037),
+                            "Sepia",
+                            () => setModalState(() {}),
+                          ),
+                          const SizedBox(width: 16),
+
+                          // 4. Gelap (Full White)
+                          _buildThemeOption(
+                            context,
+                            ReaderTheme.dark,
+                            const Color(0xFF212121),
+                            Colors.white,
+                            "Gelap",
+                            () => setModalState(() {}),
+                          ),
+                          const SizedBox(width: 16),
+
+                          // 5. Gelap 2 (Dimmed)
+                          _buildThemeOption(
+                            context,
+                            ReaderTheme.dark2,
+                            const Color(0xFF212121),
+                            const Color(0xFFB0BEC5), // Preview Text Abu
+                            "Gelap 2",
+                            () => setModalState(() {}),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20), // Jarak ke konten
                     // Opsi Tampilan Segmen
                     if (isSegmented && widget.lang != "pli") ...[
                       Text(
@@ -2946,7 +3368,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                       ),
                       const SizedBox(height: 20),
                     ],
-
                     // Opsi Ukuran Font
                     Text(
                       "Ukuran Teks",
@@ -2981,7 +3402,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                             icon: const Icon(Icons.refresh, size: 18),
                             label: const Text("Reset"),
                             onPressed: () {
-                              setState(() => _fontSize = 18.0);
+                              setState(() => _fontSize = 16.0);
                               _savePreferences();
                             },
                           ),
@@ -3012,6 +3433,69 @@ class _SuttaDetailState extends State<SuttaDetail> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildThemeOption(
+    BuildContext context,
+    ReaderTheme theme,
+    Color previewColor,
+    Color textColor,
+    String label,
+    VoidCallback onRefresh, // ✅ PARAMETER BARU
+  ) {
+    final bool isSelected = _readerTheme == theme;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return GestureDetector(
+      onTap: () {
+        // 1. Update State Halaman Utama (Background berubah)
+        setState(() => _readerTheme = theme);
+        _savePreferences();
+
+        // 2. Update State Modal (Biar Ceklis muncul/pindah!)
+        onRefresh();
+      },
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: previewColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected
+                    ? primaryColor
+                    : Colors.grey.withValues(alpha: 0.3),
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: [
+                if (isSelected)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+              ],
+            ),
+            child: isSelected
+                ? Icon(Icons.check, color: textColor, size: 20)
+                : null,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: isSelected
+                  ? primaryColor
+                  : Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

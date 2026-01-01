@@ -35,8 +35,10 @@ class TripitakaApp extends StatelessWidget {
         return MaterialApp(
           title: 'Tipitaka Indonesia',
           theme: themeManager.lightTheme,
+
           darkTheme: themeManager.darkTheme,
           themeMode: themeManager.themeMode,
+
           home: const _SplashGate(),
         );
       },
