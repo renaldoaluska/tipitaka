@@ -21,6 +21,7 @@ class _MenuPageState extends State<MenuPage> {
   List<MenuItem> _items = [];
   bool _loading = true;
   String _rootAcronym = "";
+  String? _errorType; // "network", "not_found", atau null
 
   @override
   void initState() {
@@ -47,24 +48,35 @@ class _MenuPageState extends State<MenuPage> {
           _rootAcronym = root?["acronym"] ?? "";
         }
         _items = items;
+        _errorType = null; // 🔥 Clear error
         _loading = false;
       });
 
-      // --- PASANG INI (Mulai) ---
-      debugPrint("🔍 [MenuPage] UID yang diminta: ${widget.uid}");
+      debugPrint("📋 [MenuPage] UID yang diminta: ${widget.uid}");
       debugPrint(
-        "🔍 [MenuPage] Parent Acronym (Kiriman): '${widget.parentAcronym}'",
+        "📋 [MenuPage] Parent Acronym (Kiriman): '${widget.parentAcronym}'",
       );
       debugPrint(
-        "🔍 [MenuPage] Root Acronym (Dari API): '${root?["acronym"]}'",
+        "📋 [MenuPage] Root Acronym (Dari API): '${root?["acronym"]}'",
       );
-      debugPrint("🔍 [MenuPage] Root Name: '${root?["root_name"]}'");
-      debugPrint("🔍 [MenuPage] Child Range: '${root?["child_range"]}'");
-      debugPrint("🔍 [MenuPage] _rootAcronym Akhir: '$_rootAcronym'");
-      // --- PASANG INI (Selesai) ---
+      debugPrint("📋 [MenuPage] Root Name: '${root?["root_name"]}'");
+      debugPrint("📋 [MenuPage] Child Range: '${root?["child_range"]}'");
+      debugPrint("📋 [MenuPage] _rootAcronym Akhir: '$_rootAcronym'");
     } catch (e) {
       debugPrint("Error fetch menu: $e");
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          // 🔥 Deteksi tipe error
+          if (e.toString().contains('SocketException') ||
+              e.toString().contains('Failed host lookup') ||
+              e.toString().contains('Network is unreachable')) {
+            _errorType = "network";
+          } else {
+            _errorType = "not_found";
+          }
+        });
+      }
     }
   }
 
@@ -204,9 +216,57 @@ class _MenuPageState extends State<MenuPage> {
             ? const Center(child: CircularProgressIndicator())
             : _items.isEmpty
             ? Center(
-                child: Text(
-                  "Data tidak tersedia",
-                  style: TextStyle(color: textColor),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        // 🔥 Icon sesuai error type
+                        _errorType == "network"
+                            ? Icons.wifi_off_rounded
+                            : Icons.folder_off_rounded,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        // 🔥 Judul sesuai error type
+                        _errorType == "network"
+                            ? "Tidak Ada Koneksi"
+                            : "Data Tidak Tersedia",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        // 🔥 Pesan sesuai error type
+                        _errorType == "network"
+                            ? "Periksa koneksi internet Anda\ndan silakan coba lagi"
+                            : "Menu ini tidak memiliki konten atau belum tersedia",
+                        style: TextStyle(fontSize: 14, color: subTextColor),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      // 🔥 Tombol retry hanya untuk network error
+                      if (_errorType == "network")
+                        FilledButton.icon(
+                          onPressed: () {
+                            setState(() => _loading = true);
+                            _fetchMenu();
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text("Coba Lagi"),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.deepOrange,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               )
             : Stack(

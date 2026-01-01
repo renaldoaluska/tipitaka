@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'data/tematik_data.dart';
 import 'screens/tematik_page.dart';
 import 'data/html_data.dart';
 import 'core/theme/theme_manager.dart';
 import 'screens/home.dart';
 import 'screens/pariyatti_content.dart';
 import 'screens/patipatti_page.dart';
+import 'screens/tematik_webview.dart';
 import 'widgets/header_depan.dart';
 import 'dart:ui';
 import 'screens/html.dart';
+import 'screens/suttaplex.dart'; // ✅ TAMBAH IMPORT INI
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +37,7 @@ class TripitakaApp extends StatelessWidget {
           theme: themeManager.lightTheme,
           darkTheme: themeManager.darkTheme,
           themeMode: themeManager.themeMode,
-          home: const _SplashGate(), // ⬅️ loading gate
+          home: const _SplashGate(),
         );
       },
     );
@@ -107,7 +110,7 @@ class _RootPageState extends State<RootPage>
   late AnimationController _fabController;
   late Animation<double> _fabAnimation;
 
-  String? _patipattiHighlight; // 👈 INI HARUS ADA!
+  String? _patipattiHighlight;
 
   @override
   void initState() {
@@ -130,21 +133,16 @@ class _RootPageState extends State<RootPage>
     super.dispose();
   }
 
-  // tambah parameter highlight
   void _navigateToPage(int index, {String? highlightSection}) {
     if (index >= 0 && index <= 4 && mounted) {
       HapticFeedback.selectionClick();
 
-      // Simpan history Pariyatti (kalau lagi di sana)
       if (_currentIndex >= 1 && _currentIndex <= 3) {
         _lastPariyattiPage = _currentIndex;
       }
 
-      // Logic Highlight (tetap dipakai)
       if (index == 4 && highlightSection != null) {
         _patipattiHighlight = highlightSection;
-
-        // Auto reset highlight
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) setState(() => _patipattiHighlight = null);
         });
@@ -154,16 +152,12 @@ class _RootPageState extends State<RootPage>
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_pageController.hasClients) {
-          // 🔥 CEK JARAK: Seberapa jauh targetnya?
           int distance =
               (_pageController.page?.round() ?? _currentIndex) - index;
 
-          // Kalau jaraknya lebih dari 1 halaman (misal Home -> Patipatti),
-          // Langsung JUMP aja biar gak glitch ngelewatin Pariyatti.
           if (distance.abs() > 1) {
             _pageController.jumpToPage(index);
           } else {
-            // Kalau tetanggaan, baru pakai animasi smooth
             _pageController.animateToPage(
               index,
               duration: const Duration(milliseconds: 300),
@@ -183,8 +177,6 @@ class _RootPageState extends State<RootPage>
 
   @override
   Widget build(BuildContext context) {
-    // Di dalam main.dart
-
     final pages = [
       Home(
         onNavigate: (int index, {String? highlightSection}) {
@@ -194,8 +186,6 @@ class _RootPageState extends State<RootPage>
       const PariyattiContent(tab: 0),
       const PariyattiContent(tab: 1),
       const PariyattiContent(tab: 2),
-
-      // 👇 PASTIKAN SEPERTI INI (Tanpa ValueKey)
       PatipattiPage(highlightSection: _patipattiHighlight),
     ];
 
@@ -208,14 +198,6 @@ class _RootPageState extends State<RootPage>
             onPageChanged: (index) {
               if (mounted) {
                 setState(() => _currentIndex = index);
-                // ⚠️ KOMENTARI DULU BARIS DI BAWAH INI
-                // if (index != 4) _patipattiHighlight = null;
-
-                // Biarkan _patipattiHighlight tetap ada nilainya sampai
-                // nanti ditimpa/diupdate manual. Ini lebih aman.
-
-                // 👈 Reset highlight kalau user scroll manual
-                // if (index != 4) _patipattiHighlight = null;
               }
             },
             physics: const BouncingScrollPhysics(),
@@ -266,9 +248,6 @@ class _RootPageState extends State<RootPage>
                       ),
                     ),
                   ),
-
-                  // ✅ BAGIAN TOMBOL DIPERBAIKI (Lebih Bersih)
-                  // Di dalam _buildPariyattiOverlay
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -278,12 +257,11 @@ class _RootPageState extends State<RootPage>
                             label: "Tematik",
                             icon: Icons.category_rounded,
                             color: Colors.indigo.shade700,
-                            // ❌ Hapus isHorizontal: true, karena otomatis horizontal sekarang
                             onTap: () {
                               Future.delayed(
                                 const Duration(milliseconds: 120),
                                 () {
-                                  if (!mounted) return; // ✅ Cek dulu
+                                  if (!mounted) return;
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -305,14 +283,9 @@ class _RootPageState extends State<RootPage>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  // HAPUS kata 'const' di depan HtmlReaderPage
-                                  // (karena DaftarIsi.abh biasanya bukan konstanta compile-time)
                                   builder: (_) => HtmlReaderPage(
                                     title: 'Abhidhammatthasaṅgaha',
-
-                                    // 👇 Panggil list dari file data kamu di sini
                                     chapterFiles: DaftarIsi.abh,
-
                                     initialIndex: 0,
                                   ),
                                 ),
@@ -349,47 +322,38 @@ class _RootPageState extends State<RootPage>
   Widget _buildQuickButton({
     required String label,
     required IconData icon,
-    required Color color, // Ini warna aksen (Indigo/Amber)
+    required Color color,
     required VoidCallback onTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // 1. Tentukan Warna Background & Border (Logika asli main.dart)
     Color bgColor;
     Color borderColor;
-
-    // 2. Warna Ikon (Tetap berwarna biar cantik)
     Color iconColor;
 
-    // 3. Warna Teks (WAJIB HITAM/PUTIH sesuai request)
     final textColor = Theme.of(context).colorScheme.onSurface;
     final arrowColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
     if (isDark) {
-      // Dark Mode: Glassy Transparan
       bgColor = color.withValues(alpha: 0.15);
       borderColor = color.withValues(alpha: 0.3);
-      // Ikon di dark mode dibikin agak terang dikit dari warna aslinya
       iconColor = Color.lerp(color, Colors.white, 0.3)!;
     } else {
-      // Light Mode: Solid Pastel
-      // Campur putih 85% + warna 15%
       bgColor = Color.lerp(Colors.white, color, 0.15)!;
       borderColor = Color.lerp(Colors.white, color, 0.3)!;
-      // Ikon pakai warna asli (gelap/tajam)
       iconColor = color;
     }
 
     return Container(
-      height: 54, // Sedikit lebih tinggi biar touch-friendly
+      height: 54,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(14), // Sedikit lebih rounded
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor, width: 1),
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: color.withValues(alpha: 0.1), // Shadow halus warna senada
+              color: color.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -407,7 +371,6 @@ class _RootPageState extends State<RootPage>
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
               children: [
-                // 1. KOTAK IKON
                 Container(
                   width: 38,
                   height: 38,
@@ -417,34 +380,25 @@ class _RootPageState extends State<RootPage>
                         : Colors.white.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: iconColor, // Ikon tetap Indigo/Amber
-                  ),
+                  child: Icon(icon, size: 20, color: iconColor),
                 ),
-
                 const SizedBox(width: 12),
-
-                // 2. TEKS (Putih/Hitam)
                 Expanded(
                   child: Text(
                     label,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: textColor, // ✅ Ikutin tema (Hitam/Putih)
+                      color: textColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-
-                // 3. PANAH
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
-                  color: arrowColor.withValues(alpha: 0.5), // Panah agak samar
+                  color: arrowColor.withValues(alpha: 0.5),
                 ),
                 const SizedBox(width: 4),
               ],
@@ -485,8 +439,7 @@ class _RootPageState extends State<RootPage>
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w500, // 👈 Pake bold biar teges
-                //fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: FontWeight.w500,
                 color: isActive ? Colors.deepOrange : baseColor,
               ),
             ),
@@ -557,7 +510,6 @@ class _RootPageState extends State<RootPage>
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // 👈 Reset highlight kalau klik manual dari bottom nav
             if (targetPage == 4) _patipattiHighlight = null;
             _navigateToPage(targetPage);
           },
@@ -613,51 +565,78 @@ class _RootPageState extends State<RootPage>
   }
 
   Widget _buildFabSearch() {
-    return Positioned(
-      right: 16,
-      bottom: 20,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (_isFabExpanded) ...[
-            ScaleTransition(
-              scale: _fabAnimation,
-              child: _buildFabOption(
-                label: "Kode Sutta",
-                icon: Icons.tag_rounded,
-                color: Colors.blue.shade600,
-                onTap: () => _showCodeInput(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            ScaleTransition(
-              scale: _fabAnimation,
-              child: _buildFabOption(
-                label: "Pencarian",
-                icon: Icons.search_rounded,
-                color: Colors.green.shade600,
-                onTap: () => _showSearchModal(),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-          FloatingActionButton(
-            onPressed: _toggleFab,
-            backgroundColor: Colors.deepOrange,
-            elevation: 2,
-            child: AnimatedRotation(
-              turns: _isFabExpanded ? 0.250 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                _isFabExpanded ? Icons.close : Icons.search,
-                size: 24,
-                color: Colors.white,
+    return Stack(
+      children: [
+        // ✅ Barrier dengan blur
+        if (_isFabExpanded)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onTap: _toggleFab,
+              child: BackdropFilter(
+                // ✅ Blur effect
+                filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.1), // ✅ Sedikit gelap
+                ),
               ),
             ),
           ),
-        ],
-      ),
+
+        Positioned(
+          right: 16,
+          bottom: 20,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (_isFabExpanded) ...[
+                ScaleTransition(
+                  scale: _fabAnimation,
+                  child: _buildFabOption(
+                    label: "Kode Teks",
+                    icon: Icons.tag_rounded,
+                    color: Colors.blue.shade600,
+                    onTap: () => _showCodeInput(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ScaleTransition(
+                  scale: _fabAnimation,
+                  child: _buildFabOption(
+                    label: "Pencarian",
+                    icon: Icons.search_rounded,
+                    color: Colors.green.shade600,
+                    onTap: () => {
+                      // final pendahuluanNumber = chapterIndex - 1;
+                      _openWebView(context, "search", "Pencarian"),
+                    },
+
+                    //_showSearchModal(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              FloatingActionButton(
+                onPressed: _toggleFab,
+                backgroundColor: Colors.deepOrange,
+                elevation: 2,
+                child: RotationTransition(
+                  turns: _fabAnimation, // ✅ Langsung pake _fabAnimation
+                  child: Icon(
+                    _isFabExpanded ? Icons.close : Icons.search,
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -674,14 +653,21 @@ class _RootPageState extends State<RootPage>
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+          child: InkWell(
+            // ✅ Ganti ke InkWell biar ada ripple
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20), // ✅ Ripple ikut border
+            splashColor: color.withValues(alpha: 0.2), // ✅ Warna ripple
+            highlightColor: color.withValues(alpha: 0.1),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
           ),
@@ -698,15 +684,19 @@ class _RootPageState extends State<RootPage>
     );
   }
 
+  // 🔥 FUNGSI BARU: Input Kode Sutta
   void _showCodeInput() {
     _toggleFab();
-    showDialog(
-      context: context,
-      builder: (context) {
-        final cardColor = Theme.of(context).colorScheme.surface;
-        final textColor = Theme.of(context).colorScheme.onSurface;
-        final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
+    // ✅ SIMPAN CONTEXT & THEME DI AWAL (SEBELUM showDialog)
+    final navigatorContext = context;
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    showDialog(
+      context: navigatorContext,
+      builder: (dialogContext) {
         final ctrl = TextEditingController();
         return AlertDialog(
           backgroundColor: cardColor,
@@ -714,14 +704,14 @@ class _RootPageState extends State<RootPage>
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(
-            "Masukkan Kode Sutta",
+            "Masukkan Kode",
             style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
           ),
           content: TextField(
             controller: ctrl,
             autofocus: true,
             decoration: InputDecoration(
-              hintText: "Contoh: mn1, sn12.1",
+              hintText: "Contoh: mn1, sn12.1, dn16",
               hintStyle: TextStyle(color: subtextColor),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -734,26 +724,21 @@ class _RootPageState extends State<RootPage>
             style: TextStyle(color: textColor),
             onSubmitted: (v) {
               if (v.isNotEmpty) {
-                Navigator.pop(context);
-                // TODO: Parse & navigate
+                Navigator.pop(dialogContext);
+                _openSuttaByCode(v.trim());
               }
             },
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                "Batal",
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text("Batal", style: TextStyle(color: subtextColor)),
             ),
             FilledButton(
               onPressed: () {
                 if (ctrl.text.isNotEmpty) {
-                  Navigator.pop(context);
-                  // TODO: Parse & navigate
+                  Navigator.pop(dialogContext);
+                  _openSuttaByCode(ctrl.text.trim());
                 }
               },
               style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
@@ -765,7 +750,61 @@ class _RootPageState extends State<RootPage>
     );
   }
 
-  void _showSearchModal() {
+  // 🔥 FUNGSI BARU: Parse & Buka Suttaplex
+  void _openSuttaByCode(String input) {
+    // ✅ SIMPAN SEMUA CONTEXT & THEME DI PALING AWAL
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final navigatorContext = context;
+
+    // Normalisasi: lowercase, hapus spasi
+    final code = input.toLowerCase().replaceAll(' ', '');
+
+    // Parse UID (contoh: "mn1" → "mn1", "sn12.1" → "sn12.1")
+    String? uid;
+
+    // Deteksi pattern: huruf + angka (+ opsional .angka)
+    final match = RegExp(r'^([a-z]+)(\d+(?:\.\d+)?)$').firstMatch(code);
+
+    if (match != null) {
+      final prefix = match.group(1)!; // "mn", "sn", dll
+      final number = match.group(2)!; // "1", "12.1", dll
+      uid = '$prefix$number'; // Gabung tanpa spasi
+    }
+
+    if (uid == null || uid.isEmpty) {
+      // ✅ Pakai scaffoldMessenger yang udah disimpan
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Format kode tidak valid. Contoh: mn1, sn12.1, dn16'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // 🔥 BUKA SUTTAPLEX
+    showModalBottomSheet(
+      context: navigatorContext,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Container(
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Suttaplex(uid: uid!, sourceMode: "search"),
+        ),
+      ),
+    );
+  }
+
+  /*void _showSearchModal() {
     _toggleFab();
 
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -859,5 +898,29 @@ class _RootPageState extends State<RootPage>
         ),
       ),
     );
+  }
+*/
+  void _openWebView(BuildContext context, String key, String title) {
+    final url = TematikData.webviewUrls[key];
+    if (url != null) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          return ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: Container(
+              height:
+                  MediaQuery.of(context).size.height * 0.9, // 🔥 Fixed height
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+              ),
+              child: TematikWebView(url: url, title: title, chapterIndex: null),
+            ),
+          );
+        },
+      );
+    }
   }
 }

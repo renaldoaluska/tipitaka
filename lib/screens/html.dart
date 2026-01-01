@@ -79,7 +79,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Theme.of(context).scaffoldBackgroundColor)
+      ..setBackgroundColor(Colors.transparent)
+      //..setBackgroundColor(Theme.of(context).scaffoldBackgroundColor)
       ..enableZoom(false)
       ..setNavigationDelegate(
         NavigationDelegate(
@@ -135,7 +136,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             _applyThemeMode();
 
             // Delay dikit biar smooth
-            Future.delayed(const Duration(milliseconds: 80), () {
+            Future.delayed(const Duration(milliseconds: 88), () {
               if (mounted) {
                 setState(() => _isLoading = false);
               }
@@ -293,7 +294,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
               },
               child: Padding(
                 padding: EdgeInsets.only(top: topPadding),
-                child: WebViewWidget(controller: _controller!),
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: WebViewWidget(controller: _controller!),
+                ),
               ),
             ),
             if (_isLoading)

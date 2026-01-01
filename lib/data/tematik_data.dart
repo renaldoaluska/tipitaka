@@ -26,6 +26,8 @@ class TematikData {
         "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan9.html",
     "pendahuluan10":
         "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan10.html",
+    "search":
+        "https://tipitakaindonesia.blogspot.com/p/suttacentral-search.html",
   };
 
   static const List<Map<String, String>> mainMenu = [

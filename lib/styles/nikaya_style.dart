@@ -29,6 +29,34 @@ const Map<String, Color> nikayaColors = {
   "Ne": Color(0xFF7B1FA2), // ungu
   "Pe": Color(0xFF7B1FA2), // ungu
   "Mil": Color(0xFF7B1FA2), // ungu
+
+  "Ds": Color(0xFF00796B),
+  "Vb": Color(0xFF00796B),
+  "Dt": Color(0xFF00796B),
+  "Pp": Color(0xFF00796B),
+  "Kv": Color(0xFF00796B),
+  "Ya": Color(0xFF00796B),
+  "Pat": Color(0xFF00796B),
+
+  "Kd": Color(0xFF795548),
+  "Pvr": Color(0xFF795548),
+  "Bu": Color(0xFF795548),
+  "Bi": Color(0xFF795548),
+  "Bu Pj": Color(0xFF795548),
+  "Bu Ss": Color(0xFF795548),
+  "Bu Ay": Color(0xFF795548),
+  "Bu Np": Color(0xFF795548),
+  "Bu Pc": Color(0xFF795548),
+  "Bu Pd": Color(0xFF795548),
+  "Bu Sk": Color(0xFF795548),
+  "Bu As": Color(0xFF795548),
+  "Bi Pj": Color(0xFF795548),
+  "Bi Ss": Color(0xFF795548),
+  "Bi Np": Color(0xFF795548),
+  "Bi Pc": Color(0xFF795548),
+  "Bi Pd": Color(0xFF795548),
+  "Bi Sk": Color(0xFF795548),
+  "Bi As": Color(0xFF795548),
 };
 
 /// Daftar kitab yang termasuk Khuddaka Nikāya

@@ -32,7 +32,7 @@ class _HomeState extends State<Home> {
     {
       "verse": "183",
       "pali":
-          "Sabbapāpassa akaraṇaṁ, kusalassa upasampadā;\nSacittapariyodapanaṁ,\netaṁ buddhāna sāsanaṁ.",
+          "Sabbapāpassa akaraṇaṁ, kusalassa upasampadā; Sacittapariyodapanaṁ, etaṁ buddhāna sāsanaṁ.",
       "trans":
           "Tidak berbuat kejahatan, mengembangkan kebajikan, memurnikan pikiran—inilah ajaran para Buddha.",
     },
@@ -280,7 +280,7 @@ class _HomeState extends State<Home> {
         "onTap": () {
           // 👈 Navigasi ke Paṭipatti dengan highlight Meditasi
           widget.onNavigate?.call(4, highlightSection: 'meditasi');
-                  },
+        },
       },
       {
         "label": "Paritta",

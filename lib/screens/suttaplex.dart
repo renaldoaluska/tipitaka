@@ -42,6 +42,8 @@ class _SuttaplexState extends State<Suttaplex> {
 
   List<Map<String, dynamic>> _extraTranslations = [];
 
+  String? _errorType; // "network", "not_found", atau null
+
   static const List<String> priorityLangs = ["pli", "id", "en"];
 
   @override
@@ -114,7 +116,6 @@ class _SuttaplexState extends State<Suttaplex> {
   }
 
   void _setupSuttaFromData(dynamic data) {
-    // kalau API balikin list, ambil item pertama
     final suttaplexData = (data is List && data.isNotEmpty) ? data[0] : data;
 
     debugPrint('>>> suttaplexData resolved: $suttaplexData');
@@ -122,9 +123,11 @@ class _SuttaplexState extends State<Suttaplex> {
       '>>> raw translations: ${suttaplexData?["translations"]} (${suttaplexData?["translations"]?.runtimeType})',
     );
 
-    if (suttaplexData == null) {
+    // 🔥 CEK: Data benar-benar kosong/null (not found)
+    if (suttaplexData == null || suttaplexData is! Map) {
       setState(() {
         _sutta = null;
+        _errorType = "not_found";
         _loading = false;
       });
       return;
@@ -141,12 +144,26 @@ class _SuttaplexState extends State<Suttaplex> {
       }
     }
 
+    // 🔥 CEK: Kalau translations kosong DAN tidak ada title, anggap not found
+    final hasTitle =
+        suttaplexData["translated_title"] != null ||
+        suttaplexData["original_title"] != null;
+
+    if (!hasTitle && translations.isEmpty) {
+      setState(() {
+        _sutta = null;
+        _errorType = "not_found";
+        _loading = false;
+      });
+      return;
+    }
     final processed = _processTranslations(translations);
     suttaplexData["filtered_translations"] = processed.filtered;
 
     setState(() {
-      _sutta = suttaplexData;
+      _sutta = Map<String, dynamic>.from(suttaplexData); // Cast ke Map
       _extraTranslations = processed.extra;
+      _errorType = null;
       _loading = false;
     });
   }
@@ -161,7 +178,17 @@ class _SuttaplexState extends State<Suttaplex> {
     } catch (e) {
       debugPrint("error fetch suttaplex: $e");
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          // 🔥 Deteksi tipe error
+          if (e.toString().contains('SocketException') ||
+              e.toString().contains('Failed host lookup') ||
+              e.toString().contains('Network is unreachable')) {
+            _errorType = "network";
+          } else {
+            _errorType = "not_found";
+          }
+        });
       }
     }
   }
@@ -360,11 +387,21 @@ class _SuttaplexState extends State<Suttaplex> {
                 } catch (e) {
                   debugPrint("Error loading sutta: $e");
                   if (!mounted) return;
+
+                  // 🔥 Deteksi tipe error
+                  String errorMessage;
+                  if (e.toString().contains('SocketException') ||
+                      e.toString().contains('Failed host lookup') ||
+                      e.toString().contains('Network is unreachable')) {
+                    errorMessage =
+                        "Tidak ada koneksi internet. Periksa koneksi Anda.";
+                  } else {
+                    errorMessage = "Gagal memuat teks $label: ${e.toString()}";
+                  }
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        "Gagal memuat teks $label: ${e.toString()}",
-                      ),
+                      content: Text(errorMessage),
                       backgroundColor: Colors.red,
                       duration: const Duration(seconds: 3),
                     ),
@@ -513,83 +550,78 @@ class _SuttaplexState extends State<Suttaplex> {
         ),
         title: null,
         actions: [
-          // 🔥 TOMBOL BOOKMARK
-          StatefulBuilder(
-            builder: (context, setBookmarkState) {
-              return FutureBuilder<bool>(
-                future: HistoryService.isBookmarked(widget.uid),
-                builder: (context, snapshot) {
-                  final isBookmarked = snapshot.data ?? false;
+          // 🔥 HIDE kalau _sutta kosong (error state)
+          if (_sutta != null) // 👈 TAMBAH INI
+            StatefulBuilder(
+              builder: (context, setBookmarkState) {
+                return FutureBuilder<bool>(
+                  future: HistoryService.isBookmarked(widget.uid),
+                  builder: (context, snapshot) {
+                    final isBookmarked = snapshot.data ?? false;
 
-                  return TextButton.icon(
-                    icon: Icon(
-                      isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                      color: Theme.of(context).colorScheme.secondary, // adaptif
-                      size: 20,
-                    ),
-                    label: Text(
-                      isBookmarked ? "Hapus Penanda" : "Tambah Penanda",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.secondary, // adaptif
+                    return TextButton.icon(
+                      icon: Icon(
+                        isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                        color: Theme.of(context).colorScheme.secondary,
+                        size: 20,
                       ),
-                    ),
-                    onPressed: _fetchingText
-                        ? null
-                        : () async {
-                            final scaffoldMessenger = ScaffoldMessenger.of(
-                              context,
-                            );
+                      label: Text(
+                        isBookmarked ? "Hapus Penanda" : "Tambah Penanda",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
+                      ),
+                      onPressed: _fetchingText
+                          ? null
+                          : () async {
+                              final scaffoldMessenger = ScaffoldMessenger.of(
+                                context,
+                              );
 
-                            if (isBookmarked) {
-                              // 🔥 HAPUS LANGSUNG
-                              await HistoryService.removeBookmark(widget.uid);
-                            } else {
-                              // 🔥 DIALOG INPUT CATATAN (OPSIONAL)
-                              if (!context.mounted) {
-                                return; // ✅ Cek sebelum dialog
+                              if (isBookmarked) {
+                                await HistoryService.removeBookmark(widget.uid);
+                              } else {
+                                if (!context.mounted) return;
+                                final note = await _showBookmarkDialog(context);
+                                if (note == null) return;
+
+                                final bookmarkItem = {
+                                  'uid': widget.uid,
+                                  'title':
+                                      _sutta?["original_title"] ??
+                                      _sutta?["translated_title"] ??
+                                      widget.uid,
+                                  'acronym': _sutta?["acronym"] ?? "",
+                                  'note': note,
+                                };
+
+                                await HistoryService.toggleBookmark(
+                                  bookmarkItem,
+                                );
                               }
-                              final note = await _showBookmarkDialog(context);
-                              if (note == null) return; // User cancel
 
-                              final bookmarkItem = {
-                                'uid': widget.uid,
-                                'title':
-                                    _sutta?["original_title"] ??
-                                    _sutta?["translated_title"] ??
-                                    widget.uid,
-                                'acronym': _sutta?["acronym"] ?? "",
-                                'note': note,
-                              };
+                              if (!mounted) return;
 
-                              await HistoryService.toggleBookmark(bookmarkItem);
-                            }
+                              setBookmarkState(() {});
 
-                            // ✅ Cek mounted sebelum update state
-                            if (!mounted) return;
-
-                            setBookmarkState(() {});
-
-                            // ✅ Pakai reference yang sudah disimpan
-                            scaffoldMessenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isBookmarked
-                                      ? 'Dihapus dari Penanda'
-                                      : 'Ditambahkan ke Penanda',
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isBookmarked
+                                        ? 'Dihapus dari Penanda'
+                                        : 'Ditambahkan ke Penanda',
+                                  ),
+                                  duration: const Duration(seconds: 1),
                                 ),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                          },
-                  );
-                },
-              );
-            },
-          ),
-          const SizedBox(width: 8), // Spacing dari edge kanan
+                              );
+                            },
+                    );
+                  },
+                );
+              },
+            ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Stack(
@@ -599,9 +631,57 @@ class _SuttaplexState extends State<Suttaplex> {
               ? const Center(child: CircularProgressIndicator())
               : _sutta == null
               ? Center(
-                  child: Text(
-                    "Data tidak tersedia",
-                    style: TextStyle(color: textColor), // ✅ Text error
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          // 🔥 Icon sesuai error type
+                          _errorType == "network"
+                              ? Icons.wifi_off_rounded
+                              : Icons.search_off_rounded,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          // 🔥 Judul sesuai error type
+                          _errorType == "network"
+                              ? "Tidak Ada Koneksi"
+                              : "Kode Tidak Ditemukan",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          // 🔥 Pesan sesuai error type
+                          _errorType == "network"
+                              ? "Periksa koneksi internet Anda\ndan silakan coba lagi"
+                              : "Kode \"${widget.uid}\" tidak ditemukan.\nPeriksa ejaan atau coba kode lain.",
+                          style: TextStyle(fontSize: 14, color: subTextColor),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        // 🔥 Tombol retry hanya untuk network error
+                        if (_errorType == "network")
+                          FilledButton.icon(
+                            onPressed: () {
+                              setState(() => _loading = true);
+                              _fetchSuttaplex();
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text("Coba Lagi"),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.deepOrange,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 )
               : SingleChildScrollView(
@@ -640,8 +720,7 @@ class _SuttaplexState extends State<Suttaplex> {
                                 text: paliTitle,
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color:
-                                      subTextColor, // ✅ Ganti Colors.grey[700]
+                                  color: subTextColor,
                                 ),
                               ),
                             ],
@@ -649,28 +728,34 @@ class _SuttaplexState extends State<Suttaplex> {
                         ),
                       ],
 
-                      const SizedBox(height: 8),
+                      // ✅ HANYA render Html kalau blurb ada isinya
+                      if (blurb.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Html(
+                          data: blurb,
+                          style: {
+                            "body": Style(
+                              fontSize: FontSize(14.0),
+                              margin: Margins.zero,
+                              color: textColor,
+                            ),
+                            "p": Style(
+                              fontSize: FontSize(14.0),
+                              margin: Margins.only(bottom: 8),
+                              color: textColor,
+                            ),
+                          },
+                        ),
+                      ],
 
-                      Html(
-                        data: blurb,
-                        style: {
-                          "body": Style(
-                            fontSize: FontSize(14.0),
-                            margin: Margins.zero,
-                            color:
-                                textColor, // ✅ Penting! Biar text HTML keliatan
-                          ),
-                          "p": Style(
-                            fontSize: FontSize(14.0),
-                            margin: Margins.only(bottom: 8),
-                            color: textColor, // ✅ Penting!
-                          ),
-                        },
-                      ),
+                      // ✅ Divider dengan jarak yang lebih rapi
                       Opacity(
-                        opacity:
-                            0.15, // nilai antara 0.0 (transparan) sampai 1.0 (solid)
-                        child: const Divider(height: 32),
+                        opacity: 0.15,
+                        child: Divider(
+                          height: blurb.isNotEmpty
+                              ? 32
+                              : 24, // Lebih rapat kalau gaada blurb
+                        ),
                       ),
 
                       Text(
@@ -678,7 +763,7 @@ class _SuttaplexState extends State<Suttaplex> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: textColor, // ✅ Subjudul
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 8),

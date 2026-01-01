@@ -78,6 +78,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
   // 💰 STATE DERMA
   // ═══════════════════════════════════════════════════════════
   final List<Map<String, dynamic>> _dermaLinks = [
+    //ini customtabs link nanti
     {"label": "Dana Everyday", "icon": Icons.volunteer_activism_rounded},
     {"label": "Pembangunan", "icon": Icons.foundation_rounded},
     {"label": "Buku Dhamma", "icon": Icons.menu_book_rounded},
