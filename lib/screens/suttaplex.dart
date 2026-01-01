@@ -144,12 +144,25 @@ class _SuttaplexState extends State<Suttaplex> {
       }
     }
 
-    // 🔥 CEK: Kalau translations kosong DAN tidak ada title, anggap not found
+    // 📥 CEK: Kalau translations kosong DAN tidak ada title, anggap not found
     final hasTitle =
         suttaplexData["translated_title"] != null ||
         suttaplexData["original_title"] != null;
 
+    // 📥 CEK: Ada minimal 1 translasi yang valid (tidak disabled)
+    final hasValidTranslation = translations.any((t) => t["disabled"] != true);
+
     if (!hasTitle && translations.isEmpty) {
+      setState(() {
+        _sutta = null;
+        _errorType = "not_found";
+        _loading = false;
+      });
+      return;
+    }
+
+    // 📥 TAMBAHAN: Kalau semua translasi disabled/locked (root text kosong)
+    if (!hasValidTranslation) {
       setState(() {
         _sutta = null;
         _errorType = "not_found";
@@ -662,7 +675,7 @@ class _SuttaplexState extends State<Suttaplex> {
                           // 🔥 Pesan sesuai error type
                           _errorType == "network"
                               ? "Periksa koneksi internet Anda\ndan silakan coba lagi"
-                              : "Kode \"${widget.uid}\" tidak ditemukan.\nPeriksa ejaan atau coba kode lain.",
+                              : "Kode \"${widget.uid}\" tidak ditemukan.\nPeriksa ejaan atau coba kode lain.\n\nMungkin kode yang dicari adalah bagian dari suatu range\n(mis. 'Bi Pj 2' dalam 'Bi Pj 1-4').",
                           style: TextStyle(fontSize: 14, color: subTextColor),
                           textAlign: TextAlign.center,
                         ),

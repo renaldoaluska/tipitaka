@@ -9,11 +9,11 @@ import 'core/theme/theme_manager.dart';
 import 'screens/home.dart';
 import 'screens/pariyatti_content.dart';
 import 'screens/patipatti_page.dart';
-import 'screens/tematik_webview.dart';
+import 'screens/search_webview.dart';
 import 'widgets/header_depan.dart';
 import 'dart:ui';
 import 'screens/html.dart';
-import 'screens/suttaplex.dart'; // ✅ TAMBAH IMPORT INI
+import 'screens/suttaplex.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -767,39 +767,83 @@ class _RootPageState extends State<RootPage>
     );
   }
 
-  // 🔥 FUNGSI BARU: Parse & Buka Suttaplex
   void _openSuttaByCode(String input) {
-    // ✅ SIMPAN SEMUA CONTEXT & THEME DI PALING AWAL
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final surfaceColor = Theme.of(context).colorScheme.surface;
     final navigatorContext = context;
 
-    // Normalisasi: lowercase, hapus spasi
-    final code = input.toLowerCase().replaceAll(' ', '');
+    // ✅ Normalisasi: lowercase, hapus semua spasi dan dash
+    String code = input.toLowerCase().trim().replaceAll(
+      RegExp(r'\s+'),
+      '',
+    ); // Hapus spasi saja
 
-    // Parse UID (contoh: "mn1" → "mn1", "sn12.1" → "sn12.1")
     String? uid;
 
-    // Deteksi pattern: huruf + angka (+ opsional .angka)
-    final match = RegExp(r'^([a-z]+)(\d+(?:\.\d+)?)$').firstMatch(code);
+    // ✅ Mapping khusus untuk format vinaya/abhidhamma
+    final specialPrefixes = {
+      'bipj': 'pli-tv-bi-vb-pj',
+      'biss': 'pli-tv-bi-vb-ss',
+      'binp': 'pli-tv-bi-vb-np',
+      'bipc': 'pli-tv-bi-vb-pc',
+      'bipd': 'pli-tv-bi-vb-pd',
+      'bisk': 'pli-tv-bi-vb-sk',
+      'bias': 'pli-tv-bi-vb-as',
+      'bupj': 'pli-tv-bu-vb-pj',
+      'buss': 'pli-tv-bu-vb-ss',
+      'buay': 'pli-tv-bu-vb-ay',
+      'bunp': 'pli-tv-bu-vb-np',
+      'bupc': 'pli-tv-bu-vb-pc',
+      'bupd': 'pli-tv-bu-vb-pd',
+      'busk': 'pli-tv-bu-vb-sk',
+      'buas': 'pli-tv-bu-vb-as',
+      'kd': 'pli-tv-kd',
+      'pvr': 'pli-tv-pvr',
+      'bu': 'pli-tv-bu-pm',
+      'bi': 'pli-tv-bi-pm',
+      'thaap': 'tha-ap',
+      'thiap': 'thi-ap',
+      'pat': 'patthana',
+    };
 
-    if (match != null) {
-      final prefix = match.group(1)!; // "mn", "sn", dll
-      final number = match.group(2)!; // "1", "12.1", dll
-      uid = '$prefix$number'; // Gabung tanpa spasi
+    // Cek special prefixes dulu
+    for (var entry in specialPrefixes.entries) {
+      if (code.startsWith(entry.key)) {
+        final number = code.substring(entry.key.length);
+        if (number.isNotEmpty &&
+            RegExp(
+              r'^[\d\.\-]+$'
+              r'^\d+$',
+            ).hasMatch(number)) {
+          uid = '${entry.value}$number';
+          break;
+        }
+      }
+    }
+
+    // Kalau belum ketemu, coba pattern simple (mn1, sn12.1, dn16, dhp123)
+    if (uid == null) {
+      var match = RegExp(r'^([a-z]+)([\d\.\-]+)$').firstMatch(code);
+      if (match != null) {
+        uid = '${match.group(1)}${match.group(2)}';
+      }
     }
 
     if (uid == null || uid.isEmpty) {
-      // ✅ Pakai scaffoldMessenger yang udah disimpan
       scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Format kode tidak valid. Contoh: mn1, sn12.1, dn16'),
+        SnackBar(
+          content: Text(
+            'Format kode tidak valid. Input: "$input" → Parsed: "$code"',
+          ),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
+          duration: Duration(seconds: 4),
         ),
       );
       return;
     }
+
+    // 🔥 Debug log
+    print('📖 Input: "$input" → Code: "$code" → UID: "$uid"');
 
     // 🔥 BUKA SUTTAPLEX
     showModalBottomSheet(
@@ -807,15 +851,18 @@ class _RootPageState extends State<RootPage>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
+        initialChildSize: 0.8,
         minChildSize: 0.5,
-        maxChildSize: 0.95,
+        maxChildSize: 0.8,
         builder: (_, controller) => Container(
           decoration: BoxDecoration(
             color: surfaceColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: Suttaplex(uid: uid!, sourceMode: "search"),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: Suttaplex(uid: uid!, sourceMode: "search"),
+          ),
         ),
       ),
     );
@@ -929,11 +976,11 @@ class _RootPageState extends State<RootPage>
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             child: Container(
               height:
-                  MediaQuery.of(context).size.height * 0.9, // 🔥 Fixed height
+                  MediaQuery.of(context).size.height * 0.85, // 🔥 Fixed height
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
               ),
-              child: TematikWebView(url: url, title: title, chapterIndex: null),
+              child: SearchWebView(url: url, title: title),
             ),
           );
         },

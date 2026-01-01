@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/theme_manager.dart';
 import '../widgets/tematik_chapter_list.dart';
 
@@ -474,41 +474,41 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   // --- STYLING (CSS) ---
   Map<String, Style> _getHtmlStyles() {
-    // 1. AMBIL WARNA DARI KOKI PINTAR
+    // 1. AMBIL WARNA
     final colors = _themeColors;
-    final bgColor = colors['bg']!; // Background Halaman
-    final textColor = colors['text']!; // Warna Teks Utama
-    final noteColor = colors['note']!; // Warna Catatan Kaki/Nomor
-
+    final bgColor = colors['bg']!;
+    final textColor = colors['text']!;
+    final noteColor = colors['note']!;
     final fontSize = _textZoom / 100.0;
 
-    // 2. LOGIC WARNA AKSEN (PALI & BORDER)
-    // Dark/Dark2 -> Emas Pudar
-    // Light/Sepia -> Coklat Tua
+    // 2. DEFINE FONTS
+    final serifFont = GoogleFonts.notoSerif().fontFamily!;
+    final sansFont = GoogleFonts.notoSans().fontFamily!;
+
+    // 3. LOGIC WARNA
     final isDarkVariant =
         _readerTheme == ReaderTheme.dark || _readerTheme == ReaderTheme.dark2;
     final paliAccentColor = isDarkVariant
         ? const Color(0xFFD4A574)
         : const Color(0xFF8B4513);
 
-    // 3. LOGIC WARNA KOTAK KONTEN (div.isi)
     Color contentBoxColor;
     if (isDarkVariant) {
-      contentBoxColor = const Color(0xFF252525); // Abu Gelap
+      contentBoxColor = const Color(0xFF252525);
     } else if (_readerTheme == ReaderTheme.sepia) {
-      contentBoxColor = const Color(
-        0xFFFFF8E1,
-      ); // Krem Muda (Amber 50) biar manis di atas Sepia
+      contentBoxColor = const Color(0xFFFFF8E1);
     } else {
-      contentBoxColor = Colors.white; // Putih Polos (untuk Light/Light2)
+      contentBoxColor = Colors.white;
     }
 
     return {
-      // Base body
+      // ═══════════════════════════════════════════
+      // BASE & CONTAINER
+      // ═══════════════════════════════════════════
       "body": Style(
-        backgroundColor: bgColor, // ✅ Ikut Tema Reader
-        color: textColor, // ✅ Ikut Tema Reader
-        fontFamily: 'Noto Serif',
+        backgroundColor: bgColor,
+        color: textColor,
+        fontFamily: sansFont, // ✅ Sans untuk base (safety)
         fontSize: FontSize(16 * fontSize),
         lineHeight: const LineHeight(1.6),
         padding: HtmlPaddings.symmetric(horizontal: 12, vertical: 0),
@@ -517,71 +517,79 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
       "#isi": Style(margin: Margins.zero, padding: HtmlPaddings.zero),
 
-      // Headers
+      // ═══════════════════════════════════════════
+      // HEADERS (Serif - Formal & Authoritative)
+      // ═══════════════════════════════════════════
       "h1": Style(
-        fontFamily: 'Noto Serif',
+        fontFamily: serifFont, // ✅ Serif untuk judul besar
         fontSize: FontSize(22 * fontSize),
         fontWeight: FontWeight.bold,
         padding: HtmlPaddings.only(bottom: 5),
         margin: Margins.only(top: 10, bottom: 5),
         border: Border(
-          bottom: BorderSide(
-            color: noteColor.withValues(alpha: 0.3), // ✅ Pake NoteColor
-            width: 1,
-          ),
+          bottom: BorderSide(color: noteColor.withValues(alpha: 0.3), width: 1),
         ),
       ),
+
       "h2": Style(
-        fontFamily: 'Noto Serif',
+        fontFamily: serifFont, // ✅ Serif untuk subjudul
         fontSize: FontSize(18 * fontSize),
         fontWeight: FontWeight.bold,
         margin: Margins.only(top: 25, bottom: 10),
       ),
 
-      // Span indo inside headers
+      // Terjemahan dalam header (Sans - UI element)
       "h1 span.indo": Style(
+        fontFamily: sansFont, // ✅ Sans untuk terjemahan header
         fontWeight: FontWeight.normal,
         display: Display.block,
         margin: Margins.only(top: 2),
         fontSize: FontSize(16 * fontSize),
-        color: textColor.withValues(alpha: 0.8), // ✅ Pake TextColor
+        color: textColor.withValues(alpha: 0.8),
         fontStyle: FontStyle.italic,
       ),
 
-      // Paragraphs (Pali Text)
+      // ═══════════════════════════════════════════
+      // CONTENT (Mixed - Serif untuk Pali, Sans untuk Indo)
+      // ═══════════════════════════════════════════
+
+      // Teks Pali (Serif - Traditional & Sacred)
       "p": Style(
-        fontFamily: 'Noto Serif',
+        fontFamily: serifFont, // ✅ Serif untuk teks Pali (sakral)
         fontWeight: FontWeight.w600,
-        color: paliAccentColor, // ✅ Emas (Gelap) atau Coklat (Terang)
+        color: paliAccentColor,
         margin: Margins.only(bottom: 6),
         fontSize: FontSize(16 * fontSize),
       ),
 
-      // Terjemahan Indonesia
+      // Terjemahan Indonesia (Sans - Modern & Readable)
       "p.indo": Style(
+        //fontFamily: sansFont, // ✅ Sans untuk terjemahan (lebih casual)
+        fontFamily: serifFont, // ✅ Sans untuk terjemahan (lebih casual)
         fontWeight: FontWeight.normal,
-        color: textColor, // ✅ Ikut Tema Reader
+        color: textColor,
         margin: Margins.only(bottom: 20),
         fontSize: FontSize(15 * fontSize),
       ),
 
-      // Footnote
+      // Footnote (Sans - Metadata/Reference)
       "p.footnote": Style(
+        fontStyle: FontStyle.italic,
+        fontFamily: sansFont, // ✅ Sans untuk catatan kaki
         fontSize: FontSize(13 * fontSize),
-        color: noteColor, // ✅ Ikut Tema Reader
+        color: noteColor,
         margin: Margins.only(bottom: 4),
       ),
 
-      // Container ayat (div.isi)
+      // ═══════════════════════════════════════════
+      // CONTAINERS & BOXES
+      // ═══════════════════════════════════════════
       "div.isi": Style(
-        backgroundColor: contentBoxColor, // ✅ Warna Kotak Dinamis
+        backgroundColor: contentBoxColor,
         padding: HtmlPaddings.all(12),
         margin: Margins.symmetric(vertical: 10),
         border: Border(
-          left: BorderSide(
-            color: paliAccentColor, // ✅ Border Kiri ikut warna Pali
-            width: 4,
-          ),
+          left: BorderSide(color: paliAccentColor, width: 4),
           top: BorderSide(
             color: Colors.grey.withValues(alpha: 0.2),
             width: 0.5,
@@ -597,23 +605,25 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         ),
       ),
 
-      // Nomor Ayat
+      // Nomor Ayat (Sans - Label/Metadata)
       "div.nomor": Style(
+        fontFamily: sansFont, // ✅ Sans untuk nomor (UI element)
         fontSize: FontSize(14 * fontSize),
-        color: noteColor, // ✅ Ikut Tema Reader
+        color: noteColor,
         margin: Margins.only(bottom: 4, top: 4),
         fontWeight: FontWeight.bold,
       ),
 
-      // Container Daftar Isi
+      // ═══════════════════════════════════════════
+      // TABLE OF CONTENTS
+      // ═══════════════════════════════════════════
       "div.daftar": Style(
         margin: Margins.only(top: 10),
         display: Display.block,
       ),
 
-      // Item Daftar Isi
       "div.daftar-child": Style(
-        backgroundColor: contentBoxColor, // ✅ Kotak daftar isi juga ngikut
+        backgroundColor: contentBoxColor,
         padding: HtmlPaddings.symmetric(horizontal: 12, vertical: 10),
         margin: Margins.only(bottom: 8),
         border: Border(
@@ -621,23 +631,29 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         ),
       ),
 
-      // Teks Judul Daftar Isi
+      // Judul Daftar Isi (Serif - Content Title)
       ".daftar-child": Style(
+        fontFamily: serifFont, // ✅ Serif untuk judul konten
         fontSize: FontSize(15 * fontSize),
         fontWeight: FontWeight.bold,
-        color: textColor, // ✅ Ikut Tema Reader
+        color: textColor,
       ),
 
-      // Subtitle Daftar Isi
+      // Subtitle Daftar Isi (Sans - Metadata)
       "span.dindo": Style(
+        fontFamily: sansFont, // ✅ Sans untuk deskripsi
         display: Display.block,
         margin: Margins.only(top: 2),
         fontSize: FontSize(13 * fontSize),
         fontWeight: FontWeight.normal,
-        color: noteColor, // ✅ Ikut Tema Reader
+        color: noteColor,
       ),
 
+      // ═══════════════════════════════════════════
+      // LINKS & SPECIAL STATES
+      // ═══════════════════════════════════════════
       "a": Style(
+        fontFamily: sansFont, // ✅ Sans untuk link (UI element)
         color: isDarkVariant
             ? const Color(0xFF80CBC4)
             : const Color(0xFF00695C),
