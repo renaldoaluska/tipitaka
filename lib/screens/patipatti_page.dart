@@ -661,7 +661,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                     Row(
                       children: [
                         Text(
-                          "Powered by ",
+                          "Didukung oleh ",
                           style: TextStyle(
                             fontSize: 9,
                             color: subtextColor.withValues(alpha: 0.6),
