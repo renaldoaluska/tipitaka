@@ -88,7 +88,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
   }
 
-  final ScrollController _scrollController = ScrollController();
+  // final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
   double _textZoom = 100.0;
@@ -110,6 +110,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   final Map<int, GlobalKey> _searchKeys = {};
   // ✅ TAMBAH INI: Penanda apakah menu search lagi kebuka atau ngga
   bool _isSearchModalOpen = false;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
@@ -118,19 +119,44 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     _loadZoomPreference();
     _loadHtmlContent();
 
-    _scrollController.addListener(() {
+    _scrollController = ScrollController();
+
+    // ✅ SOLUSI TERBAIK: Tunggu frame pertama selesai
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scrollController.hasClients) {
+        _scrollController.addListener(_onScroll);
+      }
+    });
+  }
+
+  void _onScroll() {
+    // ✅ Triple Safety Check
+    if (!mounted) return;
+    if (!_scrollController.hasClients) return;
+
+    try {
       final isScrolled = _scrollController.offset > 0;
+
       if (isScrolled != _isScrolled) {
         setState(() => _isScrolled = isScrolled);
       }
-    });
+    } catch (e) {
+      // Silent catch - ignore transisi error
+      debugPrint('Scroll listener error: $e');
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+
+    // ✅ Safe remove listener
+    if (_scrollController.hasClients) {
+      _scrollController.removeListener(_onScroll);
+    }
     _scrollController.dispose();
+
     super.dispose();
   }
 

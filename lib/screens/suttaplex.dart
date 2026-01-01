@@ -705,6 +705,7 @@ class _SuttaplexState extends State<Suttaplex> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // const SizedBox(height: 6),
                       Text(
                         titleStr,
                         style: TextStyle(
@@ -821,6 +822,37 @@ class _SuttaplexState extends State<Suttaplex> {
                         child: const Divider(height: 32),
                       ),
                       lockedSectionGroup("Subtafsiran (Ṭīkā)", ["pli", "id"]),
+
+                      const SizedBox(height: 4),
+                      Text.rich(
+                        TextSpan(
+                          style: const TextStyle(fontSize: 10, height: 1.2),
+                          children: [
+                            const TextSpan(
+                              text: 'Didukung oleh ',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            TextSpan(
+                              text: 'SuttaCentral',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const TextSpan(
+                              text: ' dan ',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            TextSpan(
+                              text: 'Tipitaka Pali Reader',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),

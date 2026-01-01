@@ -117,76 +117,136 @@ class _PatipattiPageState extends State<PatipattiPage> {
           {
             "label": "Tujuh Bulan Kandungan",
             "icon": Icons.pregnant_woman_rounded,
-            //    "id": "parSti1",
+            "files": DaftarIsi.parSti1_1,
           },
-          {"label": "Menjelang Kelahiran", "icon": Icons.child_care_rounded},
+          {
+            "label": "Menjelang Kelahiran",
+            "icon": Icons.child_care_rounded,
+            "files": DaftarIsi.parSti1_2,
+          },
           {
             "label": "Pemberkahan Kelahiran",
             "icon": Icons.child_friendly_rounded,
+            "files": DaftarIsi.parSti1_3,
           },
-          {"label": "Ulang Tahun, Turun Tanah", "icon": Icons.cake_outlined},
-          {"label": "Potong Rambut", "icon": Icons.content_cut_rounded},
-          {"label": "Peletakan Batu Pertama", "icon": Icons.foundation_rounded},
-          {"label": "Rumah & Usaha Baru", "icon": Icons.home_work_outlined},
+          {
+            "label": "Ulang Tahun, Turun Tanah",
+            "icon": Icons.cake_outlined,
+            "files": DaftarIsi.parSti1_4,
+          },
+          {
+            "label": "Potong Rambut",
+            "icon": Icons.content_cut_rounded,
+            "files": DaftarIsi.parSti1_5,
+          },
+          {
+            "label": "Peletakan Batu Pertama",
+            "icon": Icons.foundation_rounded,
+            "files": DaftarIsi.parSti1_6,
+          },
+          {
+            "label": "Rumah & Usaha Baru",
+            "icon": Icons.home_work_outlined,
+            "files": DaftarIsi.parSti1_7,
+          },
           {
             "label": "Pembersihan Tempat",
             "icon": Icons.cleaning_services_outlined,
+            "files": DaftarIsi.parSti1_8,
           },
           {
             "label": "Tirta Untuk Orang Sakit",
             "icon": Icons.local_hospital_outlined,
+            "files": DaftarIsi.parSti1_9,
           },
-          {"label": "Tanam Di Sawah", "icon": Icons.nature_people_outlined},
-          {"label": "Pengukuhan Janji Jabatan", "icon": Icons.badge_outlined},
-          {"label": "Janji Di Pengadilan", "icon": Icons.gavel_rounded},
-          {"label": "Wisuda Upāsaka/upāsikā", "icon": Icons.school_outlined},
-          {"label": "Upacara Perkawinan", "icon": Icons.handshake_outlined},
-          {"label": "Upacara Kematian", "icon": Icons.local_florist_outlined},
+          {
+            "label": "Tanam Di Sawah",
+            "icon": Icons.nature_people_outlined,
+            "files": DaftarIsi.parSti1_10,
+          },
+          {
+            "label": "Pengukuhan Janji Jabatan",
+            "icon": Icons.badge_outlined,
+            "files": DaftarIsi.parSti1_11,
+          },
+          {
+            "label": "Janji Di Pengadilan",
+            "icon": Icons.gavel_rounded,
+            "files": DaftarIsi.parSti1_12,
+          },
+          {
+            "label": "Wisuda Upāsaka/upāsikā",
+            "icon": Icons.school_outlined,
+            "files": DaftarIsi.parSti1_13,
+          },
+          {
+            "label": "Upacara Perkawinan",
+            "icon": Icons.handshake_outlined,
+            "files": DaftarIsi.parSti1_14,
+          },
+          {
+            "label": "Upacara Kematian",
+            "icon": Icons.local_florist_outlined,
+            "files": DaftarIsi.parSti1_15,
+          },
           {
             "label": "Peringatan Kematian (Berkala)",
             "icon": Icons.event_repeat_rounded,
+            "files": DaftarIsi.parSti1_16a,
           },
           {
             "label": "Peringatan Kematian (Ziarah)",
             "icon": Icons.yard_outlined,
+            "files": DaftarIsi.parSti1_16b,
           },
-          {"label": "Catatan", "icon": Icons.note_alt_outlined},
+          {
+            "label": "Catatan",
+            "icon": Icons.note_alt_outlined,
+            "files": DaftarIsi.parSti1_17,
+          },
         ],
       },
       {
         "type": "link",
         "label": "II. Tuntunan Pūjā Bakti",
         "icon": Icons.volunteer_activism_outlined,
+        "files": DaftarIsi.parSti2,
       },
       {
         "type": "link",
         "label": "III. Ārādhanā & Sikkhāpada",
         "icon": Icons.record_voice_over_outlined,
+        "files": DaftarIsi.parSti3,
       },
       {
         "type": "link",
         "label": "IV. Upacara Maṅgala",
         "icon": Icons.favorite_border_rounded,
+        "files": DaftarIsi.parSti4,
       },
       {
         "type": "link",
         "label": "V. Upacara Avamaṅgala",
         "icon": Icons.sentiment_dissatisfied_outlined,
+        "files": DaftarIsi.parSti5,
       },
       {
         "type": "link",
         "label": "VI. Pāṭha-Pāṭha Khusus",
         "icon": Icons.star_outline_rounded,
+        "files": DaftarIsi.parSti6,
       },
       {
         "type": "link",
         "label": "VII. Pūjā Kathā Hari Suci",
         "icon": Icons.calendar_month_outlined,
+        "files": DaftarIsi.parSti7,
       },
       {
         "type": "link",
         "label": "VIII. Pakiṇṇakakathā",
         "icon": Icons.card_giftcard_outlined,
+        "files": DaftarIsi.parSti8,
       },
     ],
     "Lainnya": [
@@ -194,24 +254,35 @@ class _PatipattiPageState extends State<PatipattiPage> {
         "type": "link",
         "label": "Persembahan Cetiya",
         "icon": Icons.temple_buddhist_outlined,
+        "files": DaftarIsi.parLCetiya,
       },
       {
         "type": "link",
         "label": "Paṭipattiyā Ratanattaya",
         "icon": Icons.self_improvement,
+        "files": DaftarIsi.parLImaya,
       },
       {
         "type": "link",
         "label": "Paṭiccasamuppāda",
         "icon": Icons.sync_alt_rounded,
+        "files": DaftarIsi.parLPaticca,
       },
       {
         "type": "group",
         "label": "Pelafalan Pagi",
         "icon": Icons.wb_twilight,
         "items": [
-          {"label": "Anekajāti Pāḷi", "icon": Icons.wb_sunny_outlined},
-          {"label": "Paccavekkhaṇā", "icon": Icons.restaurant_menu_rounded},
+          {
+            "label": "Anekajāti Pāḷi",
+            "icon": Icons.wb_sunny_outlined,
+            "files": DaftarIsi.parLAneka,
+          },
+          {
+            "label": "Paccavekkhaṇā",
+            "icon": Icons.restaurant_menu_rounded,
+            "files": DaftarIsi.parLPacca,
+          },
         ],
       },
       {
@@ -219,16 +290,100 @@ class _PatipattiPageState extends State<PatipattiPage> {
         "label": "Pelafalan Malam",
         "icon": Icons.nights_stay_outlined,
         "items": [
-          {"label": "Mahā Namakkāra Pāḷi", "icon": Icons.nights_stay_rounded},
+          {
+            "label": "Mahā Namakkāra Pāḷi",
+            "icon": Icons.nights_stay_rounded,
+            "files": DaftarIsi.parLMaha,
+          },
         ],
       },
       {
         "type": "group",
-        "label": "Hari Uposatha",
+        "label": "Pelafalan Uposatha",
         "icon": Icons.calendar_month,
         "items": [
-          {"label": "Paccayuddeso", "icon": Icons.list_alt_rounded},
-          {"label": "Paccayaniddeso", "icon": Icons.description_outlined},
+          {
+            "label": "Paccayuddeso",
+            "icon": Icons.list_alt_rounded,
+            "files": DaftarIsi.parLYuddeso,
+          },
+          {
+            "label": "Paccayaniddeso",
+            "icon": Icons.description_outlined,
+            "files": DaftarIsi.parLYaniddeso,
+          },
+        ],
+      },
+
+      {
+        "type": "group",
+        "label": "Dhammadesanā DBS",
+        "icon": Icons.calendar_month,
+        "items": [
+          {
+            "label": "Permohonan Tisaraṇa & Pañcasīla",
+            "icon": Icons.record_voice_over_outlined,
+            "files": DaftarIsi.parLDBS1,
+          },
+          {
+            "label": "Persembahan Jasa-Jasa Kebajikan",
+            "icon": Icons.volunteer_activism,
+            "files": DaftarIsi.parLDBS2,
+          },
+        ],
+      },
+
+      {
+        "type": "group",
+        "label": "Dhammadesanā Dhammarakkhita",
+        "icon": Icons.calendar_month,
+        "items": [
+          {
+            "label": "Permohonan Tisaraṇa & Pañcasīla",
+            "icon": Icons.record_voice_over_outlined,
+            "files": DaftarIsi.parLDKS1,
+          },
+          {
+            "label": "Okāsa & Pattidāna",
+            "icon": Icons.volunteer_activism,
+            "files": DaftarIsi.parLDKS2,
+          },
+        ],
+      },
+
+      {
+        "type": "group",
+        "label": "Dhammadesanā Yasati",
+        "icon": Icons.calendar_month,
+        "items": [
+          {
+            "label": "Permohonan Tisaraṇa & Pañcasīla",
+            "icon": Icons.record_voice_over_outlined,
+            "files": DaftarIsi.parLYasati1,
+          },
+          {
+            "label": "Pattidāna",
+            "icon": Icons.volunteer_activism,
+            "files": DaftarIsi.parLYasati2,
+          },
+        ],
+      },
+
+      {
+        "type": "group",
+        "label": "Dhammadesanā PATVDH",
+        "icon": Icons.calendar_month,
+        "items": [
+          {
+            "label": "Permohonan Tisaraṇa & Pañcasīla",
+            "icon": Icons.record_voice_over_outlined,
+            "files": DaftarIsi.parLPA1,
+          },
+          {
+            "label": "Okāsa & Pattidāna",
+            "icon": Icons.volunteer_activism,
+            "files": DaftarIsi.parLPA2,
+          },
         ],
       },
     ],

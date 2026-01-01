@@ -786,7 +786,7 @@ class _HomeState extends State<Home> {
       ),
       builder: (ctx) {
         return FractionallySizedBox(
-          heightFactor: 0.7,
+          heightFactor: 0.85,
           child: ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             child: Suttaplex(uid: uid, sourceMode: "home"),

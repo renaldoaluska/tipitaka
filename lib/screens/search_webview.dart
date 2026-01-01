@@ -152,9 +152,9 @@ class _SearchWebViewState extends State<SearchWebView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.8,
+        initialChildSize: 0.85,
+        //minChildSize: 0.5,
+        //maxChildSize: 0.8,
         builder: (_, controller) => Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
@@ -175,9 +175,9 @@ class _SearchWebViewState extends State<SearchWebView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.8,
+        initialChildSize: 0.85,
+        //minChildSize: 0.5,
+        //maxChildSize: 0.8,
         builder: (_, controller) => Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,

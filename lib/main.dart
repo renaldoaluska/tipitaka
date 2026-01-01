@@ -847,9 +847,9 @@ class _RootPageState extends State<RootPage>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.8,
+        initialChildSize: 0.85,
+        //minChildSize: 0.5,
+        //maxChildSize: 0.85,
         builder: (_, controller) => Container(
           decoration: BoxDecoration(
             color: surfaceColor,
