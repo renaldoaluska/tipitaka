@@ -776,7 +776,7 @@ class _RootPageState extends State<RootPage>
     String code = input.toLowerCase().trim().replaceAll(
       RegExp(r'\s+'),
       '',
-    ); // Hapus spasi saja
+    ); // Hapus spasi tapi JANGAN dash
 
     String? uid;
 
@@ -810,11 +810,7 @@ class _RootPageState extends State<RootPage>
     for (var entry in specialPrefixes.entries) {
       if (code.startsWith(entry.key)) {
         final number = code.substring(entry.key.length);
-        if (number.isNotEmpty &&
-            RegExp(
-              r'^[\d\.\-]+$'
-              r'^\d+$',
-            ).hasMatch(number)) {
+        if (number.isNotEmpty && RegExp(r'^[\d\.\-]+$').hasMatch(number)) {
           uid = '${entry.value}$number';
           break;
         }
