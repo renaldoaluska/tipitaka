@@ -57,49 +57,35 @@ class _TematikWebViewState extends State<TematikWebView> {
               _hasError = true;
             });
           },
-          // 🔥 TAMBAH INI: Handle link clicks
-          // 🔥 TAMBAH INI: Handle link clicks
+          // Handle link clicks
           onNavigationRequest: (NavigationRequest request) {
             final url = request.url;
 
-            print('🔗 Navigation request: $url');
-
             // ✅ Cek apakah link ke suttacentral.net
             if (url.contains('suttacentral.net/')) {
-              print('✅ Detected suttacentral link');
-
               final uid = _extractUidFromUrl(url);
-              print('🔍 Extracted UID: $uid');
 
               if (uid != null && uid.isNotEmpty) {
-                // 🔥 Pengecualian: pli-tv-bu-pm dan pli-tv-bi-pm langsung sutta
+                // Pengecualian: pli-tv-bu-pm dan pli-tv-bi-pm langsung sutta
                 final isExceptionSutta =
                     uid == 'pli-tv-bu-pm' || uid == 'pli-tv-bi-pm';
 
-                // 🔥 Pattern untuk detect sutta ID (ada angka di dalamnya)
+                // Pattern untuk detect sutta ID (ada angka di dalamnya)
                 final hasNumber = RegExp(r'\d').hasMatch(uid);
 
-                print(
-                  '🎯 isExceptionSutta: $isExceptionSutta, hasNumber: $hasNumber',
-                );
 
                 if (isExceptionSutta || hasNumber) {
-                  print('📖 Opening Suttaplex');
                   _openSuttaplex(uid);
                 } else {
-                  print('📂 Opening MenuPage');
                   final parentAcronym = _extractPrefix(uid);
-                  print('📌 Parent Acronym: $parentAcronym');
 
                   _openMenuPage(uid, parentAcronym); // 🔥 Pakai modal
                 }
 
-                print('🚫 Preventing navigation');
                 return NavigationDecision.prevent;
               }
             }
 
-            print('➡️ Allowing navigation');
             return NavigationDecision.navigate;
           },
         ),
@@ -117,29 +103,22 @@ class _TematikWebViewState extends State<TematikWebView> {
         final qParam = uri.queryParameters['q'];
         if (qParam != null && qParam.contains('suttacentral.net')) {
           targetUrl = qParam;
-          print('🔄 Extracted from Google redirect: $targetUrl');
         }
       }
 
       final uri = Uri.parse(targetUrl);
-      print('🔍 Parsing URL: $targetUrl');
-      print('🔍 URI path: ${uri.path}');
 
       final segments = uri.pathSegments;
-      print('🔍 Path segments: $segments');
 
       if (segments.isEmpty) return null;
 
       String uid = segments[0];
-      print('🔍 First segment (raw): $uid');
 
       // 🔥 Validasi: harus dimulai dengan huruf, bisa ada angka/dash/dot
       if (RegExp(r'^[a-z][a-z0-9\-\.]*$', caseSensitive: false).hasMatch(uid)) {
-        print('✅ Valid UID: $uid');
         return uid.toLowerCase();
       }
 
-      print('❌ Invalid UID format: $uid');
       return null;
     } catch (e) {
       debugPrint('❌ Error parsing URL: $e');

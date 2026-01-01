@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/campaign_model.dart';
+import '../services/dana_everyday_service.dart';
 import '../widgets/header_depan.dart';
 import 'package:flutter_custom_tabs/flutter_custom_tabs.dart';
 import '../screens/html.dart';
@@ -15,6 +17,13 @@ class PatipattiPage extends StatefulWidget {
 }
 
 class _PatipattiPageState extends State<PatipattiPage> {
+  bool _showViewAllButton = false; // 🔧 Tambah ini
+  String _selectedCategory = 'Semua'; // Tambah ini
+  List<Campaign> _campaigns = [];
+  bool _isLoadingCampaigns = false;
+  final DanaEverydayService _danaService = DanaEverydayService();
+  final ScrollController _campaignScrollController = ScrollController();
+
   // Keys untuk scroll
   final GlobalKey _dermaKey = GlobalKey();
   final GlobalKey _uposathaKey = GlobalKey();
@@ -77,14 +86,14 @@ class _PatipattiPageState extends State<PatipattiPage> {
   // ═══════════════════════════════════════════════════════════
   // 💰 STATE DERMA
   // ═══════════════════════════════════════════════════════════
-  final List<Map<String, dynamic>> _dermaLinks = [
+  /*  final List<Map<String, dynamic>> _dermaLinks = [
     //ini customtabs link nanti
     {"label": "Dana Everyday", "icon": Icons.volunteer_activism_rounded},
     {"label": "Pembangunan", "icon": Icons.foundation_rounded},
     {"label": "Buku Dhamma", "icon": Icons.menu_book_rounded},
     {"label": "Obat-obatan", "icon": Icons.medical_services_rounded},
     {"label": "Lainnya", "icon": Icons.more_horiz_rounded},
-  ];
+  ];*/
 
   // ═══════════════════════════════════════════════════════════
   // 📚 STATE PARITTA
@@ -232,11 +241,18 @@ class _PatipattiPageState extends State<PatipattiPage> {
   void initState() {
     super.initState();
     _loadPreferences();
+    _loadCampaigns();
 
     // Cek jika ada highlight saat pertama kali dibuat
     if (widget.highlightSection != null) {
       _scheduleScroll(widget.highlightSection!);
     }
+  }
+
+  @override
+  void dispose() {
+    _campaignScrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -443,6 +459,37 @@ class _PatipattiPageState extends State<PatipattiPage> {
     return '🌑';
   }
 
+  Future<void> _loadCampaigns({String? categoryId}) async {
+    setState(() => _isLoadingCampaigns = true);
+
+    // 🔧 Reset scroll ke awal
+    if (_campaignScrollController.hasClients) {
+      _campaignScrollController.jumpTo(0);
+    }
+
+    try {
+      List<Campaign> campaigns;
+
+      if (categoryId != null) {
+        campaigns = await _danaService.fetchCampaigns(categoryId);
+      } else {
+        campaigns = await _danaService.fetchTopCampaigns();
+      }
+
+      if (mounted) {
+        setState(() {
+          _campaigns = campaigns;
+          _isLoadingCampaigns = false;
+          _showViewAllButton = false; // 🔧 Reset button juga
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCampaigns = false);
+      }
+    }
+  }
+
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -576,18 +623,71 @@ class _PatipattiPageState extends State<PatipattiPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          clipBehavior: Clip.antiAlias, // Gunting konten biar header gak lancip
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               // 🏷️ HEADER STRIP
-              _buildHeaderStrip("Dāna"),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.grey.withValues(alpha: 0.08),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(
+                        context,
+                      ).dividerColor.withValues(alpha: 0.05),
+                      width: 1,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "DĀNA",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: subtextColor,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          "Powered by ",
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: subtextColor.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        Text(
+                          "Yayasan Dana Everyday",
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: accentColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
 
-              // KONTEN UTAMA (Dipisah padding)
+              // KONTEN UTAMA
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Header Section
                     Row(
                       children: [
                         Container(
@@ -625,39 +725,428 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             ],
                           ),
                         ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.refresh_rounded,
+                            color: accentColor,
+                            size: 20,
+                          ),
+                          onPressed: _isLoadingCampaigns
+                              ? null
+                              : _loadCampaigns,
+                          tooltip: 'Refresh',
+                        ),
                       ],
                     ),
+
                     const SizedBox(height: 16),
+
+                    // 🏷️ Category Filter Chips
                     SizedBox(
-                      height: 54,
-                      child: ListView.separated(
+                      height: 38,
+                      child: ListView(
                         scrollDirection: Axis.horizontal,
-                        itemCount: _dermaLinks.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final item = _dermaLinks[index];
-                          return _buildMenuButton(
-                            label: item['label'],
-                            icon: item['icon'],
-                            color: accentColor,
-                            lightBg: lightBg.withValues(alpha: 0.5),
-                            borderColor: borderColor,
-                            isHorizontal: true,
-                            isCentered: false,
-                            isSlider: true,
-                            // width: 160,
-                            onTap: () {},
-                          );
-                        },
+                        children: [
+                          _buildCategoryChip(
+                            label: 'Semua',
+                            isSelected: _selectedCategory == 'Semua',
+                            accentColor: accentColor,
+                            lightBg: lightBg,
+                            onTap: () {
+                              setState(() => _selectedCategory = 'Semua');
+                              _loadCampaigns();
+                            },
+                          ),
+                          ...DanaEverydayService.categories.entries.map((
+                            entry,
+                          ) {
+                            return _buildCategoryChip(
+                              label: entry.key,
+                              isSelected: _selectedCategory == entry.key,
+                              accentColor: accentColor,
+                              lightBg: lightBg,
+                              onTap: () {
+                                setState(() => _selectedCategory = entry.key);
+                                _loadCampaigns(categoryId: entry.value);
+                              },
+                            );
+                          }),
+                        ],
                       ),
                     ),
+
+                    const SizedBox(height: 14),
+
+                    // Campaign Cards dengan dynamic button
+                    _isLoadingCampaigns
+                        ? _buildLoadingShimmer(lightBg, borderColor)
+                        : _campaigns.isEmpty
+                        ? _buildEmptyState(subtextColor)
+                        : SizedBox(
+                            height: 185,
+                            child: Stack(
+                              children: [
+                                // Cards ListView
+                                NotificationListener<ScrollNotification>(
+                                  onNotification: (notification) {
+                                    if (notification
+                                        is ScrollUpdateNotification) {
+                                      final scrollController =
+                                          notification.metrics;
+                                      final isAtEnd =
+                                          scrollController.pixels >=
+                                          scrollController.maxScrollExtent - 50;
+
+                                      if (isAtEnd != _showViewAllButton) {
+                                        setState(
+                                          () => _showViewAllButton = isAtEnd,
+                                        );
+                                      }
+                                    }
+                                    return false;
+                                  },
+                                  child: ListView.separated(
+                                    controller: _campaignScrollController,
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.only(
+                                      right: 95,
+                                    ), // 🔧 Tambah padding kanan
+                                    itemCount: _campaigns.length,
+                                    separatorBuilder: (_, _) =>
+                                        const SizedBox(width: 12),
+                                    itemBuilder: (context, index) {
+                                      final campaign = _campaigns[index];
+                                      return _buildCampaignCard(
+                                        campaign: campaign,
+                                        accentColor: accentColor,
+                                        lightBg: lightBg,
+                                        borderColor: borderColor,
+                                        textColor: textColor,
+                                        subtextColor: subtextColor,
+                                      );
+                                    },
+                                  ),
+                                ),
+
+                                // Floating "Lihat Semua" button (muncul di kanan)
+                                if (_showViewAllButton)
+                                  Positioned(
+                                    right: 8,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: Material(
+                                        color: accentColor,
+                                        borderRadius: BorderRadius.circular(30),
+                                        elevation: 4,
+                                        child: InkWell(
+                                          onTap: () => _launchCustomTab(
+                                            context,
+                                            'https://www.danaeveryday.id/campaign_category',
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            30,
+                                          ),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(16),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.open_in_new_rounded,
+                                                  color: Colors.white,
+                                                  size: 24,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Lebih\nBanyak',
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    height: 1.1,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                    const SizedBox(height: 10),
+
+                    // Bottom Button (restore)
+                    SizedBox(
+                      width: double.infinity,
+                      child: _buildMenuButton(
+                        label: "Lihat Semua Campaign",
+                        icon: Icons.open_in_new_rounded,
+                        color: accentColor,
+                        lightBg: lightBg,
+                        borderColor: borderColor,
+                        isHorizontal: true,
+                        isCentered: true,
+                        onTap: () => _launchCustomTab(
+                          context,
+                          'https://www.danaeveryday.id/campaign_category',
+                        ),
+                      ),
+                    ),
+
+                    // Bottom Button
+                    SizedBox(width: double.infinity),
                   ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ==============================================================
+  // 🎴 CAMPAIGN CARD WIDGET
+  // ==============================================================
+  // 🔧 GANTI _buildCampaignCard() dengan yang ini:
+
+  Widget _buildCampaignCard({
+    required Campaign campaign,
+    required Color accentColor,
+    required Color lightBg,
+    required Color borderColor,
+    required Color textColor,
+    required Color subtextColor,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: lightBg.withValues(alpha: 0.3),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => _launchCustomTab(context, campaign.fullUrl),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 280,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 🖼️ Image Header (LEBIH KECIL LAGI)
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(15),
+                    ),
+                    child: campaign.imageUrl.isNotEmpty
+                        ? Image.network(
+                            campaign.imageUrl,
+                            height: 80, // 🔧 REDUCED dari 100 ke 80
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                _buildImagePlaceholder(accentColor, 80),
+                          )
+                        : _buildImagePlaceholder(accentColor, 80),
+                  ),
+                  // Category Badge
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        campaign.categoryName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // 📝 Content (LEBIH COMPACT)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(9),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title
+                      Text(
+                        campaign.name,
+                        style: TextStyle(
+                          fontSize: 12, // 🔧 dari 13 ke 12
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+
+                      // Progress Bar
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                campaign.formattedCollected,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: accentColor,
+                                ),
+                              ),
+                              Text(
+                                '${campaign.percent}%',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: subtextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: campaign.percent / 100,
+                              backgroundColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.1)
+                                  : Colors.black.withValues(alpha: 0.05),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                accentColor,
+                              ),
+                              minHeight: 4, // 🔧 dari 6 ke 4
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Target: ${campaign.formattedTarget}',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: subtextColor,
+                                ),
+                              ),
+                              if (campaign.daysRemaining > 0)
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.schedule_rounded,
+                                      size: 10,
+                                      color: subtextColor,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '${campaign.daysRemaining} hari',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: subtextColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==============================================================
+  // 🎨 HELPER WIDGETS
+  // ==============================================================
+  Widget _buildImagePlaceholder(Color color, double height) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      color: color.withValues(alpha: 0.1),
+      child: Icon(
+        Icons.image_outlined,
+        size: 35,
+        color: color.withValues(alpha: 0.3),
+      ),
+    );
+  }
+
+  Widget _buildLoadingShimmer(Color lightBg, Color borderColor) {
+    return SizedBox(
+      height: 185, // 🔧 Match dengan campaign height
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (_, _) => Container(
+          width: 280,
+          decoration: BoxDecoration(
+            color: lightBg.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: const Color(0xFF009688),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(Color subtextColor) {
+    return Container(
+      height: 185, // 🔧 Match dengan campaign height
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 40,
+            color: subtextColor.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tidak ada campaign tersedia',
+            style: TextStyle(fontSize: 12, color: subtextColor),
+          ),
+        ],
       ),
     );
   }
@@ -1299,6 +1788,50 @@ class _PatipattiPageState extends State<PatipattiPage> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip({
+    required String label,
+    required bool isSelected,
+    required Color accentColor,
+    required Color lightBg,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: isSelected ? accentColor : lightBg.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected
+                    ? accentColor
+                    : (isDark ? Colors.white24 : Colors.black12),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? Colors.white70 : Colors.black87),
+              ),
+            ),
           ),
         ),
       ),
