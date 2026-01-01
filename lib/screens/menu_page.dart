@@ -37,7 +37,10 @@ class _MenuPageState extends State<MenuPage> {
 
       List<MenuItem> items = [];
       for (var child in children) {
-        items.add(MenuItem.fromJson(child));
+        //TAMBAH
+        if (child["uid"] != null && child["uid"].toString().isNotEmpty) {
+          items.add(MenuItem.fromJson(child));
+        }
       }
 
       setState(() {
@@ -45,13 +48,17 @@ class _MenuPageState extends State<MenuPage> {
         if (widget.parentAcronym.isNotEmpty) {
           _rootAcronym = widget.parentAcronym;
         } else {
-          _rootAcronym = root?["acronym"] ?? "";
+          // 🔥 FIX: Pakai normalizeNikayaAcronym() biar konsisten
+          String rawAcronym = root?["acronym"] ?? "";
+          _rootAcronym = normalizeNikayaAcronym(rawAcronym);
         }
+
         _items = items;
-        _errorType = null; // 🔥 Clear error
+        _errorType = null;
         _loading = false;
       });
 
+      // 🔥 DEBUG LOG (Bisa dihapus kalau udah beres)
       debugPrint("📋 [MenuPage] UID yang diminta: ${widget.uid}");
       debugPrint(
         "📋 [MenuPage] Parent Acronym (Kiriman): '${widget.parentAcronym}'",
@@ -190,20 +197,7 @@ class _MenuPageState extends State<MenuPage> {
     final isLong = previewBlurb.length > 60;
 
     // --- PASANG INI (Mulai) ---
-    if (_root != null) {
-      bool condition1 = _rootAcronym.isNotEmpty;
-      bool condition2 =
-          _rootAcronym.trim().toUpperCase() !=
-          (_root?["root_name"] ?? "").trim().toUpperCase();
-      bool condition3 = (_root?["child_range"] ?? "").isEmpty;
-
-      debugPrint("🔍 [MenuPage Logic] Acronym Not Empty? $condition1");
-      debugPrint("🔍 [MenuPage Logic] Beda sama Root Name? $condition2");
-      debugPrint("🔍 [MenuPage Logic] Child Range Empty? $condition3");
-      debugPrint(
-        "🔍 [MenuPage Logic] KESIMPULAN: Tampil Header Kecil? ${condition1 && condition2 && condition3}",
-      );
-    }
+    // Debug log udah ada di _fetchMenu()
     // --- PASANG INI (Selesai) ---
 
     return Scaffold(

@@ -333,10 +333,9 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildRecentlyViewed() {
-    final textColor = Theme.of(
-      context,
-    ).colorScheme.onSurfaceVariant; // 🔥 ABU-ABU
+    final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final cardColor = Theme.of(context).colorScheme.surface;
+    final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,13 +353,11 @@ class _HomeState extends State<Home> {
           ),
         ),
         const SizedBox(height: 12),
-        // 🔥 LOADING STATE
         if (_isLoadingHistory)
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
             child: Center(child: CircularProgressIndicator()),
           )
-        // 🔥 EMPTY STATE (COMPACT)
         else if (_recentlyViewed.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -368,7 +365,7 @@ class _HomeState extends State<Home> {
               color: cardColor,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
                   color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
                 ),
@@ -383,9 +380,7 @@ class _HomeState extends State<Home> {
                     Icon(
                       Icons.history_outlined,
                       size: 24,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      color: subTextColor.withValues(alpha: 0.5),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -393,9 +388,7 @@ class _HomeState extends State<Home> {
                         "Belum ada riwayat bacaan",
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          color: subTextColor.withValues(alpha: 0.7),
                         ),
                       ),
                     ),
@@ -403,7 +396,7 @@ class _HomeState extends State<Home> {
                 ),
               ),
             ),
-          ) // 🔥 LIST CONTENT
+          )
         else
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -415,33 +408,39 @@ class _HomeState extends State<Home> {
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final rv = _recentlyViewed[index];
-                final acronym = rv["acronym"] ?? "";
-                final nikaya = acronym.split(" ").first;
-                //.toUpperCase();
+                final displayAcronym = _getDisplayAcronym(
+                  rv["uid"],
+                  rv["acronym"],
+                );
+
+                // 🔥 FIX PERMANEN: Hapus angka DAN titik, lalu trim.
+                // Jadi "AN 1.1" beneran jadi "AN", gak nyampah "An ." lagi.
+                /*final String nikayaKey = displayAcronym
+                    .replaceAll(RegExp(r'\d'), '')
+                    .replaceAll('.', '')
+                    .trim();*/
+                final String nikayaKey = _getNikayaKey(displayAcronym);
 
                 return Card(
                   elevation: 1,
                   margin: EdgeInsets.zero,
                   color: cardColor,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  clipBehavior: Clip.antiAlias,
                   child: ListTile(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    leading: CircleAvatar(
-                      backgroundColor: getNikayaColor(nikaya),
-                      radius: 20,
-                      child: Text(
-                        acronym.split(" ").first,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 0,
                     ),
+
+                    // Avatar pakai key yang sudah dibersihkan dari titik
+                    leading: buildNikayaAvatar(nikayaKey),
+
                     title: Text(
                       rv["title"] ?? rv["uid"],
                       style: TextStyle(
@@ -459,36 +458,29 @@ class _HomeState extends State<Home> {
                             rv["original_title"].toString().isNotEmpty)
                           Text(
                             rv["original_title"],
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
+                            style: TextStyle(fontSize: 12, color: subTextColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         const SizedBox(height: 2),
                         Text(
-                          "${rv["lang_name"]} • ${rv["author"]}",
+                          "${rv["lang_name"] ?? '-'} • ${rv["author"] ?? '-'}",
                           style: TextStyle(
                             fontSize: 11,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant
-                                .withValues(alpha: 0.7),
+                            color: subTextColor.withValues(alpha: 0.7),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
+                    // Trailing tetap pakai displayAcronym utuh (misal: "AN 1.1")
                     trailing: Text(
-                      acronym,
+                      displayAcronym,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: getNikayaColor(nikaya),
+                        color: getNikayaColor(nikayaKey),
                       ),
                     ),
                     onTap: () {
@@ -504,9 +496,7 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildBookmarks() {
-    final textColor = Theme.of(
-      context,
-    ).colorScheme.onSurfaceVariant; // 🔥 ABU-ABU
+    final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final cardColor = Theme.of(context).colorScheme.surface;
 
     return Column(
@@ -522,20 +512,18 @@ class _HomeState extends State<Home> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: textColor, // 🔥 ABU-ABU
+                  color: textColor,
                 ),
               ),
               const Spacer(),
-              // if (_bookmarks.length > 5)
               TextButton(
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
-                  ), // ✅ Tambah padding
-                  minimumSize: const Size(80, 36), // ✅ Minimum size yang layak
-                  tapTargetSize:
-                      MaterialTapTargetSize.padded, // ✅ Ganti jadi padded
+                  ),
+                  minimumSize: const Size(80, 36),
+                  tapTargetSize: MaterialTapTargetSize.padded,
                 ),
                 onPressed: () {
                   _showAllBookmarks(context);
@@ -552,24 +540,22 @@ class _HomeState extends State<Home> {
             ],
           ),
         ),
-        // const SizedBox(height: 2),
-        // 🔥 LOADING STATE
+
         if (_isLoadingHistory)
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
             child: Center(child: CircularProgressIndicator()),
           )
-        // 🔥 EMPTY STATE (COMPACT)
         else if (_bookmarks.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SizedBox(
-              height: 56, // 🔥 LEBIH PENDEK
+              height: 56,
               child: Card(
                 color: cardColor,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
                     color: Theme.of(
                       context,
@@ -586,9 +572,7 @@ class _HomeState extends State<Home> {
                       Icon(
                         Icons.bookmark_border,
                         size: 24,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        color: textColor.withValues(alpha: 0.5),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -596,10 +580,7 @@ class _HomeState extends State<Home> {
                           "Belum ada sutta yang ditandai",
                           style: TextStyle(
                             fontSize: 13,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant
-                                .withValues(alpha: 0.7),
+                            color: textColor.withValues(alpha: 0.7),
                           ),
                         ),
                       ),
@@ -609,69 +590,59 @@ class _HomeState extends State<Home> {
               ),
             ),
           )
-        // 🔥 LIST CONTENT
         else
           SizedBox(
-            height: 130,
+            height: 135,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
               itemCount: _bookmarks.length.clamp(0, 5),
               itemBuilder: (context, index) {
                 final b = _bookmarks[index];
-                final acronym = b["acronym"] ?? "";
-                final nikaya = acronym.split(" ").first;
-                //.toUpperCase();
-
+                final displayAcronym = _getDisplayAcronym(
+                  b["uid"],
+                  b["acronym"],
+                );
+                // 🔥 FIXED: Use the consistent helper for clean key (e.g., "AN" or "Bi Pj")
+                final nikayaKey = _getNikayaKey(displayAcronym);
                 return Container(
-                  width: 200,
-                  margin: const EdgeInsets.only(right: 10),
+                  width: 220,
+                  margin: const EdgeInsets.only(right: 10, bottom: 5),
                   child: Card(
                     elevation: 1,
                     color: cardColor,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       onTap: () {
                         _openSuttaplex(context, b["uid"]);
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start, // 🔥 Align kiri semua
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Baris pertama: Avatar + Acronym
                             Row(
                               children: [
-                                CircleAvatar(
-                                  backgroundColor: getNikayaColor(nikaya),
-                                  radius: 20,
-                                  child: Text(
-                                    acronym.split(" ").first,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                                buildNikayaAvatar(
+                                  nikayaKey,
+                                ), // 🔥 FIXED: Use clean key
                                 const Spacer(),
                                 Text(
-                                  acronym,
+                                  displayAcronym,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: getNikayaColor(nikaya),
+                                    color: getNikayaColor(
+                                      nikayaKey,
+                                    ), // 🔥 FIXED: Use clean key
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 10),
-
-                            // Baris kedua: Title
                             Text(
                               b["title"] ?? b["uid"],
                               style: TextStyle(
@@ -682,8 +653,6 @@ class _HomeState extends State<Home> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-
-                            // Baris ketiga: Note (kalau ada)
                             if (b["note"] != null &&
                                 b["note"].toString().trim().isNotEmpty) ...[
                               const SizedBox(height: 4),
@@ -714,8 +683,101 @@ class _HomeState extends State<Home> {
     );
   }
 
-  void _openSuttaplex(BuildContext context, String uid) {
-    showModalBottomSheet(
+  String _getNikayaKey(String displayAcronym) {
+    final match = RegExp(r'\d').firstMatch(displayAcronym);
+    if (match != null) {
+      return displayAcronym.substring(0, match.start).trim();
+    }
+    return displayAcronym.trim();
+  }
+
+  String _getDisplayAcronym(String? uid, String? rawAcronym) {
+    // 1. Jika acronym dari database sudah ada angka, pakai saja.
+    if (rawAcronym != null && rawAcronym.contains(RegExp(r'[0-9]'))) {
+      return rawAcronym;
+    }
+
+    if (uid == null || uid.isEmpty) return rawAcronym ?? "";
+
+    String derivedAcronym = "";
+    String numberPart = "";
+
+    // Ambil angka dari UID
+    final match = RegExp(r'\d').firstMatch(uid);
+    if (match != null) {
+      numberPart = uid.substring(match.start);
+    }
+
+    // --- FILTER 1: KHUSUS VINAYA (Mapping Manual) ---
+    if (uid.startsWith("pli-tv-")) {
+      if (uid.contains("bu-vb-pj")) {
+        derivedAcronym = "Bu Pj";
+      } else if (uid.contains("bu-vb-ss")) {}
+      derivedAcronym = "Bu Ss";
+    } else if (uid.contains("bu-vb-ay")) {
+      derivedAcronym = "Bu Ay";
+    } else if (uid.contains("bu-vb-np")) {
+      derivedAcronym = "Bu Np";
+    } else if (uid.contains("bu-vb-pc")) {
+      derivedAcronym = "Bu Pc";
+    } else if (uid.contains("bu-vb-pd")) {
+      derivedAcronym = "Bu Pd";
+    } else if (uid.contains("bu-vb-sk")) {
+      derivedAcronym = "Bu Sk";
+    } else if (uid.contains("bu-vb-as")) {
+      derivedAcronym = "Bu As";
+    } else if (uid.contains("bi-vb-pj")) {
+      derivedAcronym = "Bi Pj";
+    } else if (uid.contains("bi-vb-ss")) {
+      derivedAcronym = "Bi Ss";
+    } else if (uid.contains("bi-vb-np")) {
+      derivedAcronym = "Bi Np";
+    } else if (uid.contains("bi-vb-pc")) {
+      derivedAcronym = "Bi Pc";
+    } else if (uid.contains("bi-vb-pd")) {
+      derivedAcronym = "Bi Pd";
+    } else if (uid.contains("bi-vb-sk")) {
+      derivedAcronym = "Bi Sk";
+    } else if (uid.contains("bi-vb-as")) {
+      derivedAcronym = "Bi As";
+    } else if (uid.contains("kd")) {
+      derivedAcronym = "Kd";
+    } else if (uid.contains("pvr")) {
+      derivedAcronym = "Pvr";
+    } else if (uid.contains("bu-pm")) {
+      derivedAcronym = "Bu";
+    } else if (uid.contains("bi-pm")) {
+      derivedAcronym = "Bi";
+    }
+
+    // --- FILTER 2: LOGIKA FORMAT TEXT ---
+    if (derivedAcronym.isEmpty) {
+      String cleanText = (match != null)
+          ? uid.substring(0, match.start).replaceAll('-', ' ').trim()
+          : uid.replaceAll('-', ' ').trim();
+
+      // List yang harus UPPERCASE (The Big 5)
+      const bigFive = ["dn", "mn", "sn", "an", "kn"];
+
+      if (bigFive.contains(cleanText.toLowerCase())) {
+        derivedAcronym = cleanText.toUpperCase();
+      } else {
+        // Capitalize Each Word (untuk sisanya)
+        derivedAcronym = cleanText
+            .split(' ')
+            .map((word) {
+              if (word.isEmpty) return "";
+              return word[0].toUpperCase() + word.substring(1).toLowerCase();
+            })
+            .join(' ');
+      }
+    }
+
+    return "$derivedAcronym $numberPart".trim();
+  }
+
+  Future<void> _openSuttaplex(BuildContext context, String uid) async {
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -731,21 +793,20 @@ class _HomeState extends State<Home> {
           ),
         );
       },
-    ).then((_) {
-      // 🔥 REFRESH DATA PAS MODAL DITUTUP
-      _refreshData();
-    });
+    );
+    await _refreshData();
   }
 
   void _showAllBookmarks(BuildContext context) {
     // 🔥 Extract unique nikaya yang ada di bookmarks
     final Set<String> availableNikayas = {};
     for (var b in _bookmarks) {
-      final acronym = b["acronym"] ?? "";
-      final nikaya = acronym.split(" ").first;
-      //.toUpperCase();
-      if (nikaya.isNotEmpty) {
-        availableNikayas.add(nikaya);
+      final displayAcronym = _getDisplayAcronym(b["uid"], b["acronym"]);
+
+      final nikayaKey = _getNikayaKey(displayAcronym);
+
+      if (nikayaKey.isNotEmpty) {
+        availableNikayas.add(nikayaKey);
       }
     }
 
@@ -754,7 +815,6 @@ class _HomeState extends State<Home> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      // 🔥 BACKGROUND TRANSPARAN BIAR KELIATAN ABU-ABU DI BELAKANG
       backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -764,7 +824,7 @@ class _HomeState extends State<Home> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return FractionallySizedBox(
-              heightFactor: 0.8,
+              heightFactor: 0.85,
               child: Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).brightness == Brightness.dark
@@ -776,7 +836,7 @@ class _HomeState extends State<Home> {
                 ),
                 child: Column(
                   children: [
-                    // 🔥 HEADER
+                    // --- HEADER (Tetap sama) ---
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -905,7 +965,6 @@ class _HomeState extends State<Home> {
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            // Chip "Semua"
                             Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: FilterChip(
@@ -921,7 +980,7 @@ class _HomeState extends State<Home> {
                                 ).colorScheme.primaryContainer,
                                 checkmarkColor: Theme.of(
                                   context,
-                                ).colorScheme.onPrimaryContainer, // Ubah ini
+                                ).colorScheme.onPrimaryContainer,
                                 labelStyle: TextStyle(
                                   color: selectedFilter == null
                                       ? Theme.of(
@@ -931,14 +990,19 @@ class _HomeState extends State<Home> {
                                 ),
                               ),
                             ),
-                            // Chip per Nikaya
                             ...sortedNikayas.map((nikaya) {
+                              // nikaya sekarang pasti bersih (misal "Bi Pj" atau "AN")
+
                               final count = _bookmarks.where((b) {
-                                final acronym = b["acronym"] ?? "";
-                                final n = acronym.split(" ").first;
-                                // .toUpperCase();
-                                return n == nikaya;
+                                final displayAcronym = _getDisplayAcronym(
+                                  b["uid"],
+                                  b["acronym"],
+                                );
+                                final cleanKey = _getNikayaKey(displayAcronym);
+                                return cleanKey == nikaya;
                               }).length;
+
+                              final avatarText = nikaya.split(" ").first;
 
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
@@ -954,6 +1018,7 @@ class _HomeState extends State<Home> {
                                     nikaya,
                                   ).withValues(alpha: 0.2),
                                   checkmarkColor: getNikayaColor(nikaya),
+
                                   avatar: selectedFilter == nikaya
                                       ? null
                                       : CircleAvatar(
@@ -962,10 +1027,10 @@ class _HomeState extends State<Home> {
                                           ),
                                           radius: 12,
                                           child: Text(
-                                            nikaya[0],
+                                            avatarText,
                                             style: const TextStyle(
                                               color: Colors.white,
-                                              fontSize: 10,
+                                              fontSize: 9,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -977,17 +1042,21 @@ class _HomeState extends State<Home> {
                         ),
                       ),
 
-                    // 🔥 LIST BOOKMARKS (FILTERED)
+                    // 🔥 LIST BOOKMARKS
                     Expanded(
                       child: Builder(
                         builder: (context) {
                           final filteredBookmarks = selectedFilter == null
                               ? _bookmarks
                               : _bookmarks.where((b) {
-                                  final acronym = b["acronym"] ?? "";
-                                  final nikaya = acronym.split(" ").first;
-                                  //.toUpperCase();
-                                  return nikaya == selectedFilter;
+                                  final displayAcronym = _getDisplayAcronym(
+                                    b["uid"],
+                                    b["acronym"],
+                                  );
+                                  final cleanKey = _getNikayaKey(
+                                    displayAcronym,
+                                  );
+                                  return cleanKey == selectedFilter;
                                 }).toList();
 
                           if (filteredBookmarks.isEmpty) {
@@ -1018,25 +1087,34 @@ class _HomeState extends State<Home> {
                             );
                           }
 
-                          return ListView.builder(
+                          return ListView.separated(
                             padding: const EdgeInsets.all(16),
                             itemCount: filteredBookmarks.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 8),
                             itemBuilder: (context, index) {
                               final b = filteredBookmarks[index];
-                              final acronym = b["acronym"] ?? "";
-                              final nikaya = acronym.split(" ").first;
-                              //.toUpperCase();
+
+                              final String displayAcronym = _getDisplayAcronym(
+                                b["uid"],
+                                b["acronym"] ?? "",
+                              );
+
+                              final String nikayaKey = _getNikayaKey(
+                                displayAcronym,
+                              );
 
                               return Card(
                                 elevation: 1,
-                                margin: const EdgeInsets.only(bottom: 8),
+                                margin: EdgeInsets.zero,
                                 color: Theme.of(context).colorScheme.surface,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
+                                clipBehavior: Clip.antiAlias,
                                 child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: () {
+                                  onTap: () async {
+                                    // 🔥 From previous fix
                                     if (_isEditMode) {
                                       setState(() {
                                         if (_selectedBookmarks.contains(
@@ -1049,17 +1127,34 @@ class _HomeState extends State<Home> {
                                       });
                                       setModalState(() {});
                                     } else {
-                                      Navigator.pop(context);
-                                      _openSuttaplex(context, b["uid"]);
+                                      await _openSuttaplex(context, b["uid"]);
+                                      setModalState(() {});
                                     }
                                   },
                                   onLongPress: _isEditMode
                                       ? null
                                       : () async {
-                                          final confirm =
-                                              await showModalBottomSheet<bool>(
-                                                context: context,
-                                                builder: (ctx) => SafeArea(
+                                          final confirm = await showModalBottomSheet<bool>(
+                                            context: context,
+                                            // 🔥 FIXED: Add shape for rounding
+                                            shape: const RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.vertical(
+                                                    top: Radius.circular(16),
+                                                  ),
+                                            ),
+                                            builder: (ctx) => ClipRRect(
+                                              // 🔥 FIXED: Clip the content to prevent overflow
+                                              borderRadius:
+                                                  const BorderRadius.vertical(
+                                                    top: Radius.circular(16),
+                                                  ),
+                                              child: Material(
+                                                // 🔥 FIXED: Provide Material for proper ink/ripple behavior
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.surface,
+                                                child: SafeArea(
                                                   child: Column(
                                                     mainAxisSize:
                                                         MainAxisSize.min,
@@ -1097,7 +1192,9 @@ class _HomeState extends State<Home> {
                                                     ],
                                                   ),
                                                 ),
-                                              );
+                                              ),
+                                            ),
+                                          );
 
                                           if (confirm == true) {
                                             await HistoryService.removeBookmark(
@@ -1124,97 +1221,93 @@ class _HomeState extends State<Home> {
                                         },
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 12,
+                                      horizontal: 0,
+                                      vertical: 0,
                                     ),
                                     child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
                                       children: [
-                                        if (_isEditMode) ...[
-                                          Checkbox(
-                                            value: _selectedBookmarks.contains(
-                                              b["uid"],
+                                        if (_isEditMode)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 12,
                                             ),
-                                            onChanged: (val) {
-                                              setState(() {
-                                                if (val == true) {
-                                                  _selectedBookmarks.add(
-                                                    b["uid"],
-                                                  );
-                                                } else {
-                                                  _selectedBookmarks.remove(
-                                                    b["uid"],
-                                                  );
-                                                }
-                                              });
-                                              setModalState(() {});
-                                            },
-                                          ),
-                                          const SizedBox(width: 4),
-                                        ],
-                                        CircleAvatar(
-                                          backgroundColor: getNikayaColor(
-                                            nikaya,
-                                          ),
-                                          radius: 20,
-                                          child: Text(
-                                            acronym.split(" ").first,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
+                                            child: Checkbox(
+                                              value: _selectedBookmarks
+                                                  .contains(b["uid"]),
+                                              onChanged: (val) {
+                                                setState(() {
+                                                  if (val == true) {
+                                                    _selectedBookmarks.add(
+                                                      b["uid"],
+                                                    );
+                                                  } else {
+                                                    _selectedBookmarks.remove(
+                                                      b["uid"],
+                                                    );
+                                                  }
+                                                });
+                                                setModalState(() {});
+                                              },
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 12),
                                         Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                b["title"] ?? b["uid"],
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.onSurface,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                          child: ListTile(
+                                            contentPadding: EdgeInsets.only(
+                                              left: _isEditMode ? 0 : 16,
+                                              right: 16,
+                                            ),
+                                            leading: buildNikayaAvatar(
+                                              nikayaKey,
+                                            ),
+
+                                            title: Text(
+                                              b["title"] ?? b["uid"],
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurface,
                                               ),
-                                              if (b["note"] != null &&
-                                                  b["note"]
-                                                      .toString()
-                                                      .trim()
-                                                      .isNotEmpty) ...[
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  b["note"],
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurfaceVariant
-                                                        .withValues(alpha: 0.7),
-                                                    fontStyle: FontStyle.italic,
-                                                    height: 1.3,
-                                                  ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+
+                                            subtitle:
+                                                (b["note"] != null &&
+                                                    b["note"]
+                                                        .toString()
+                                                        .trim()
+                                                        .isNotEmpty)
+                                                ? Text(
+                                                    b["note"],
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant
+                                                          .withValues(
+                                                            alpha: 0.7,
+                                                          ),
+                                                      fontStyle:
+                                                          FontStyle.italic,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  )
+                                                : null,
+
+                                            trailing: Text(
+                                              displayAcronym,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: getNikayaColor(
+                                                  nikayaKey,
                                                 ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          acronym,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: getNikayaColor(nikaya),
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ],

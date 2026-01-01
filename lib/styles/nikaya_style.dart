@@ -84,17 +84,24 @@ const Map<String, Color> nikayaColors = {
 };*/
 
 String normalizeNikayaAcronym(String acronym) {
-  // Ubah strip jadi spasi biar konsisten
+  if (acronym.isEmpty) return "";
+
+  // 1. Ubah strip/dash jadi spasi biar konsisten
   String normalized = acronym.replaceAll("-", " ");
 
-  // Set khusus yang harus tetap full uppercase
-  const fullUpperSet = {"DN", "MN", "SN", "AN", "KN"};
+  // 2. 🔥 FIX: Buang SEMUA yang ada angka dan teks setelahnya
+  // Misal: "Tha Ap 1. Upalivagga" → "Tha Ap"
+  //        "Bi Pj 1-4" → "Bi Pj"
+  //        "Bu Vb Pj 123" → "Bu Vb Pj"
+  normalized = normalized.replaceAll(RegExp(r'\s+\d+.*$'), "").trim();
 
+  // 3. Set khusus yang harus tetap full uppercase
+  const fullUpperSet = {"DN", "MN", "SN", "AN", "KN"};
   if (fullUpperSet.contains(normalized.toUpperCase())) {
     return normalized.toUpperCase();
   }
 
-  // Kalau lebih dari satu kata, kapitalisasi tiap kata
+  // 4. Kapitalisasi tiap kata (Bi Pj, Tha Ap, dll)
   normalized = normalized
       .split(" ")
       .map(

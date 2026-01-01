@@ -839,7 +839,7 @@ class _RootPageState extends State<RootPage>
     }
 
     // 🔥 Debug log
-    print('📖 Input: "$input" → Code: "$code" → UID: "$uid"');
+    //print('📖 Input: "$input" → Code: "$code" → UID: "$uid"');
 
     // 🔥 BUKA SUTTAPLEX
     showModalBottomSheet(

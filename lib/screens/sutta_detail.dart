@@ -574,7 +574,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final uid = targetUid.toLowerCase().trim();
 
     // --- FILTER 1: KHUSUS VINAYA (Manual Mapping) ---
-    // --- FILTER 1: KHUSUS VINAYA (Manual Mapping) ---
     if (uid.startsWith("pli-tv-")) {
       if (uid.contains("bu-vb-pj")) {
         derivedAcronym = "Bu Pj";
@@ -627,9 +626,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
     // --- FILTER 3: KHUDDAKA & LAINNYA ---
     else {
-      final match = RegExp(r'^[a-z]+(?:-[a-z]+)?').stringMatch(uid);
+      // 🔥 FIX: Regex yang lebih robust untuk handle berbagai format
+      // Misal: "tha-ap-1.1" → "tha-ap"
+      //        "thag-1-upalivagga" → "thag"
+      //        "thig-2.1" → "thig"
+      final match = RegExp(r'^([a-z]+(?:-[a-z]+)?)').firstMatch(uid);
       if (match != null) {
-        String raw = match.replaceAll("-", " ").trim();
+        String raw = match.group(1)!.replaceAll("-", " ").trim();
         derivedAcronym = raw
             .split(" ")
             .map(
@@ -640,15 +643,15 @@ class _SuttaDetailState extends State<SuttaDetail> {
       }
     }
 
-    debugPrint("🚀 [OPEN MENU] UID: $targetUid -> ACRONYM: '$derivedAcronym'");
+    // 🔥 NORMALIZE hasilnya buat konsistensi
+    derivedAcronym = normalizeNikayaAcronym(derivedAcronym);
+
+    debugPrint("🚀 [OPEN MENU] UID: $targetUid → ACRONYM: '$derivedAcronym'");
 
     Navigator.of(context).push(
       MaterialPageRoute(
         settings: RouteSettings(name: '/vagga/$targetUid'),
-        builder: (_) => MenuPage(
-          uid: targetUid,
-          parentAcronym: derivedAcronym, // ✅ INI KUNCINYA
-        ),
+        builder: (_) => MenuPage(uid: targetUid, parentAcronym: derivedAcronym),
       ),
     );
   }
@@ -2087,6 +2090,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
   Future<void> _saveToHistory() async {
     final metadata = _getMetadata();
 
+    final rawAcronym =
+        widget.textData?["suttaplex"]?["acronym"] ??
+        widget.textData?["root_text"]?["acronym"] ??
+        "";
+    final normalizedAcronym = normalizeNikayaAcronym(rawAcronym);
+
+    // 🔥 DEBUG LOG
+    debugPrint("💾 [SAVE HISTORY] Raw Acronym: '$rawAcronym'");
+    debugPrint("💾 [SAVE HISTORY] Normalized: '$normalizedAcronym'");
+
     final historyItem = {
       'uid': widget.uid,
       'title':
@@ -2098,10 +2111,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
           widget.textData?["suttaplex"]?["original_title"] ??
           widget.textData?["root_text"]?["title"] ??
           "",
-      'acronym':
-          widget.textData?["suttaplex"]?["acronym"] ??
-          widget.textData?["root_text"]?["acronym"] ??
-          "",
+      'acronym': normalizedAcronym,
       'author': metadata["author"],
       'lang_name': metadata["langName"],
       'timestamp': DateTime.now().toIso8601String(),
@@ -2217,10 +2227,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
         widget.textData?["translation"]?["title"] ??
         widget.uid;
 
-    final String acronym =
+    final String rawAcronym =
         widget.textData?["suttaplex"]?["acronym"] ??
         widget.textData?["root_text"]?["acronym"] ??
         "";
+    final String acronym = normalizeNikayaAcronym(rawAcronym);
+    debugPrint("🎨 [SuttaDetail] Raw: '$rawAcronym' → Normalized: '$acronym'");
 
     final String rawBlurb = widget.textData?["suttaplex"]?["blurb"] ?? "";
     bool shouldShowBlurb = rawBlurb.isNotEmpty;
@@ -2754,14 +2766,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
                             if (acronym.isNotEmpty) ...[
                               const SizedBox(width: 4),
                               Text(
-                                acronym,
+                                rawAcronym,
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: getNikayaColor(
-                                    normalizeNikayaAcronym(
-                                      acronym.split(" ").first,
-                                    ),
+                                    normalizeNikayaAcronym(acronym),
                                   ),
                                 ),
                               ),

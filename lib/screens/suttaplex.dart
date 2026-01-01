@@ -606,6 +606,9 @@ class _SuttaplexState extends State<Suttaplex> {
                                       _sutta?["translated_title"] ??
                                       widget.uid,
                                   'acronym': _sutta?["acronym"] ?? "",
+                                  //'acronym': normalizeNikayaAcronym(
+                                  // _sutta?["acronym"] ?? "",
+                                  // ),
                                   'note': note,
                                 };
 
@@ -722,9 +725,7 @@ class _SuttaplexState extends State<Suttaplex> {
                                   fontWeight: FontWeight.bold,
                                   color: getNikayaColor(
                                     normalizeNikayaAcronym(
-                                      (_sutta?["acronym"] ?? "")
-                                          .split(" ")
-                                          .first,
+                                      _sutta?["acronym"] ?? "",
                                     ),
                                   ),
                                 ),
