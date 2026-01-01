@@ -737,7 +737,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                           ),
                           children: [
                             const TextSpan(
-                              text: "Ingin ganti penerjemah? Gunakan tombol ",
+                              text: "Ingin ganti versi teks? Gunakan ",
                             ),
                             WidgetSpan(
                               alignment: PlaceholderAlignment.middle,
@@ -1533,7 +1533,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   data: formattedComm,
                   style: {
                     "body": Style(
-                      fontFamily: GoogleFonts.notoSerif().fontFamily,
+                      fontFamily: GoogleFonts.varta().fontFamily,
                       fontSize: FontSize(fontSize),
                       margin: Margins.zero,
                       padding: HtmlPaddings.zero,
@@ -1619,7 +1619,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       topPadding = 16.0;
       bottomPadding = 16.0;
       paliStyle = TextStyle(
-        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontFamily: GoogleFonts.varta().fontFamily,
         fontSize: _fontSize * 1.10, // ← H1 jadi 1.3
         fontWeight: FontWeight.w900,
         color: headerColor,
@@ -1631,7 +1631,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       topPadding = 8.0;
       bottomPadding = 12.0;
       paliStyle = TextStyle(
-        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontFamily: GoogleFonts.varta().fontFamily,
         fontSize: _fontSize * 1.05, // ← H2 jadi 1.2
         fontWeight: FontWeight.bold,
         color: headerColor.withValues(alpha: 0.87),
@@ -1642,7 +1642,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       topPadding = 16.0;
       bottomPadding = 8.0;
       paliStyle = TextStyle(
-        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontFamily: GoogleFonts.varta().fontFamily,
         fontSize: _fontSize * 1, // ← H3 jadi 1.1
         fontWeight: FontWeight.w700,
         color: headerColor.withValues(alpha: 0.87),
@@ -1653,14 +1653,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
       topPadding = 0.0;
       bottomPadding = 8.0;
       paliStyle = TextStyle(
-        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontFamily: GoogleFonts.varta().fontFamily,
         fontSize: isPaliOnly ? _fontSize : _fontSize * 0.8, // ← CONDITIONAL
         fontWeight: FontWeight.w500,
         color: paliColor,
         height: 1.5,
       );
       transStyle = TextStyle(
-        fontFamily: GoogleFonts.notoSerif().fontFamily,
+        fontFamily: GoogleFonts.varta().fontFamily,
         fontSize: _fontSize,
         fontWeight: FontWeight.normal,
         color: transBodyColor,
@@ -1756,7 +1756,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       data: contentWithHighlight,
       style: {
         "body": Style(
-          fontFamily: GoogleFonts.notoSerif().fontFamily,
+          fontFamily: GoogleFonts.varta().fontFamily,
           fontSize: FontSize(baseStyle.fontSize ?? _fontSize),
           fontWeight: baseStyle.fontWeight,
           color: baseStyle.color,
@@ -2362,7 +2362,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 data: content,
                 style: {
                   "body": Style(
-                    fontFamily: GoogleFonts.notoSerif().fontFamily,
+                    fontFamily: GoogleFonts.varta().fontFamily,
                     fontSize: FontSize(_fontSize),
                     lineHeight: LineHeight(1.6),
                     margin: Margins.only(left: 10, right: 10),

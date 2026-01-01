@@ -116,17 +116,17 @@ class _PatipattiPageState extends State<PatipattiPage> {
         "items": [
           {
             "label": "Tujuh Bulan Kandungan",
-            "icon": Icons.pregnant_woman_rounded,
+            "icon": Icons.pregnant_woman_outlined,
             "files": DaftarIsi.parSti1_1,
           },
           {
             "label": "Menjelang Kelahiran",
-            "icon": Icons.child_care_rounded,
+            "icon": Icons.child_care_outlined,
             "files": DaftarIsi.parSti1_2,
           },
           {
             "label": "Pemberkahan Kelahiran",
-            "icon": Icons.child_friendly_rounded,
+            "icon": Icons.child_friendly_outlined,
             "files": DaftarIsi.parSti1_3,
           },
           {
@@ -136,12 +136,12 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
           {
             "label": "Potong Rambut",
-            "icon": Icons.content_cut_rounded,
+            "icon": Icons.content_cut_outlined,
             "files": DaftarIsi.parSti1_5,
           },
           {
             "label": "Peletakan Batu Pertama",
-            "icon": Icons.foundation_rounded,
+            "icon": Icons.foundation_outlined,
             "files": DaftarIsi.parSti1_6,
           },
           {
@@ -171,7 +171,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
           {
             "label": "Janji Di Pengadilan",
-            "icon": Icons.gavel_rounded,
+            "icon": Icons.gavel_outlined,
             "files": DaftarIsi.parSti1_12,
           },
           {
@@ -191,7 +191,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
           {
             "label": "Peringatan Kematian (Berkala)",
-            "icon": Icons.event_repeat_rounded,
+            "icon": Icons.event_repeat_outlined,
             "files": DaftarIsi.parSti1_16a,
           },
           {
@@ -221,7 +221,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
       {
         "type": "link",
         "label": "IV. Upacara Maṅgala",
-        "icon": Icons.favorite_border_rounded,
+        "icon": Icons.favorite_border_outlined,
         "files": DaftarIsi.parSti4,
       },
       {
@@ -233,7 +233,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
       {
         "type": "link",
         "label": "VI. Pāṭha-Pāṭha Khusus",
-        "icon": Icons.star_outline_rounded,
+        "icon": Icons.star_outline_outlined,
         "files": DaftarIsi.parSti6,
       },
       {
@@ -259,13 +259,13 @@ class _PatipattiPageState extends State<PatipattiPage> {
       {
         "type": "link",
         "label": "Paṭipattiyā Ratanattaya",
-        "icon": Icons.self_improvement,
+        "icon": Icons.self_improvement_outlined,
         "files": DaftarIsi.parLImaya,
       },
       {
         "type": "link",
         "label": "Paṭiccasamuppāda",
-        "icon": Icons.sync_alt_rounded,
+        "icon": Icons.sync_alt_outlined,
         "files": DaftarIsi.parLPaticca,
       },
       {
@@ -280,7 +280,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
           {
             "label": "Paccavekkhaṇā",
-            "icon": Icons.restaurant_menu_rounded,
+            "icon": Icons.restaurant_menu_outlined,
             "files": DaftarIsi.parLPacca,
           },
         ],
@@ -292,7 +292,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
         "items": [
           {
             "label": "Mahā Namakkāra Pāḷi",
-            "icon": Icons.nights_stay_rounded,
+            "icon": Icons.nights_stay_outlined,
             "files": DaftarIsi.parLMaha,
           },
         ],
@@ -304,7 +304,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
         "items": [
           {
             "label": "Paccayuddeso",
-            "icon": Icons.list_alt_rounded,
+            "icon": Icons.list_alt_outlined,
             "files": DaftarIsi.parLYuddeso,
           },
           {
@@ -318,7 +318,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
       {
         "type": "group",
         "label": "Dhammadesanā DBS",
-        "icon": Icons.calendar_month,
+        "icon": Icons.record_voice_over_outlined,
         "items": [
           {
             "label": "Permohonan Tisaraṇa & Pañcasīla",
@@ -327,7 +327,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
           {
             "label": "Persembahan Jasa-Jasa Kebajikan",
-            "icon": Icons.volunteer_activism,
+            "icon": Icons.volunteer_activism_outlined,
             "files": DaftarIsi.parLDBS2,
           },
         ],
@@ -335,8 +335,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
       {
         "type": "group",
-        "label": "Dhammadesanā Dhammarakkhita",
-        "icon": Icons.calendar_month,
+        "label": "Dhammadesanā DKS",
+        "icon": Icons.record_voice_over_outlined,
         "items": [
           {
             "label": "Permohonan Tisaraṇa & Pañcasīla",
@@ -345,7 +345,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
           {
             "label": "Okāsa & Pattidāna",
-            "icon": Icons.volunteer_activism,
+            "icon": Icons.volunteer_activism_outlined,
             "files": DaftarIsi.parLDKS2,
           },
         ],
@@ -354,7 +354,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
       {
         "type": "group",
         "label": "Dhammadesanā Yasati",
-        "icon": Icons.calendar_month,
+        "icon": Icons.record_voice_over_outlined,
         "items": [
           {
             "label": "Permohonan Tisaraṇa & Pañcasīla",
@@ -363,7 +363,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
           {
             "label": "Pattidāna",
-            "icon": Icons.volunteer_activism,
+            "icon": Icons.volunteer_activism_outlined,
             "files": DaftarIsi.parLYasati2,
           },
         ],
@@ -372,7 +372,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
       {
         "type": "group",
         "label": "Dhammadesanā PATVDH",
-        "icon": Icons.calendar_month,
+        "icon": Icons.record_voice_over_outlined,
         "items": [
           {
             "label": "Permohonan Tisaraṇa & Pañcasīla",
@@ -2012,6 +2012,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ? Colors.black26
         : Colors.white.withValues(alpha: 0.6);
 
+    // 🎨 WARNA BARU UNTUK ISI EXPAND (Lebih gelap dikit)
+    final expandedContentBg = isDark
+        ? lightBg.withValues(alpha: 0.5) // Dark mode: agak gelap
+        : lightBg.withValues(alpha: 0.3); // Light mode: agak terang
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -2024,8 +2029,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
-            backgroundColor: lightBg.withValues(alpha: 0.3),
-            collapsedBackgroundColor: lightBg,
+            // ✅ HEADER (Collapsed): Warna SAMA kayak button biasa
+            backgroundColor: expandedContentBg, // Pas dibuka (isi)
+            collapsedBackgroundColor:
+                lightBg, // Pas ditutup (sama kayak button)
+
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.zero,
             ),
@@ -2061,7 +2069,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                   label: item['label'],
                   icon: item['icon'],
                   color: accentColor,
-                  lightBg: lightBg,
+                  lightBg: lightBg, // Isi tetap pakai warna original
                   borderColor: borderColor,
                   isHorizontal: true,
                   onTap: () {

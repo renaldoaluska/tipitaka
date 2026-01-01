@@ -62,8 +62,8 @@ class ThemeManager extends ChangeNotifier {
       onSurfaceVariant: Colors.grey[600]!,
       secondary: Colors.blueGrey,
     ),
-    textTheme: GoogleFonts.notoSansTextTheme(), // ✅ TAMBAH INI
-    primaryTextTheme: GoogleFonts.notoSansTextTheme(), // ✅ TAMBAH INI
+    textTheme: GoogleFonts.interTextTheme(), // ✅ TAMBAH INI
+    primaryTextTheme: GoogleFonts.interTextTheme(), // ✅ TAMBAH INI
     useMaterial3: true,
   );
 
@@ -79,11 +79,11 @@ class ThemeManager extends ChangeNotifier {
       onSurfaceVariant: Colors.grey[400]!,
       secondary: Colors.amber,
     ),
-    textTheme: GoogleFonts.notoSansTextTheme(
+    textTheme: GoogleFonts.interTextTheme(
       // ✅ TAMBAH INI
       ThemeData.dark().textTheme,
     ),
-    primaryTextTheme: GoogleFonts.notoSansTextTheme(
+    primaryTextTheme: GoogleFonts.interTextTheme(
       // ✅ TAMBAH INI
       ThemeData.dark().primaryTextTheme,
     ),

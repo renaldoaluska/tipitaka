@@ -180,6 +180,7 @@ class _TematikPageState extends State<TematikPage> {
     final detail = TematikData.getChapterDetail(chapterIndex);
     final items = detail["items"] as List<Map<String, String>>;
 
+    final textColor = Theme.of(context).colorScheme.onSurface;
     final total = items.where((s) => s["code"]!.isNotEmpty).length;
     final done = items.where((s) {
       final uid = TematikData.parseSuttaCode(s["code"]!);
@@ -241,9 +242,10 @@ class _TematikPageState extends State<TematikPage> {
                         children: [
                           Text(
                             item["title"]!,
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: 14, //3dst
                               fontWeight: FontWeight.bold,
+                              color: textColor,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -421,7 +423,7 @@ class _TematikPageState extends State<TematikPage> {
                     child: Text(
                       item["title"]!,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14, //dlm dialog
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
@@ -525,7 +527,7 @@ class _TematikPageState extends State<TematikPage> {
                     Text(
                       item["title"]!,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 14, //1-2
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
