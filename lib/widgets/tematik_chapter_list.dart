@@ -114,6 +114,12 @@ class _TematikChapterListState extends State<TematikChapterList> {
     final items = detail["items"] as List<Map<String, String>>;
     final romanNumeral = _getRomanNumeral();
 
+    // PERBAIKAN: Ambil judul dengan fallback ke Main Menu kalau null
+    // Jadi kalau detail["title"] kosong/dihapus, dia ambil judul asli dari menu depan
+    final String titleText = (detail["title"] as String?)?.isNotEmpty == true
+        ? detail["title"]
+        : TematikData.mainMenu[widget.chapterIndex]["title"]!;
+
     // Hitung progress
     final total = items.where((s) => s["code"]!.isNotEmpty).length;
     final done = items.where((s) {
@@ -136,6 +142,8 @@ class _TematikChapterListState extends State<TematikChapterList> {
             children: [
               Row(
                 children: [
+                  // BAGIAN 1: KOTAK ANGKA ROMAWI (Kotak Oranye)
+                  // Ini otomatis muncul kalau ada angkanya (Chapter 2 ke atas)
                   if (romanNumeral.isNotEmpty) ...[
                     Container(
                       width: 40,
@@ -151,7 +159,7 @@ class _TematikChapterListState extends State<TematikChapterList> {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        romanNumeral,
+                        romanNumeral, // <--- Angka Romawi diambil dari sini
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -161,15 +169,18 @@ class _TematikChapterListState extends State<TematikChapterList> {
                     ),
                     const SizedBox(width: 12),
                   ],
+                  // BAGIAN 2: TEKS JUDUL
+                  // REPLACE Expanded Text yang lama dengan ini:
                   Expanded(
                     child: Text(
-                      detail["title"] ?? "Chapter $romanNumeral",
+                      titleText, // <--- Pakai variabel titleText yang baru
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
+
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),

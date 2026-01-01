@@ -94,7 +94,6 @@ class TematikData {
 
       case 2:
         return {
-          "title": "I. Kondisi Dunia",
           "items": [
             {
               "section": "",
@@ -150,9 +149,10 @@ class TematikData {
             // Dunia dalam Kekacauan
             {
               "section": "Dunia dalam Kekacauan",
-              "name": "Asal-mula Konflik",
+              "name": "Asal-mula Konflik (AN 2.37)",
               "desc": "",
-              "code": "AN 2.37",
+              //"code": "AN 2.37",
+              "code": "AN 2.32-41",
               "ref": "3(1)",
             },
             {
@@ -217,7 +217,6 @@ class TematikData {
 
       case 3:
         return {
-          "title": "II. Pembawa Cahaya",
           "items": [
             {
               "section": "",
@@ -280,7 +279,6 @@ class TematikData {
 
       case 4:
         return {
-          "title": "III. Mendatangi Dhamma",
           "items": [
             {
               "section": "",
@@ -329,7 +327,6 @@ class TematikData {
 
       case 5:
         return {
-          "title": "IV. Kebahagiaan Hidup Ini",
           "items": [
             {
               "section": "",
@@ -469,7 +466,6 @@ class TematikData {
 
       case 6:
         return {
-          "title": "V. Punarbawa Bahagia",
           "items": [
             {
               "section": "",
@@ -602,7 +598,6 @@ class TematikData {
 
       case 7:
         return {
-          "title": "VI. Pandangan Dunia",
           "items": [
             {
               "section": "",
@@ -721,7 +716,6 @@ class TematikData {
 
       case 8:
         return {
-          "title": "VII. Jalan Pembebasan",
           "items": [
             {
               "section": "",
@@ -952,7 +946,6 @@ class TematikData {
 
       case 10:
         return {
-          "title": "IX. Cahaya Kebijaksanaan",
           "items": [
             {
               "section": "",
@@ -1358,7 +1351,6 @@ class TematikData {
 
       case 11:
         return {
-          "title": "X. Tingkat Kemuliaan",
           "items": [
             {
               "section": "",

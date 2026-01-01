@@ -99,6 +99,12 @@ class ExploreTabIkuti extends StatelessWidget {
         "desc": "Akun Instagram yang rutin mengunggah kutipan Buddhis",
         "url": "https://www.instagram.com/tipitakaharian/",
       },
+      {
+        "title": "@Sasana_Buddha",
+        "desc":
+            "Akun Instagram kajian Buddhis berlandaskan Tipiṭaka dan Aṭṭhakathā",
+        "url": "https://www.instagram.com/sasana_buddha/",
+      },
     ];
 
     return ExploreTab(

@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_custom_tabs/flutter_custom_tabs.dart';
 import 'package:tipitaka/widgets/tematik_chapter_list.dart';
+import '../data/html_data.dart';
 import '../data/tematik_data.dart';
-import 'tematik_webview.dart';
+import 'html.dart';
 
 class TematikPage extends StatefulWidget {
   const TematikPage({super.key});
@@ -303,11 +304,26 @@ class _TematikPageState extends State<TematikPage> {
         child: InkWell(
           onTap: () {
             final pendahuluanNumber = chapterIndex - 1;
-            _openWebView(
+            /*_openWebView(
               context,
               "pendahuluan$pendahuluanNumber",
               "Pendahuluan $roman",
               chapterIndex,
+            );
+            */
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => HtmlReaderPage(
+                  title: 'Pendahuluan $roman',
+                  // akses pake kurung siku []
+                  // pastiin kasih default value (?? []) jaga-jaga kalo null
+                  chapterFiles: DaftarIsi.tem1_10[pendahuluanNumber] ?? [],
+                  initialIndex: 0,
+                  tematikChapterIndex: chapterIndex,
+                ),
+              ),
             );
           },
           borderRadius: BorderRadius.circular(12),
@@ -357,7 +373,7 @@ class _TematikPageState extends State<TematikPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
+        height: MediaQuery.of(context).size.height * 0.85,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -533,8 +549,19 @@ class _TematikPageState extends State<TematikPage> {
     if (chapterIndex == 0) {
       switch (index) {
         case 0:
-          _openWebView(context, "apaitutematik", "Penjelasan Singkat", null);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HtmlReaderPage(
+                title: 'Penjelasan Singkat',
+                chapterFiles: DaftarIsi.tem,
+                initialIndex: 0,
+                tematikChapterIndex: 0, // ✅ Kirim index 0 (Info Umum)
+              ),
+            ),
+          );
           break;
+        // ... case 1 ...
         case 1:
           _launchURL(
             context,
@@ -544,14 +571,34 @@ class _TematikPageState extends State<TematikPage> {
       }
     } else if (chapterIndex == 1) {
       if (index == 0) {
-        _openWebView(context, "prakata", "Prakata", null);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HtmlReaderPage(
+              title: 'Prakata',
+              chapterFiles: DaftarIsi.tem0_1,
+              initialIndex: 0,
+              tematikChapterIndex: 1, // ✅ Kirim index 1
+            ),
+          ),
+        );
       } else if (index == 1) {
-        _openWebView(context, "pendahuluanUmum", "Pendahuluan Umum", null);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HtmlReaderPage(
+              title: 'Pendahuluan Umum',
+              chapterFiles: DaftarIsi.tem0_2,
+              initialIndex: 0,
+              tematikChapterIndex: 1, // ✅ Kirim index 1
+            ),
+          ),
+        );
       }
     }
   }
 
-  void _openWebView(
+  /* void _openWebView(
     BuildContext context,
     String key,
     String title,
@@ -571,7 +618,7 @@ class _TematikPageState extends State<TematikPage> {
       );
     }
   }
-
+*/
   String _getRomanNumeral(int index) {
     if (index < 2) return "";
     const numerals = [

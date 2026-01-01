@@ -33,7 +33,7 @@ class TripitakaApp extends StatelessWidget {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
-          title: 'Tipitaka Indonesia',
+          title: 'myTipitaka',
           theme: themeManager.lightTheme,
 
           darkTheme: themeManager.darkTheme,
@@ -190,27 +190,42 @@ class _RootPageState extends State<RootPage>
       const PariyattiContent(tab: 2),
       PatipattiPage(highlightSection: _patipattiHighlight),
     ];
+    // ✅ BUNGKUS SCAFFOLD DENGAN POP SCOPE
+    return PopScope(
+      // Kalau FAB kebuka, canPop = false (Tahan back button)
+      // Kalau FAB ketutup, canPop = true (Silakan keluar app)
+      canPop: !_isFabExpanded,
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              if (mounted) {
-                setState(() => _currentIndex = index);
-              }
-            },
-            physics: const BouncingScrollPhysics(),
-            children: pages,
-          ),
-          if (_currentIndex >= 1 && _currentIndex <= 3)
-            _buildPariyattiOverlay(),
-          if (_currentIndex >= 1 && _currentIndex <= 3) _buildFabSearch(),
-        ],
+      onPopInvokedWithResult: (didPop, result) {
+        // Kalau sistem sudah mengizinkan keluar (didPop == true), biarkan.
+        if (didPop) return;
+
+        // Kalau ditahan (karena FAB kebuka), kita tutup FAB-nya manual
+        if (_isFabExpanded) {
+          _toggleFab();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Stack(
+          children: [
+            PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                if (mounted) {
+                  setState(() => _currentIndex = index);
+                }
+              },
+              physics: const BouncingScrollPhysics(),
+              children: pages,
+            ),
+            if (_currentIndex >= 1 && _currentIndex <= 3)
+              _buildPariyattiOverlay(),
+            if (_currentIndex >= 1 && _currentIndex <= 3) _buildFabSearch(),
+          ],
+        ),
+        bottomNavigationBar: _buildBottomNav(),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 

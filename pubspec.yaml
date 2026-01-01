@@ -76,6 +76,7 @@ flutter:
   assets:
     - assets/
     - assets/web/
+    - assets/web/tem/
     - assets/web/abh/
     - assets/web/par/lain/
     - assets/web/par/lain/dbs/

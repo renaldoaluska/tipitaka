@@ -1300,7 +1300,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         contentSpans = [
           TextSpan(
             text:
-                "Teks $uid ($lang) tidak tersedia. Ganti versi terjemahan melalui tombol ",
+                "Teks $uid ($lang) oleh $author tak tersedia. Ganti versi terjemahan melalui ",
           ),
           const WidgetSpan(
             alignment: PlaceholderAlignment.middle,
@@ -2907,7 +2907,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
           // --- TENGAH (TOOLS) ---
           buildBtn(
-            icon: Icons.menu_book_rounded,
+            icon: Icons.translate_rounded,
             tooltip: "Info Sutta & Terjemahan",
             onTap: _isLoading ? null : _openSuttaplexModal,
           ),
@@ -3143,19 +3143,21 @@ class _SuttaDetailState extends State<SuttaDetail> {
       ),
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.85,
-        child: Suttaplex(
-          uid: widget.uid,
-          sourceMode:
-              "sutta_detail", // ✅ Mode dari SuttaDetail (via book button)
-          onSelect: (newUid, lang, authorUid, textData) {
-            _replaceToSutta(
-              newUid,
-              lang,
-              authorUid: authorUid,
-              segmented: textData["segmented"] == true,
-              textData: textData,
-            );
-          },
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          child: Suttaplex(
+            uid: widget.uid,
+            sourceMode: "sutta_detail",
+            onSelect: (newUid, lang, authorUid, textData) {
+              _replaceToSutta(
+                newUid,
+                lang,
+                authorUid: authorUid,
+                segmented: textData["segmented"] == true,
+                textData: textData,
+              );
+            },
+          ),
         ),
       ),
     );

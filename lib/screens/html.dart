@@ -6,6 +6,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/theme/theme_manager.dart';
+import '../widgets/tematik_chapter_list.dart';
 
 // Taruh di paling atas file html.dart (di luar class)
 enum ReaderTheme { light, light2, sepia, dark, dark2 }
@@ -14,12 +15,14 @@ class HtmlReaderPage extends StatefulWidget {
   final String title;
   final List<String> chapterFiles;
   final int initialIndex;
+  final int? tematikChapterIndex;
 
   const HtmlReaderPage({
     super.key,
     required this.title,
     required this.chapterFiles,
     this.initialIndex = 0,
+    this.tematikChapterIndex,
   });
 
   @override
@@ -209,9 +212,36 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       }
     }
   }
+
+  // ✅ Tambahkan fungsi ini
+  void _showTematikListModal() {
+    if (widget.tematikChapterIndex == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: TematikChapterList(
+          chapterIndex: widget.tematikChapterIndex!,
+          // Callback kosong karena kita cuma butuh listnya saja untuk navigasi/cek
+          onChecklistChanged: () {},
+        ),
+      ),
+    );
+  }
+
   // --- LOGIC SEARCH & HIGHLIGHT ---
 
   void _performSearch(String query) {
+    // ✅ Safety check: kalau widget udah gak aktif, stop.
+    if (!mounted) return;
+
     if (query.isEmpty) {
       _clearSearch();
       return;
@@ -283,10 +313,17 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   void _clearSearch() {
+    // 1. Matikan timer pencarian yang mungkin masih jalan
+    _debounce?.cancel();
+
+    // 2. Bersihkan controller textfield
     _searchController.clear();
+
+    // 3. Reset semua state search
     setState(() {
       _currentQuery = "";
       _allMatches.clear();
+      _searchKeys.clear(); // ✅ PENTING: Hapus key lama
       _currentMatchIndex = -1;
       _displayHtmlContent = _rawHtmlContent; // Balikin ke HTML original
     });
@@ -787,6 +824,15 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             color: Colors.grey.withValues(alpha: 0.2),
           ),
 
+          // ✅ SISIPKAN KODE INI DI SINI
+          // Hanya muncul jika tematikChapterIndex TIDAK NULL
+          if (widget.tematikChapterIndex != null)
+            buildBtn(
+              icon: Icons.library_books_rounded, // Ikon Daftar Teks
+              onTap: _showTematikListModal,
+            ),
+          // ✅ BATAS KODE BARU
+
           // --- TOOLS ---
           buildBtn(
             icon: Icons.search_rounded,
@@ -797,9 +843,9 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             isActive: _isSearchModalOpen,
           ),
 
-          buildBtn(icon: Icons.vertical_align_top_rounded, onTap: _scrollToTop),
-
           buildBtn(icon: Icons.text_fields_rounded, onTap: _showSettingsModal),
+
+          buildBtn(icon: Icons.vertical_align_top_rounded, onTap: _scrollToTop),
 
           // Divider Tipis
           Container(
@@ -1219,22 +1265,33 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                   : null,
                             ),
                             onChanged: (val) {
+                              // 1. Cancel timer sebelumnya biar gak numpuk
                               if (_debounce?.isActive ?? false) {
                                 _debounce!.cancel();
                               }
+
+                              // 2. Kalau teks kosong/dihapus habis, langsung clear bersih
+                              if (val.isEmpty) {
+                                _clearSearch();
+                                if (mounted) setSheetState(() {});
+                                return;
+                              }
+
+                              // 3. Pasang timer baru (tunggu 500ms setelah user berhenti ngetik)
                               _debounce = Timer(
                                 const Duration(milliseconds: 500),
                                 () {
                                   if (!mounted) return;
+
+                                  // Cek lagi val terbaru (karena bisa berubah saat timer jalan)
                                   if (val.trim().length >= 2) {
                                     _performSearch(val);
                                   } else {
-                                    // Kalau dihapus jadi pendek, clear highlight
-                                    setState(() {
-                                      _allMatches.clear();
-                                      _displayHtmlContent = _rawHtmlContent;
-                                    });
+                                    // Kalau cuma 1 huruf, jangan search, tapi jangan error juga
+                                    // Opsional: Boleh di-clear atau didiamkan
+                                    // _clearSearch();
                                   }
+
                                   if (mounted) setSheetState(() {});
                                 },
                               );
