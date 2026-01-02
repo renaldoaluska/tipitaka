@@ -25,12 +25,6 @@ class ExploreTabApp extends StatelessWidget {
       {"title": "Terjemahan Indonesia", "isHeader": "true"},
 
       {
-        "title": "Sariputta",
-        "desc":
-            "Berbagai versi Tipiṭaka, paritta, referensi, dan sumber daya lainnya",
-        "url": "https://www.sariputta.com/",
-      },
-      {
         "title": "DhammaCitta\nTipiṭaka",
         "desc": "Tipiṭaka Indonesia versi DhammaCitta",
         "url": "https://dhammacitta.org/definisi/teks-buddhisme.html",

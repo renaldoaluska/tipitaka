@@ -164,10 +164,11 @@ class _HomeState extends State<Home> {
       ),
 
       title: HeaderDepan(
-        title: "Namo Buddhāya",
-        subtitle: "Sotthi Hotu", // Subtitle utama
+        title: "myDhamma",
+        subtitle: "Namo Buddhāya", // Subtitle utama
         subtitlesList: const [
           // List tambahannya
+          "Sotthi Hotu",
           "Suvatthi Hotu",
           "Sukhī Hotu",
           "Sukhitā Hontu Ñātayo",

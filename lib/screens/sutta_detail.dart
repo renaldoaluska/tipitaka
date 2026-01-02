@@ -115,7 +115,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         return {
           'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
           'text': const Color(0xFF424242), // ✨ Custom: Abu Tua Soft
-          'note': Colors.grey[500]!,
+          'note': const Color(0xFF9E9E9E),
           'card': uiCardColor,
           'icon': uiIconColor,
         };
@@ -147,7 +147,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         return {
           'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
           'text': const Color(0xFFB0BEC5), // ✨ Custom: Abu Kebiruan
-          'note': Colors.grey[600]!,
+          'note': const Color(0xFF757575),
           'card': uiCardColor,
           'icon': uiIconColor,
         };
@@ -2123,24 +2123,25 @@ class _SuttaDetailState extends State<SuttaDetail> {
   Widget _buildInfoRow(IconData icon, String label, String value) {
     // ✅ FIX: Ambil warna dari tema baca, bukan System HP
     final colors = _themeColors;
-    final mainColor = colors['text']!;
-    final subColor = colors['note']!; // atau colors['icon']
+    //final mainColor = colors['text']!;
+    //final subColor = colors['note']!; // atau colors['icon']
+    final iconColor = colors['icon']!; // atau colors['icon']
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: subColor),
+        Icon(icon, size: 18, color: iconColor),
         const SizedBox(width: 8),
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: TextStyle(fontSize: 14, color: subColor),
+              style: TextStyle(fontSize: 14, color: iconColor),
               children: [
                 TextSpan(
                   text: "$label: ",
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: mainColor,
+                    color: iconColor,
                   ),
                 ),
                 TextSpan(
@@ -2665,7 +2666,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     title: Text(
                                       widget.textData?["suttaplex"]?["original_title"] ??
                                           suttaTitle,
-                                      style: TextStyle(color: textColor),
+                                      style: TextStyle(color: iconColor),
                                     ),
                                     content: SingleChildScrollView(
                                       child: Column(
@@ -2678,7 +2679,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                             Html(
                                               data: rawBlurb,
                                               style: {
-                                                "body": Style(color: textColor),
+                                                "body": Style(color: iconColor),
                                               },
                                             ),
                                             const SizedBox(height: 16),
@@ -2690,7 +2691,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 15,
-                                              color: textColor,
+                                              color: iconColor,
                                             ),
                                           ),
                                           const SizedBox(height: 12),
@@ -2739,14 +2740,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 15,
-                                                color: textColor,
+                                                color: iconColor,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
                                             Html(
                                               data: _footerInfo,
                                               style: {
-                                                "body": Style(color: textColor),
+                                                "body": Style(color: iconColor),
                                               },
                                             ),
                                           ],
@@ -3269,7 +3270,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                           _buildThemeOption(
                             context,
                             ReaderTheme.light2,
-                            Colors.grey[50]!,
+                            const Color(0xFFFAFAFA),
                             const Color(0xFF424242), // Preview Text Abu Tua
                             "Terang 2",
                             () => setModalState(() {}),

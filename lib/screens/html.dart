@@ -6,7 +6,10 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/theme_manager.dart';
+import '../data/html_data.dart';
+import '../widgets/audio.dart';
 import '../widgets/tematik_chapter_list.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 // Taruh di paling atas file html.dart (di luar class)
 enum ReaderTheme { light, light2, sepia, dark, dark2 }
@@ -40,6 +43,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   bool _isScrolled = false;
   bool _isSearchModalOpen = false;
 
+  // 🔧 TAMBAH STATE UNTUK AUDIO
+  bool _isOnline = true;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+
   // Konten HTML
   String _rawHtmlContent = '';
   String _displayHtmlContent = '';
@@ -52,8 +59,24 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   // Controllers
   late final ScrollController _scrollController;
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  bool _isPlayerVisible = false; // Buat toggle buka/tutup
+  String _currentAudioUrl = ""; // Buat nyimpen url audio yg aktif
+
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
+
+  // 🔧 AUTO DETECT: File Paritta = yang ada di folder 'par/' DAN filename mulai 'p'
+  bool get _isParittaPage {
+    if (_currentIndex >= widget.chapterFiles.length) return false;
+    final currentFile = widget.chapterFiles[_currentIndex];
+
+    // Check: ada 'par/' di path DAN filename mulai 'p'
+    final fileName = currentFile.split('/').last;
+    return currentFile.contains('par/') && fileName.startsWith('p');
+  }
 
   // ============================================
   // THEME COLORS GETTER
@@ -79,7 +102,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': const Color(0xFF424242),
-          'note': Colors.grey[500]!,
+          'note': const Color(0xFF9E9E9E),
           'card': uiCardColor,
           'icon': uiIconColor,
         };
@@ -105,7 +128,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': const Color(0xFFB0BEC5),
-          'note': Colors.grey[600]!,
+          'note': const Color(0xFF757575),
           'card': uiCardColor,
           'icon': uiIconColor,
         };
@@ -126,7 +149,12 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     _loadZoomPreference();
     _loadHtmlContent();
 
-    // ✅ BEST PRACTICE: Setup scroll listener setelah frame pertama
+    // 🔧 SETUP CONNECTIVITY LISTENER
+    _initConnectivity();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _updateConnectionStatus,
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _scrollController.hasClients) {
         _scrollController.addListener(_onScroll);
@@ -136,13 +164,13 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   @override
   void dispose() {
-    // ✅ PROPER CLEANUP SEQUENCE (PENTING URUTANNYA!)
-
-    // 1. Cancel timer dulu
     _debounce?.cancel();
     _debounce = null;
 
-    // 2. Tutup modal paksa (kalau masih kebuka)
+    // 🔧 DISPOSE CONNECTIVITY
+    _connectivitySubscription?.cancel();
+
+    // Tutup search modal kalau masih terbuka
     if (_isSearchModalOpen && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         try {
@@ -155,13 +183,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       });
     }
 
-    // 3. Reset state (TANPA setState karena sudah dispose)
     _isSearchModalOpen = false;
     _currentQuery = "";
     _allMatches.clear();
     _searchKeys.clear();
 
-    // 4. Dispose controllers (scroll dulu, baru textfield)
     try {
       if (_scrollController.hasClients) {
         _scrollController.removeListener(_onScroll);
@@ -176,11 +202,122 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     super.dispose();
   }
 
+  // 🔧 CONNECTIVITY METHODS
+  Future<void> _initConnectivity() async {
+    try {
+      final results = await Connectivity().checkConnectivity();
+      _updateConnectionStatus(results);
+    } catch (e) {
+      debugPrint('Connectivity error: $e');
+    }
+  }
+
+  void _updateConnectionStatus(List<ConnectivityResult> results) {
+    if (!mounted) return;
+    setState(() {
+      _isOnline =
+          results.isNotEmpty && !results.contains(ConnectivityResult.none);
+    });
+  }
+
+  // 🔧 AUDIO METHODS
+  String _getCurrentFileName() {
+    if (_currentIndex >= widget.chapterFiles.length) return '';
+    return widget.chapterFiles[_currentIndex].split('/').last;
+  }
+
+  bool _hasAudioForCurrentPage() {
+    return DaftarIsi.audioUrls.containsKey(_getCurrentFileName());
+  }
+
+  void _handleAudioButtonPress() {
+    // 1. Cek Koneksi dulu (copy logic lama kamu)
+    if (!_isOnline) {
+      _showAudioMessage(
+        "Tidak Ada Koneksi Internet",
+        "Mohon periksa koneksi internet Anda...",
+        Icons.wifi_off_rounded,
+        Colors.orange,
+      );
+      return;
+    }
+
+    // 2. Ambil URL audio halaman ini
+    final fileName = _getCurrentFileName();
+    final audioUrl = DaftarIsi.audioUrls[fileName];
+
+    // 3. Cek ada audionya gak
+    if (audioUrl == null || audioUrl.isEmpty) {
+      _showAudioMessage(
+        "Audio Tidak Tersedia",
+        "Belum ada audio untuk halaman ini.",
+        Icons.music_off_rounded,
+        Colors.grey,
+      );
+      // Kalau player lagi kebuka tapi ternyata file ini gak ada audio, tutup aja
+      if (_isPlayerVisible) {
+        setState(() => _isPlayerVisible = false);
+      }
+      return;
+    }
+
+    // 4. LOGIC TOGGLE (SAKELAR)
+    setState(() {
+      if (_isPlayerVisible) {
+        // Kalau lagi kebuka -> TUTUP
+        _isPlayerVisible = false;
+      } else {
+        // Kalau lagi ketutup -> BUKA & SET URL BARU
+        _currentAudioUrl = audioUrl;
+        _isPlayerVisible = true;
+      }
+    });
+  }
+
+  void _showAudioMessage(
+    String title,
+    String message,
+    IconData icon,
+    Color color,
+  ) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(message, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   // ============================================
   // SCROLL LISTENER
   // ============================================
   void _onScroll() {
-    // ✅ TRIPLE SAFETY CHECK
     if (!mounted) return;
     if (!_scrollController.hasClients) return;
 
@@ -211,13 +348,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       final htmlFile = widget.chapterFiles[_currentIndex];
       String content = await rootBundle.loadString(htmlFile);
 
-      // Load tema preference
       final prefs = await SharedPreferences.getInstance();
 
-      // ✅ MOUNTED CHECK SETELAH AWAIT
       if (!mounted) return;
 
-      // Tentukan tema
       final themeIndex = prefs.getInt('reader_theme_index');
       ReaderTheme targetTheme;
 
@@ -234,7 +368,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
       setState(() => _readerTheme = targetTheme);
 
-      // Inject theme class
       final isDarkVariant =
           targetTheme == ReaderTheme.dark || targetTheme == ReaderTheme.dark2;
       final themeClass = isDarkVariant ? 'mode-dark' : 'mode-light';
@@ -242,7 +375,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
       _rawHtmlContent = content;
 
-      // Re-apply search jika ada query aktif
       if (_currentQuery.isNotEmpty) {
         _applySearchHighlight(_currentQuery);
       } else {
@@ -304,7 +436,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       _displayHtmlContent = highlightedHtml;
     });
 
-    // Auto scroll ke hasil pertama
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (matches.isNotEmpty) _jumpToResult(0);
     });
@@ -333,10 +464,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   void _clearSearch() {
-    // ✅ BEST PRACTICE: Cancel timer dulu
     _debounce?.cancel();
-
-    // ✅ LANGSUNG CLEAR (Gak perlu cek hasListeners)
     _searchController.clear();
 
     if (!mounted) return;
@@ -363,11 +491,22 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   void _goToIndex(int newIndex) {
     if (newIndex >= 0 && newIndex < widget.chapterFiles.length) {
-      // Clear search saat pindah halaman
       _currentQuery = "";
       _allMatches.clear();
 
-      setState(() => _currentIndex = newIndex);
+      setState(() {
+        _currentIndex = newIndex;
+
+        // TAMBAHAN:
+        // Kalau player lagi kebuka, kita cek halaman baru ada audionya gak?
+        // Kalau mau simpel: tutup aja player tiap ganti halaman.
+        _isPlayerVisible = false;
+
+        // Tapi kalau mau canggih (tetep play), logicnya agak kompleks
+        // karena harus handle stop player lama & start player baru.
+        // Saran: Tutup aja dulu (_isPlayerVisible = false) biar aman.
+      });
+
       _loadHtmlContent();
     }
   }
@@ -480,7 +619,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Handle Bar
                     Container(
                       width: 40,
                       height: 4,
@@ -490,8 +628,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-
-                    // Search Field
                     Row(
                       children: [
                         Expanded(
@@ -527,7 +663,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                             onChanged: (val) {
                               if (!mounted) return;
 
-                              // Cancel timer lama
                               _debounce?.cancel();
 
                               if (val.isEmpty) {
@@ -536,7 +671,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                 return;
                               }
 
-                              // Set timer baru
                               _debounce = Timer(
                                 const Duration(milliseconds: 500),
                                 () {
@@ -562,8 +696,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-
-                    // Search Controls
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -613,13 +745,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         );
       },
     ).whenComplete(() {
-      // ✅ BEST PRACTICE: Delay cleanup pake microtask
       Future.microtask(() {
         if (!mounted) return;
 
         setState(() => _isSearchModalOpen = false);
 
-        // Clear search state (TANPA rebuild)
         _debounce?.cancel();
         _currentQuery = "";
         _allMatches.clear();
@@ -627,7 +757,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         _currentMatchIndex = -1;
         _displayHtmlContent = _rawHtmlContent;
 
-        // ✅ LANGSUNG CLEAR (Gak perlu cek hasListeners)
         _searchController.clear();
       });
     });
@@ -653,7 +782,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -672,8 +800,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                       ],
                     ),
                     const SizedBox(height: 24),
-
-                    // Tema Baca
                     Text(
                       "Tema Baca",
                       style: TextStyle(
@@ -699,7 +825,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                           _buildThemeOption(
                             context,
                             ReaderTheme.light2,
-                            Colors.grey[50]!,
+                            const Color(0xFFFAFAFA),
                             const Color(0xFF424242),
                             "Terang 2",
                             () => setModalState(() {}),
@@ -735,8 +861,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Ukuran Teks
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -910,6 +1034,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         await _handleBackNavigation();
       },
       child: Scaffold(
+        key: _scaffoldKey,
         backgroundColor: colors['bg'],
         body: Stack(
           children: [
@@ -934,46 +1059,57 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                       child: SingleChildScrollView(
                         key: ValueKey<int>(_currentIndex),
                         controller: _scrollController,
-                        padding: const EdgeInsets.only(bottom: 120),
-                        child: Html(
-                          data: _displayHtmlContent,
-                          style: _getHtmlStyles(),
-                          extensions: [
-                            TagExtension(
-                              tagsToExtend: {"mark-highlight"},
-                              builder: (extensionContext) {
-                                final indexStr =
-                                    extensionContext.attributes['index'];
-                                if (indexStr != null) {
-                                  final int index = int.parse(indexStr);
-                                  final key = GlobalKey();
-                                  _searchKeys[index] = key;
 
-                                  return Container(
-                                    key: key,
-                                    decoration: BoxDecoration(
-                                      color: Colors.yellow,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 2,
-                                    ),
-                                    child: Text(
-                                      extensionContext.element!.text,
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
+                        // --- BAGIAN INI ---
+                        // Logikanya:
+                        // Kalo player aktif (_isPlayerVisible = true) -> kasih padding gede (misal 340)
+                        // Kalo player mati  (_isPlayerVisible = false) -> padding standar (120)
+                        padding: EdgeInsets.only(
+                          bottom: _isPlayerVisible ? 340 : 120,
+                        ),
+
+                        // -----------------------
+                        child: SelectionArea(
+                          child: Html(
+                            data: _displayHtmlContent,
+                            style: _getHtmlStyles(),
+                            extensions: [
+                              TagExtension(
+                                tagsToExtend: {"mark-highlight"},
+                                builder: (extensionContext) {
+                                  final indexStr =
+                                      extensionContext.attributes['index'];
+                                  if (indexStr != null) {
+                                    final int index = int.parse(indexStr);
+                                    final key = GlobalKey();
+                                    _searchKeys[index] = key;
+
+                                    return Container(
+                                      key: key,
+                                      decoration: BoxDecoration(
+                                        color: Colors.yellow,
+                                        borderRadius: BorderRadius.circular(4),
                                       ),
-                                    ),
-                                  );
-                                }
-                                return Text(extensionContext.element!.text);
-                              },
-                            ),
-                          ],
-                          onLinkTap: (url, attributes, element) {
-                            if (url != null) _handleLinkTap(url);
-                          },
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: Text(
+                                        extensionContext.element!.text,
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return Text(extensionContext.element!.text);
+                                },
+                              ),
+                            ],
+                            onLinkTap: (url, attributes, element) {
+                              if (url != null) _handleLinkTap(url);
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -984,7 +1120,33 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           ],
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: _buildFloatingActions(isFirst, isLast),
+
+        // Di dalam method build()
+        floatingActionButton: Column(
+          mainAxisSize: MainAxisSize.min, // Biar tingginya nyesuain isi
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            // 1. KOTAK PEMUTARAN (Muncul cuma kalau _isPlayerVisible == true)
+            if (_isPlayerVisible) ...[
+              Padding(
+                // Kasih padding biar gak mepet pinggir layar
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                child: AudioHandlerWidget(
+                  audioPath: _currentAudioUrl,
+                  onClose: () {
+                    // Logic kalau tombol X di player dipencet
+                    setState(() => _isPlayerVisible = false);
+                  },
+                ),
+              ),
+              // Gak perlu SizedBox lagi karena di AudioHandlerWidget kamu
+              // udah ada margin bawah (margin: const EdgeInsets.fromLTRB(16, 0, 16, 24))
+            ],
+
+            // 2. TOMBOL NAVIGASI (Ikon-ikon bawah)
+            _buildFloatingActions(isFirst, isLast),
+          ],
+        ),
       ),
     );
   }
@@ -1018,7 +1180,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
 
     return {
-      // BASE & CONTAINER
       "body": Style(
         backgroundColor: bgColor,
         color: textColor,
@@ -1031,7 +1192,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
       "#isi": Style(margin: Margins.zero, padding: HtmlPaddings.zero),
 
-      // HEADERS
       "h1": Style(
         fontFamily: serifFont,
         fontSize: FontSize(22 * fontSize),
@@ -1060,7 +1220,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontStyle: FontStyle.italic,
       ),
 
-      // CONTENT
       "p": Style(
         fontFamily: serifFont,
         fontWeight: FontWeight.w600,
@@ -1085,7 +1244,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         margin: Margins.only(bottom: 4),
       ),
 
-      // CONTAINERS & BOXES
       "div.isi": Style(
         backgroundColor: contentBoxColor,
         padding: HtmlPaddings.all(12),
@@ -1115,7 +1273,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontWeight: FontWeight.bold,
       ),
 
-      // TABLE OF CONTENTS
       "div.daftar": Style(
         margin: Margins.only(top: 10),
         display: Display.block,
@@ -1155,7 +1312,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         color: noteColor,
       ),
 
-      // LINKS & SPECIAL STATES
       "a": Style(
         fontFamily: sansFont,
         color: isDarkVariant
@@ -1248,6 +1404,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     );
   }
 
+  // 🔧 FLOATING ACTIONS WITH AUDIO BUTTON
   Widget _buildFloatingActions(bool isPrevDisabled, bool isNextDisabled) {
     final systemScheme = Theme.of(context).colorScheme;
     final containerColor = systemScheme.surface;
@@ -1255,6 +1412,13 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final activeColor = systemScheme.primary;
     final shadowColor = Colors.black.withValues(alpha: 0.15);
     final disabledClickableColor = Colors.grey.withValues(alpha: 0.5);
+
+    // 🔧 Audio button logic - AUTO DETECT dari file path
+    final bool showAudioButton = _isParittaPage;
+    final bool hasAudioForPage = _hasAudioForCurrentPage();
+
+    final bool isAudioButtonEnabled =
+        _isOnline && hasAudioForPage && !_isPlayerVisible;
 
     Widget buildBtn({
       required IconData icon,
@@ -1333,7 +1497,19 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             height: 24,
             color: Colors.grey.withValues(alpha: 0.2),
           ),
-
+          // 🔧 AUDIO BUTTON (conditional - paling kiri)
+          // 🔧 AUDIO BUTTON (conditional - paling kiri)
+          if (showAudioButton) ...[
+            AnimatedOpacity(
+              opacity: isAudioButtonEnabled ? 1.0 : 0.4,
+              duration: const Duration(milliseconds: 200),
+              child: buildBtn(
+                icon: Icons.headphones_rounded,
+                //onTap: _handleAudioButtonPress,
+                onTap: isAudioButtonEnabled ? _handleAudioButtonPress : null,
+              ),
+            ),
+          ],
           // TEMATIK LIST (conditional)
           if (widget.tematikChapterIndex != null)
             buildBtn(

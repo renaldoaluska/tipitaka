@@ -1,6 +1,40 @@
 // file: lib/data/daftar_isi_data.dart
 
 class DaftarIsi {
+  // 🔧 MAP AUDIO URLs
+  static const String _baseUrl =
+      "https://samaggi-phala.or.id/multimedias/paritta/";
+  // kamu cuma perlu pairing nama uniknya aja di sini
+  // format: "NamaFileHTML" : "NamaFileMP3"
+  static final Map<String, String> _rawMap = {
+    "NamakkaraPatha": "namakara",
+    "PujaKatha": "puja",
+    "Pubbabhaganamakkara": "pubbabhaganamakara",
+    "SaranagamanaPatha": "tisarana",
+    "Pancasila": "pancasila",
+    "Buddhanussati": "buddhanussati",
+    "Dhammanussati": "dhammanussati",
+    "Sanghanussati": "sanghanussati",
+    "SaccakiriyaGatha": "saccakiriya",
+    "MangalaSutta": "mangala",
+    "KaraniyamettaSutta": "karaniyametta",
+    "Brahmaviharapharana": "brahmavihara",
+    "AbhinhapaccavekkhanaPatha": "abhinnha",
+    "PancasilaAradhana": "mayam",
+    //"pPancasilaAradhana": "okasa",
+    "ParittaAradhana": "paritta",
+    "DhammadesanaAradhana": "dhammadesana",
+    "Ettavatatiadipattidana": "ettavata",
+    // tinggal tambah ke bawah...
+  };
+
+  // fungsi cerdas buat ngerakit Map lengkapnya secara otomatis
+  static Map<String, String> get audioUrls {
+    return _rawMap.map(
+      (html, mp3) => MapEntry("p$html.html", "$_baseUrl$mp3.mp3"),
+    );
+  }
+
   // Ini daftar file untuk kategori TEMATIK
   static const List<String> tem = ['assets/web/tem/pen.html'];
   static const List<String> tem0_1 = ['assets/web/tem/pen0-1.html'];

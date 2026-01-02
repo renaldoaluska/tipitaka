@@ -1,31 +1,6 @@
 class TematikData {
   // URL mapping untuk webview (tetap sama)
   static const Map<String, String> webviewUrls = {
-    "apaitutematik":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-new.html",
-    "prakata": "https://tipitakaindonesia.blogspot.com/p/tematik-prakata.html",
-    "pendahuluanUmum":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan-umum.html",
-    "pendahuluan1":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan1.html",
-    "pendahuluan2":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan2.html",
-    "pendahuluan3":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan3.html",
-    "pendahuluan4":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan4.html",
-    "pendahuluan5":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan5.html",
-    "pendahuluan6":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan6.html",
-    "pendahuluan7":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan7.html",
-    "pendahuluan8":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan8.html",
-    "pendahuluan9":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan9.html",
-    "pendahuluan10":
-        "https://tipitakaindonesia.blogspot.com/p/tematik-pendahuluan10.html",
     "search":
         "https://tipitakaindonesia.blogspot.com/p/suttacentral-search.html",
   };

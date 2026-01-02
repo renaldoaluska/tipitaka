@@ -18,7 +18,17 @@ class ExploreTabKamus extends StatelessWidget {
         "desc": "Kamus Pāli berdasarkan PTS Pali-English Dictionary",
         "url": "https://dsal.uchicago.edu/dictionaries/pali/",
       },
-      {"title": "Perpus", "isHeader": "true"},
+      {"title": "Perpus (Indonesia)", "isHeader": "true"},
+
+      {
+        "title": "Sariputta",
+        "desc":
+            "Berbagai versi Tipiṭaka, paritta, referensi, dan sumber daya lainnya",
+        "url": "https://www.sariputta.com/",
+      },
+
+      {"title": "Perpus (Inggris)", "isHeader": "true"},
+
       {
         "title": "Reading Faithfully",
         "desc": "Panduan taat membaca sutta (Inggris)",

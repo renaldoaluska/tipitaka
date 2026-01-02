@@ -7,6 +7,8 @@ import '../widgets/header_depan.dart';
 import 'package:flutter_custom_tabs/flutter_custom_tabs.dart';
 import '../screens/html.dart';
 import '../data/html_data.dart';
+import 'meditasi_timer.dart';
+import 'meditasi_video.dart';
 
 class PatipattiPage extends StatefulWidget {
   final String? highlightSection;
@@ -1690,7 +1692,14 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             borderColor: borderColor,
                             isHorizontal: false,
                             isCentered: false,
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MeditationTimerPage(),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1716,7 +1725,14 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             borderColor: borderColor,
                             isHorizontal: false,
                             isCentered: false,
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const VideoPage(),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ],

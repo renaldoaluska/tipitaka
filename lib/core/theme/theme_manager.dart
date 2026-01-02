@@ -59,7 +59,7 @@ class ThemeManager extends ChangeNotifier {
       primary: Colors.deepOrange,
       surface: Colors.white,
       onSurface: Colors.black,
-      onSurfaceVariant: Colors.grey[600]!,
+      onSurfaceVariant: const Color(0xFF757575),
       secondary: Colors.blueGrey,
     ),
     textTheme: GoogleFonts.interTextTheme(), // ✅ TAMBAH INI
@@ -74,9 +74,9 @@ class ThemeManager extends ChangeNotifier {
     scaffoldBackgroundColor: Colors.grey[900],
     colorScheme: ColorScheme.dark(
       primary: Colors.deepOrange,
-      surface: Colors.grey[850]!,
+      surface: const Color(0xFF303030),
       onSurface: Colors.white,
-      onSurfaceVariant: Colors.grey[400]!,
+      onSurfaceVariant: const Color(0xFFBDBDBD),
       secondary: Colors.amber,
     ),
     textTheme: GoogleFonts.interTextTheme(

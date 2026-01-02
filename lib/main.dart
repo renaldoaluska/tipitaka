@@ -33,7 +33,7 @@ class TripitakaApp extends StatelessWidget {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
-          title: 'myTipitaka',
+          title: 'myDhamma',
           theme: themeManager.lightTheme,
 
           darkTheme: themeManager.darkTheme,
@@ -429,7 +429,9 @@ class _RootPageState extends State<RootPage>
   Widget _buildTabButton(int tabIndex, String label, int targetPage) {
     final isActive = _currentIndex == targetPage;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
+    final baseColor = isDark
+        ? const Color(0xFFBDBDBD)
+        : const Color(0xFF757575);
 
     return Expanded(
       child: Material(
@@ -468,7 +470,7 @@ class _RootPageState extends State<RootPage>
 
   Widget _buildBottomNav() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final navBarColor = isDark ? Colors.grey[850]! : Colors.white;
+    final navBarColor = isDark ? const Color(0xFF303030) : Colors.white;
 
     return Container(
       decoration: BoxDecoration(
@@ -491,7 +493,7 @@ class _RootPageState extends State<RootPage>
                 rootIndex: 0,
                 targetPage: 0,
                 icon: 'assets/home.svg',
-                label: 'Beranda',
+                label: 'Cetiya',
               ),
               _buildNavItem(
                 rootIndex: 1,
@@ -520,7 +522,9 @@ class _RootPageState extends State<RootPage>
   }) {
     final isSelected = _rootTab == rootIndex;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
+    final baseColor = isDark
+        ? const Color(0xFFBDBDBD)
+        : const Color(0xFF757575);
 
     return Expanded(
       child: Material(
