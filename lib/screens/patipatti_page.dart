@@ -10,6 +10,8 @@ import '../data/html_data.dart';
 import 'meditasi_timer.dart';
 import 'meditasi_video.dart';
 import 'uposatha_kalender.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class PatipattiPage extends StatefulWidget {
   final String? highlightSection;
@@ -20,8 +22,8 @@ class PatipattiPage extends StatefulWidget {
 }
 
 class _PatipattiPageState extends State<PatipattiPage> {
-  bool _showViewAllButton = false; // 🔧 Tambah ini
-  String _selectedCategory = 'Semua'; // Tambah ini
+  bool _showViewAllButton = false;
+  String _selectedCategory = 'Semua';
   List<Campaign> _campaigns = [];
   bool _isLoadingCampaigns = false;
   final DanaEverydayService _danaService = DanaEverydayService();
@@ -34,69 +36,29 @@ class _PatipattiPageState extends State<PatipattiPage> {
   final GlobalKey _parittaKey = GlobalKey();
 
   String? _highlightedSection;
+
   // ═══════════════════════════════════════════════════════════
-  // 🌑 STATE UPOSATHA
+  // 🌑 STATE UPOSATHA (SISTEM BARU)
   // ═══════════════════════════════════════════════════════════
   String _selectedUposathaVersion = "Saṅgha Theravāda Indonesia";
   bool _isLoadingUposatha = false;
 
-  final List<String> _uposathaVersions = [
-    "Saṅgha Theravāda Indonesia",
-    "Pa-Auk Tawya",
-    "Dhammayuttika",
-    "Mahānikāya",
-    "Lunar Tionghoa",
-  ];
+  // Variable buat nyimpen data mentah dari JSON
+  Map<String, List<dynamic>> _uposathaData = {};
 
-  final Map<String, dynamic> _calendarEngines = {
-    "RAMA_IV": {
-      "next_label": "3 hari lagi",
-      "phases": [
-        {"date": "1 Jan", "phase_name": "New Moon"},
-        {"date": "8 Jan", "phase_name": "First Quarter"},
-        {"date": "15 Jan", "phase_name": "Full Moon"},
-        {"date": "23 Jan", "phase_name": "Last Quarter"},
-      ],
-    },
-    "TRADITIONAL": {
-      "next_label": "BESOK",
-      "phases": [
-        {"date": "2 Jan", "phase_name": "New Moon"},
-        {"date": "9 Jan", "phase_name": "First Quarter"},
-        {"date": "16 Jan", "phase_name": "Full Moon"},
-        {"date": "24 Jan", "phase_name": "Last Quarter"},
-      ],
-    },
-    "CHINESE": {
-      "next_label": "HARI INI",
-      "phases": [
-        {"date": "29 Jan", "phase_name": "Imlek (Baru)"},
-        {"date": "5 Feb", "phase_name": "Kuartal Awal"},
-        {"date": "12 Feb", "phase_name": "Cap Go Meh"},
-        {"date": "19 Feb", "phase_name": "Kuartal Akhir"},
-      ],
-    },
-  };
+  // List versi (key) yang didapet dari JSON
+  List<String> _availableVersions = ["Saṅgha Theravāda Indonesia"];
 
-  final Map<String, String> _traditionToEngineMap = {
-    "Saṅgha Theravāda Indonesia": "RAMA_IV",
-    "Pa-Auk Tawya": "TRADITIONAL",
-    "Dhammayuttika": "RAMA_IV",
-    "Mahānikāya": "TRADITIONAL",
-    "Lunar Tionghoa": "CHINESE",
-  };
+  // Data olahan buat UI
+  String _nextUposathaLabel = "Memuat...";
+  List<Map<String, String>> _displayPhases = [];
 
-  // ═══════════════════════════════════════════════════════════
-  // 💰 STATE DERMA
-  // ═══════════════════════════════════════════════════════════
-  /*  final List<Map<String, dynamic>> _dermaLinks = [
-    //ini customtabs link nanti
-    {"label": "Dana Everyday", "icon": Icons.volunteer_activism_rounded},
-    {"label": "Pembangunan", "icon": Icons.foundation_rounded},
-    {"label": "Buku Dhamma", "icon": Icons.menu_book_rounded},
-    {"label": "Obat-obatan", "icon": Icons.medical_services_rounded},
-    {"label": "Lainnya", "icon": Icons.more_horiz_rounded},
-  ];*/
+  static const String _keyUposathaVersion = 'selected_uposatha_version';
+  static const String _keyUposathaCache = 'uposatha_json_cache';
+
+  // URL JSON
+  final String _dataUrl =
+      'https://cdn.jsdelivr.net/gh/renaldoaluska/tipitaka@main/json/uposatha.json';
 
   // ═══════════════════════════════════════════════════════════
   // 📚 STATE PARITTA
@@ -317,7 +279,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
         ],
       },
-
       {
         "type": "group",
         "label": "Dhammadesanā DBS",
@@ -335,7 +296,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
         ],
       },
-
       {
         "type": "group",
         "label": "Dhammadesanā DKS",
@@ -353,7 +313,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
         ],
       },
-
       {
         "type": "group",
         "label": "Dhammadesanā Yasati",
@@ -371,7 +330,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
         ],
       },
-
       {
         "type": "group",
         "label": "Dhammadesanā PATVDH",
@@ -392,16 +350,15 @@ class _PatipattiPageState extends State<PatipattiPage> {
     ],
   };
 
-  static const String _keyUposatha = 'selected_uposatha_version';
   static const String _keyParitta = 'selected_paritta_tradition';
 
   @override
   void initState() {
     super.initState();
+    _loadPreferencesAndCacheUposatha();
     _loadPreferences();
     _loadCampaigns();
 
-    // Cek jika ada highlight saat pertama kali dibuat
     if (widget.highlightSection != null) {
       _scheduleScroll(widget.highlightSection!);
     }
@@ -416,11 +373,166 @@ class _PatipattiPageState extends State<PatipattiPage> {
   @override
   void didUpdateWidget(covariant PatipattiPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Cek jika ada update data dari parent (main.dart)
     if (widget.highlightSection != oldWidget.highlightSection &&
         widget.highlightSection != null) {
       _scheduleScroll(widget.highlightSection!);
     }
+  }
+
+  // 1. LOAD PREFS & CACHE
+  Future<void> _loadPreferencesAndCacheUposatha() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedVersion = prefs.getString(_keyUposathaVersion);
+    if (savedVersion != null) {
+      setState(() => _selectedUposathaVersion = savedVersion);
+    }
+
+    final cachedJson = prefs.getString(_keyUposathaCache);
+    if (cachedJson != null) {
+      try {
+        final decoded = json.decode(cachedJson);
+        _processJsonData(decoded);
+      } catch (e) {
+        print("Cache rusak, skip.");
+      }
+    }
+
+    _fetchUposathaOnline();
+  }
+
+  // 2. FETCH DARI INTERNET
+  Future<void> _fetchUposathaOnline() async {
+    if (!mounted) setState(() => _isLoadingUposatha = true);
+
+    try {
+      final response = await http.get(Uri.parse(_dataUrl));
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_keyUposathaCache, response.body);
+
+        if (mounted) {
+          _processJsonData(decoded);
+          setState(() => _isLoadingUposatha = false);
+        }
+      }
+    } catch (e) {
+      debugPrint("Gagal fetch uposatha: $e");
+      if (mounted) setState(() => _isLoadingUposatha = false);
+    }
+  }
+
+  // 3. OLAH DATA JSON JADI UI
+  void _processJsonData(dynamic jsonRaw) {
+    if (jsonRaw is! Map) return;
+
+    setState(() {
+      _uposathaData = Map<String, List<dynamic>>.from(jsonRaw);
+      _availableVersions = _uposathaData.keys.toList();
+
+      if (!_availableVersions.contains(_selectedUposathaVersion)) {
+        if (_availableVersions.isNotEmpty) {
+          _selectedUposathaVersion = _availableVersions.first;
+        }
+      }
+      _calculateDisplayData();
+    });
+  }
+
+  // 4. HITUNG TANGGAL & FASE
+  void _calculateDisplayData() {
+    final events = _uposathaData[_selectedUposathaVersion];
+    if (events == null || events.isEmpty) return;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    int nextIndex = -1;
+    for (int i = 0; i < events.length; i++) {
+      final date = DateTime.parse(events[i]['date']);
+      if (date.compareTo(today) >= 0) {
+        nextIndex = i;
+        break;
+      }
+    }
+
+    if (nextIndex != -1) {
+      final nextEventDate = DateTime.parse(events[nextIndex]['date']);
+      final diff = nextEventDate.difference(today).inDays;
+
+      String label;
+      if (diff == 0) {
+        label = "HARI INI";
+      } else if (diff == 1) {
+        label = "BESOK";
+      } else {
+        label = "$diff HARI LAGI";
+      }
+
+      List<Map<String, String>> phases = [];
+      for (int i = 0; i < 4; i++) {
+        if (nextIndex + i < events.length) {
+          final evt = events[nextIndex + i];
+          final d = DateTime.parse(evt['date']);
+          final dateStr = "${d.day} ${_getMonthShort(d.month)}";
+          phases.add({"date": dateStr, "phase_name": evt['phase'] ?? 'biasa'});
+        }
+      }
+
+      setState(() {
+        _nextUposathaLabel = label;
+        _displayPhases = phases;
+      });
+    } else {
+      setState(() {
+        _nextUposathaLabel = "-";
+        _displayPhases = [];
+      });
+    }
+  }
+
+  String _getMonthShort(int month) {
+    const m = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mei",
+      "Jun",
+      "Jul",
+      "Agu",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Des",
+    ];
+    return m[month - 1];
+  }
+
+  String _getMoonIcon(String? phaseName) {
+    if (phaseName == null) return '🌑';
+    final lower = phaseName.toLowerCase();
+    if (lower.contains('purnama') || lower.contains('full')) return '🌕';
+    if (lower.contains('awal') || lower.contains('first')) return '🌓';
+    if (lower.contains('akhir') || lower.contains('last')) return '🌗';
+    return '🌑';
+  }
+
+  Future<void> _updateVersion(String newVersion) async {
+    setState(() {
+      _selectedUposathaVersion = newVersion;
+      _isLoadingUposatha = true;
+    });
+
+    _calculateDisplayData();
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    setState(() => _isLoadingUposatha = false);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUposathaVersion, newVersion);
   }
 
   Future<void> _launchCustomTab(BuildContext context, String url) async {
@@ -441,7 +553,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ),
       );
     } catch (e) {
-      // ✅ Fix: Check if widget is still mounted before using context
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -450,7 +561,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     }
   }
 
-  // Letakkan di bawah, dekat dengan method build atau dispose
   void _openHtmlBook(BuildContext context, String title, List<String>? files) {
     if (files != null && files.isNotEmpty) {
       Navigator.push(
@@ -470,18 +580,13 @@ class _PatipattiPageState extends State<PatipattiPage> {
     }
   }
 
-  // 👇 FUNGSI BARU: Menjadwalkan scroll dengan delay aman
-  // 👇 GANTI BAGIAN INI
   void _scheduleScroll(String section) {
-    // Kita coba scroll dengan mekanisme retry (coba berulang)
-    // Maksimal mencoba 10 kali (total ~2 detik)
     _attemptScroll(section, 0);
   }
 
   void _attemptScroll(String section, int attempt) {
     if (!mounted) return;
 
-    // Tentukan target key
     GlobalKey? targetKey;
     switch (section) {
       case 'derma':
@@ -498,88 +603,33 @@ class _PatipattiPageState extends State<PatipattiPage> {
         break;
     }
 
-    // 🕵️ CEK: Apakah kuncinya sudah nempel di widget dan punya context?
     if (targetKey != null && targetKey.currentContext != null) {
       Scrollable.ensureVisible(
         targetKey.currentContext!,
-        duration: const Duration(
-          milliseconds: 800,
-        ), // Agak lambatin dikit biar smooth
+        duration: const Duration(milliseconds: 800),
         curve: Curves.easeOutCubic,
-        alignment: 0.1, // Posisi item di 10% dari atas layar
+        alignment: 0.1,
       );
 
-      // Nyalain efek highlight
       setState(() => _highlightedSection = section);
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) setState(() => _highlightedSection = null);
       });
     } else {
-      // ❌ Kalau belum ketemu
       if (attempt < 10) {
-        // Tunggu 200ms, lalu coba lagi
         Future.delayed(const Duration(milliseconds: 200), () {
           _attemptScroll(section, attempt + 1);
         });
       }
-      //else {
-      //   print('💀 Nyerah. Context $section gak ketemu-ketemu.');
-      //}
     }
   }
 
-  /* void _scrollToSection(String section) {
-    print('🚀 Mencoba scroll ke: $section');
-    GlobalKey? targetKey;
-
-    switch (section) {
-      case 'derma':
-        targetKey = _dermaKey;
-        break;
-      case 'uposatha':
-        targetKey = _uposathaKey;
-        break;
-      case 'meditasi':
-        targetKey = _meditasiKey;
-        break;
-      case 'paritta':
-        targetKey = _parittaKey;
-        break;
-    }
-
-    // Pastikan Key dan Context-nya sudah ada (Valid)
-    if (targetKey != null && targetKey.currentContext != null) {
-      print('✅ Context ditemukan. Scrolling...');
-      Scrollable.ensureVisible(
-        targetKey.currentContext!,
-        duration: const Duration(
-          milliseconds: 600,
-        ), // Durasi scroll lebih santai
-        curve: Curves.easeInOutCubic, // Curve lebih smooth
-        alignment: 0.1, // Posisi sedikit di bawah header
-      );
-
-      // Efek Glow/Highlight
-      setState(() => _highlightedSection = section);
-
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) setState(() => _highlightedSection = null);
-      });
-    } else {
-      print('❌ Gagal Scroll: Context belum siap/null untuk $section');
-      // Opsional: Coba lagi sekali lagi jika gagal (Retry mechanism)
-      // Future.delayed(const Duration(milliseconds: 200), () => _scrollToSection(section));
-    }
-  }
-*/
-  // Wrapper untuk highlight
   Widget _buildHighlightWrapper({
     required String sectionKey,
     required GlobalKey globalKey,
     required Widget child,
   }) {
     final isHighlighted = _highlightedSection == sectionKey;
-
     return AnimatedContainer(
       key: globalKey,
       duration: const Duration(milliseconds: 300),
@@ -598,36 +648,14 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  String _getMoonIcon(String phaseName) {
-    final lower = phaseName.toLowerCase();
-    if (lower.contains('new') ||
-        lower.contains('baru') ||
-        lower.contains('imlek') ||
-        lower.contains('tilem')) {
-      return '🌑';
-    }
-    if (lower.contains('full') ||
-        lower.contains('penuh') ||
-        lower.contains('purnama') ||
-        lower.contains('cap go meh')) {
-      return '🌕';
-    }
-    if (lower.contains('first') || lower.contains('awal')) return '🌓';
-    if (lower.contains('last') || lower.contains('akhir')) return '🌗';
-    return '🌑';
-  }
-
   Future<void> _loadCampaigns({String? categoryId}) async {
     setState(() => _isLoadingCampaigns = true);
-
-    // 🔧 Reset scroll ke awal
     if (_campaignScrollController.hasClients) {
       _campaignScrollController.jumpTo(0);
     }
 
     try {
       List<Campaign> campaigns;
-
       if (categoryId != null) {
         campaigns = await _danaService.fetchCampaigns(categoryId);
       } else {
@@ -638,7 +666,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
         setState(() {
           _campaigns = campaigns;
           _isLoadingCampaigns = false;
-          _showViewAllButton = false; // 🔧 Reset button juga
+          _showViewAllButton = false;
         });
       }
     } catch (e) {
@@ -651,10 +679,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      final savedUposatha = prefs.getString(_keyUposatha);
-      if (savedUposatha != null && _uposathaVersions.contains(savedUposatha)) {
-        _selectedUposathaVersion = savedUposatha;
-      }
+      // NOTE: Key uposatha lama kita ignore karena pake system baru
       final savedParitta = prefs.getString(_keyParitta);
       if (savedParitta != null && _parittaData.containsKey(savedParitta)) {
         _selectedParittaTradition = savedParitta;
@@ -676,19 +701,12 @@ class _PatipattiPageState extends State<PatipattiPage> {
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
-
-          // 🟢 1. DĀNA FRAMEWORK
           SliverToBoxAdapter(child: _buildDermaCard()),
-
-          // 🟡 2. SĪLA FRAMEWORK
-          SliverToBoxAdapter(child: _buildUposathaCard()),
-
-          // 🔴 3. SAMĀDHI FRAMEWORK
+          SliverToBoxAdapter(
+            child: _buildUposathaCard(),
+          ), // 🔧 INI YG TADI ERROR
           SliverToBoxAdapter(child: _buildMeditationCard()),
-
-          // 🟠 4. PAÑÑĀ FRAMEWORK
           SliverToBoxAdapter(child: _buildParittaCard()),
-
           const SliverToBoxAdapter(child: SizedBox(height: 10)),
         ],
       ),
@@ -699,7 +717,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     final transparentColor = Theme.of(
       context,
     ).scaffoldBackgroundColor.withValues(alpha: 0.85);
-
     return SliverAppBar(
       pinned: true,
       floating: true,
@@ -720,10 +737,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // ✨ HEADER STRIP BUILDER ("Payung")
-  // Full width, nempel atas, teks rata kiri, tanpa icon
-  // ═══════════════════════════════════════════════════════════
   Widget _buildHeaderStrip(String text) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark
@@ -732,7 +745,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
     final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Container(
-      width: double.infinity, // Mentok kiri kanan
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: bgColor,
@@ -744,12 +757,12 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ),
       ),
       child: Text(
-        text.toUpperCase(), // Uppercase biar lebih firm sebagai header
+        text.toUpperCase(),
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.bold,
           color: textColor,
-          letterSpacing: 1.2, // Kasih jarak antar huruf biar estetik
+          letterSpacing: 1.2,
         ),
       ),
     );
@@ -764,7 +777,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
-    const accentColor = Color(0xFF009688); // Teal
+    const accentColor = Color(0xFF009688);
     final lightBg = isDark ? const Color(0xFF1A3F3A) : const Color(0xFFE0F2F1);
     final borderColor = isDark
         ? const Color(0xFF2D6A64)
@@ -784,7 +797,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              // 🏷️ HEADER STRIP
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -838,14 +850,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                   ],
                 ),
               ),
-
-              // KONTEN UTAMA
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header Section
                     Row(
                       children: [
                         Container(
@@ -896,10 +905,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 16),
-
-                    // 🏷️ Category Filter Chips
                     SizedBox(
                       height: 38,
                       child: ListView(
@@ -932,10 +938,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 14),
-
-                    // Campaign Cards dengan dynamic button
                     _isLoadingCampaigns
                         ? _buildLoadingShimmer(lightBg, borderColor)
                         : _campaigns.isEmpty
@@ -944,7 +947,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             height: 185,
                             child: Stack(
                               children: [
-                                // Cards ListView
                                 NotificationListener<ScrollNotification>(
                                   onNotification: (notification) {
                                     if (notification
@@ -954,7 +956,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                       final isAtEnd =
                                           scrollController.pixels >=
                                           scrollController.maxScrollExtent - 50;
-
                                       if (isAtEnd != _showViewAllButton) {
                                         setState(
                                           () => _showViewAllButton = isAtEnd,
@@ -966,9 +967,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                   child: ListView.separated(
                                     controller: _campaignScrollController,
                                     scrollDirection: Axis.horizontal,
-                                    padding: const EdgeInsets.only(
-                                      right: 95,
-                                    ), // 🔧 Tambah padding kanan
+                                    padding: const EdgeInsets.only(right: 95),
                                     itemCount: _campaigns.length,
                                     separatorBuilder: (_, _) =>
                                         const SizedBox(width: 12),
@@ -985,8 +984,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                     },
                                   ),
                                 ),
-
-                                // Floating "Lihat Semua" button (muncul di kanan)
                                 if (_showViewAllButton)
                                   Positioned(
                                     right: 8,
@@ -1036,10 +1033,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               ],
                             ),
                           ),
-
                     const SizedBox(height: 10),
-
-                    // Bottom Button (restore)
                     SizedBox(
                       width: double.infinity,
                       child: _buildMenuButton(
@@ -1056,8 +1050,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         ),
                       ),
                     ),
-
-                    // Bottom Button
                     SizedBox(width: double.infinity),
                   ],
                 ),
@@ -1069,11 +1061,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  // ==============================================================
-  // 🎴 CAMPAIGN CARD WIDGET
-  // ==============================================================
-  // 🔧 GANTI _buildCampaignCard() dengan yang ini:
-
   Widget _buildCampaignCard({
     required Campaign campaign,
     required Color accentColor,
@@ -1083,7 +1070,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     required Color subtextColor,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Material(
       color: lightBg.withValues(alpha: 0.3),
       borderRadius: BorderRadius.circular(16),
@@ -1099,7 +1085,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🖼️ Image Header (LEBIH KECIL LAGI)
               Stack(
                 children: [
                   ClipRRect(
@@ -1109,7 +1094,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                     child: campaign.imageUrl.isNotEmpty
                         ? Image.network(
                             campaign.imageUrl,
-                            height: 80, // 🔧 REDUCED dari 100 ke 80
+                            height: 80,
                             width: double.infinity,
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) =>
@@ -1117,7 +1102,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           )
                         : _buildImagePlaceholder(accentColor, 80),
                   ),
-                  // Category Badge
                   Positioned(
                     top: 6,
                     left: 6,
@@ -1142,19 +1126,16 @@ class _PatipattiPageState extends State<PatipattiPage> {
                   ),
                 ],
               ),
-
-              // 📝 Content (LEBIH COMPACT)
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(9),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title
                       Text(
                         campaign.name,
                         style: TextStyle(
-                          fontSize: 12, // 🔧 dari 13 ke 12
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: textColor,
                           height: 1.2,
@@ -1163,8 +1144,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const Spacer(),
-
-                      // Progress Bar
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1199,7 +1178,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 accentColor,
                               ),
-                              minHeight: 4, // 🔧 dari 6 ke 4
+                              minHeight: 4,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -1246,9 +1225,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  // ==============================================================
-  // 🎨 HELPER WIDGETS
-  // ==============================================================
   Widget _buildImagePlaceholder(Color color, double height) {
     return Container(
       height: height,
@@ -1264,7 +1240,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
   Widget _buildLoadingShimmer(Color lightBg, Color borderColor) {
     return SizedBox(
-      height: 185, // 🔧 Match dengan campaign height
+      height: 185,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: 3,
@@ -1289,7 +1265,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
   Widget _buildEmptyState(Color subtextColor) {
     return Container(
-      height: 185, // 🔧 Match dengan campaign height
+      height: 185,
       alignment: Alignment.center,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1310,7 +1286,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 🌙 2. UPOSATHA CARD (Sīla)
+  // 🌙 2. UPOSATHA CARD (Sīla) - SUDAH DIPERBAIKI
   // ═══════════════════════════════════════════════════════════
   Widget _buildUposathaCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1323,14 +1299,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     final borderColor = isDark
         ? const Color(0xFF6D621F)
         : const Color(0xFFFFE082);
-
-    String engineKey =
-        _traditionToEngineMap[_selectedUposathaVersion] ?? "TRADITIONAL";
-    final currentData = _calendarEngines[engineKey]!;
-    final String nextLabel = currentData['next_label'];
-    final List<Map<String, String>> phasesRaw = List<Map<String, String>>.from(
-      currentData['phases'],
-    );
 
     return _buildHighlightWrapper(
       sectionKey: 'uposatha',
@@ -1346,9 +1314,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              // 🏷️ HEADER STRIP
               _buildHeaderStrip("Sīla"),
-
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -1391,6 +1357,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             ],
                           ),
                         ),
+                        // LABEL NEXT EVENT (DINAMIS DARI VARIABLE BARU)
                         AnimatedOpacity(
                           duration: const Duration(milliseconds: 300),
                           opacity: _isLoadingUposatha ? 0.5 : 1.0,
@@ -1405,7 +1372,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               border: Border.all(color: borderColor),
                             ),
                             child: Text(
-                              nextLabel,
+                              _nextUposathaLabel, // PAKE VARIABLE BARU
                               style: const TextStyle(
                                 color: accentColor,
                                 fontSize: 11,
@@ -1449,7 +1416,12 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           Expanded(
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                value: _selectedUposathaVersion,
+                                value:
+                                    _availableVersions.contains(
+                                      _selectedUposathaVersion,
+                                    )
+                                    ? _selectedUposathaVersion
+                                    : null,
                                 isExpanded: true,
                                 icon: const Icon(
                                   Icons.keyboard_arrow_down_rounded,
@@ -1461,7 +1433,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                   color: accentColor,
                                   fontWeight: FontWeight.w600,
                                 ),
-                                items: _uposathaVersions.map((version) {
+                                items: _availableVersions.map((version) {
+                                  // PAKE LIST BARU DARI JSON
                                   return DropdownMenuItem(
                                     value: version,
                                     child: Align(
@@ -1473,35 +1446,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                     ),
                                   );
                                 }).toList(),
-                                onChanged: (value) async {
-                                  if (value != null &&
-                                      value != _selectedUposathaVersion) {
-                                    setState(() => _isLoadingUposatha = true);
-                                    await Future.delayed(
-                                      const Duration(milliseconds: 500),
-                                    );
-                                    setState(() {
-                                      _selectedUposathaVersion = value;
-                                      _isLoadingUposatha = false;
-                                    });
-                                    _savePreference(_keyUposatha, value);
-                                  }
-                                },
-                                selectedItemBuilder: (BuildContext context) {
-                                  return _uposathaVersions.map((String value) {
-                                    return Align(
-                                      alignment: Alignment.centerRight,
-                                      child: Text(
-                                        value,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          color: accentColor,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList();
+                                onChanged: (value) {
+                                  if (value != null)
+                                    _updateVersion(
+                                      value,
+                                    ); // PANGGIL FUNGSI UPDATE BARU
                                 },
                               ),
                             ),
@@ -1524,7 +1473,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           ).dividerColor.withValues(alpha: 0.1),
                         ),
                       ),
-                      child: _isLoadingUposatha
+                      child: _isLoadingUposatha || _displayPhases.isEmpty
                           ? const Center(
                               child: SizedBox(
                                 width: 24,
@@ -1535,37 +1484,33 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                 ),
                               ),
                             )
-                          : AnimatedOpacity(
-                              duration: const Duration(milliseconds: 300),
-                              opacity: _isLoadingUposatha ? 0.0 : 1.0,
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: phasesRaw.map((phaseData) {
-                                  String icon = _getMoonIcon(
-                                    phaseData["phase_name"]!,
-                                  );
-                                  String date = phaseData["date"]!;
-                                  return Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        icon,
-                                        style: const TextStyle(fontSize: 22),
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: _displayPhases.map((phaseData) {
+                                // PAKE DATA BARU
+                                String icon = _getMoonIcon(
+                                  phaseData["phase_name"]!,
+                                );
+                                String date = phaseData["date"]!;
+                                return Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      icon,
+                                      style: const TextStyle(fontSize: 22),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      date,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: textColor,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        date,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: textColor,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
                             ),
                     ),
                     const SizedBox(height: 12),
@@ -1583,7 +1528,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  // Kita oper versi yang lagi dipilih user biar nyambung
                                   builder: (context) => UposathaKalenderPage(
                                     initialVersion: _selectedUposathaVersion,
                                   ),
@@ -1645,9 +1589,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              // 🏷️ HEADER STRIP
               _buildHeaderStrip("Bhāvanā"),
-
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -1790,9 +1732,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              // 🏷️ HEADER STRIP
               _buildHeaderStrip("Bhāvanā"),
-
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -1984,7 +1924,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     required VoidCallback onTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Material(
@@ -2020,9 +1959,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // ✨ HELPER: EXPANSION GROUP
-  // ═══════════════════════════════════════════════════════════
   Widget _buildExpansionGroup({
     required String title,
     required IconData sectionIcon,
@@ -2038,11 +1974,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
     final iconBoxColor = isDark
         ? Colors.black26
         : Colors.white.withValues(alpha: 0.6);
-
-    // 🎨 WARNA BARU UNTUK ISI EXPAND (Lebih gelap dikit)
     final expandedContentBg = isDark
-        ? lightBg.withValues(alpha: 0.5) // Dark mode: agak gelap
-        : lightBg.withValues(alpha: 0.3); // Light mode: agak terang
+        ? lightBg.withValues(alpha: 0.5)
+        : lightBg.withValues(alpha: 0.3);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -2056,11 +1990,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
-            // ✅ HEADER (Collapsed): Warna SAMA kayak button biasa
-            backgroundColor: expandedContentBg, // Pas dibuka (isi)
-            collapsedBackgroundColor:
-                lightBg, // Pas ditutup (sama kayak button)
-
+            backgroundColor: expandedContentBg,
+            collapsedBackgroundColor: lightBg,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.zero,
             ),
@@ -2096,7 +2027,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                   label: item['label'],
                   icon: item['icon'],
                   color: accentColor,
-                  lightBg: lightBg, // Isi tetap pakai warna original
+                  lightBg: lightBg,
                   borderColor: borderColor,
                   isHorizontal: true,
                   onTap: () {
@@ -2111,10 +2042,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // ✨ HELPER: MENU BUTTON
-  // ═══════════════════════════════════════════════════════════
-  // Ganti function _buildMenuButton yang paling bawah dengan ini:
   Widget _buildMenuButton({
     required String label,
     required IconData icon,
@@ -2124,8 +2051,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
     required VoidCallback onTap,
     bool isHorizontal = false,
     bool isCentered = true,
-    bool isSlider =
-        false, // 👈 Parameter baru default false (aman buat Paritta)
+    bool isSlider = false,
     double? width,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -2166,9 +2092,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       child: Icon(icon, color: color, size: 20),
                     ),
                     const SizedBox(width: 12),
-                    // 👇 LOGIKA BARU:
-                    // Kalau isSlider = true (Derma) -> Pakai Text biasa biar lebar ngikutin teks.
-                    // Kalau isSlider = false (Paritta) -> Pakai Expanded biar teks kepotong (...) kalo kepentok layar.
                     isSlider
                         ? Text(
                             label,
