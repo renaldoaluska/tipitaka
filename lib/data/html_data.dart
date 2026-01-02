@@ -35,6 +35,7 @@ class DaftarIsi {
     );
   }
 
+  static const List<String> upo = ['assets/web/upo.html'];
   // Ini daftar file untuk kategori TEMATIK
   static const List<String> tem = ['assets/web/tem/pen.html'];
   static const List<String> tem0_1 = ['assets/web/tem/pen0-1.html'];

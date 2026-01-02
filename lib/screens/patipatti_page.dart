@@ -10,8 +10,7 @@ import '../data/html_data.dart';
 import 'meditasi_timer.dart';
 import 'meditasi_video.dart';
 import 'uposatha_kalender.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:firebase_database/firebase_database.dart';
 
 class PatipattiPage extends StatefulWidget {
   final String? highlightSection;
@@ -29,6 +28,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
   final DanaEverydayService _danaService = DanaEverydayService();
   final ScrollController _campaignScrollController = ScrollController();
 
+  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   // Keys untuk scroll
   final GlobalKey _dermaKey = GlobalKey();
   final GlobalKey _uposathaKey = GlobalKey();
@@ -54,12 +54,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
   List<Map<String, String>> _displayPhases = [];
 
   static const String _keyUposathaVersion = 'selected_uposatha_version';
-  static const String _keyUposathaCache = 'uposatha_json_cache';
-
-  // URL JSON
-  final String _dataUrl =
-      //  'https://cdn.jsdelivr.net/gh/renaldoaluska/tipitaka@main/json/uposatha.json';
-      'https://raw.githubusercontent.com/renaldoaluska/tipitaka/refs/heads/main/json/uposatha.json';
 
   // ═══════════════════════════════════════════════════════════
   // 📚 STATE PARITTA
@@ -356,8 +350,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
   @override
   void initState() {
     super.initState();
-    _loadPreferencesAndCacheUposatha();
     _loadPreferences();
+    _loadUposathaFromFirebase(); // ← GANTI INI
+    _setupRealtimeListener();
     _loadCampaigns();
 
     if (widget.highlightSection != null) {
@@ -380,69 +375,72 @@ class _PatipattiPageState extends State<PatipattiPage> {
     }
   }
 
-  // 1. LOAD PREFS & CACHE
-  Future<void> _loadPreferencesAndCacheUposatha() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final savedVersion = prefs.getString(_keyUposathaVersion);
-    if (savedVersion != null) {
-      setState(() => _selectedUposathaVersion = savedVersion);
-    }
-
-    final cachedJson = prefs.getString(_keyUposathaCache);
-    if (cachedJson != null) {
-      try {
-        final decoded = json.decode(cachedJson);
-        _processJsonData(decoded);
-      } catch (e) {
-        print("Cache rusak, skip.");
-      }
-    }
-
-    _fetchUposathaOnline();
-  }
-
-  // 2. FETCH DARI INTERNET
-  Future<void> _fetchUposathaOnline() async {
-    if (!mounted) setState(() => _isLoadingUposatha = true);
-
+  // 2️⃣ LOAD DATA DARI FIREBASE (SEKALI SAAT INIT)
+  Future<void> _loadUposathaFromFirebase() async {
     try {
-      final response = await http.get(Uri.parse(_dataUrl));
-      if (response.statusCode == 200) {
-        final decoded = json.decode(response.body);
+      setState(() => _isLoadingUposatha = true);
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_keyUposathaCache, response.body);
+      final snapshot = await _databaseRef.child('uposatha').get();
 
-        if (mounted) {
-          _processJsonData(decoded);
-          setState(() => _isLoadingUposatha = false);
-        }
+      if (snapshot.exists && mounted) {
+        final data = snapshot.value;
+        _processFirebaseData(data);
+      }
+
+      if (mounted) {
+        setState(() => _isLoadingUposatha = false);
       }
     } catch (e) {
-      debugPrint("Gagal fetch uposatha: $e");
-      if (mounted) setState(() => _isLoadingUposatha = false);
+      debugPrint("Error loading from Firebase: $e");
+      if (mounted) {
+        setState(() => _isLoadingUposatha = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  // 3. OLAH DATA JSON JADI UI
-  void _processJsonData(dynamic jsonRaw) {
-    if (jsonRaw is! Map) return;
+  // 3️⃣ SETUP REALTIME LISTENER (AUTO UPDATE KALAU DATA BERUBAH)
+  void _setupRealtimeListener() {
+    _databaseRef.child('uposatha').onValue.listen((event) {
+      if (event.snapshot.exists && mounted) {
+        final data = event.snapshot.value;
+        _processFirebaseData(data);
+      }
+    });
+  }
+
+  // 4️⃣ PROSES DATA DARI FIREBASE
+  void _processFirebaseData(dynamic data) {
+    if (data is! Map) return;
 
     setState(() {
-      _uposathaData = Map<String, List<dynamic>>.from(jsonRaw);
+      _uposathaData = {};
+
+      // Convert Firebase data
+      data.forEach((key, value) {
+        if (value is List) {
+          _uposathaData[key.toString()] = value;
+        }
+      });
+
       _availableVersions = _uposathaData.keys.toList();
 
-      if (!_availableVersions.contains(_selectedUposathaVersion)) {
-        if (_availableVersions.isNotEmpty) {
-          _selectedUposathaVersion = _availableVersions.first;
-        }
+      // Validasi selected version
+      if (!_availableVersions.contains(_selectedUposathaVersion) &&
+          _availableVersions.isNotEmpty) {
+        _selectedUposathaVersion = _availableVersions.first;
       }
+
       _calculateDisplayData();
     });
   }
 
-  // 4. HITUNG TANGGAL & FASE
+  // 5️⃣ HITUNG DATA UNTUK DITAMPILKAN
   void _calculateDisplayData() {
     final events = _uposathaData[_selectedUposathaVersion];
     if (events == null || events.isEmpty) return;
@@ -452,15 +450,21 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
     int nextIndex = -1;
     for (int i = 0; i < events.length; i++) {
-      final date = DateTime.parse(events[i]['date']);
-      if (date.compareTo(today) >= 0) {
-        nextIndex = i;
-        break;
+      try {
+        final date = DateTime.parse(events[i]['date'].toString());
+        if (date.compareTo(today) >= 0) {
+          nextIndex = i;
+          break;
+        }
+      } catch (e) {
+        debugPrint('Error parsing date: $e');
       }
     }
 
     if (nextIndex != -1) {
-      final nextEventDate = DateTime.parse(events[nextIndex]['date']);
+      final nextEventDate = DateTime.parse(
+        events[nextIndex]['date'].toString(),
+      );
       final diff = nextEventDate.difference(today).inDays;
 
       String label;
@@ -476,9 +480,12 @@ class _PatipattiPageState extends State<PatipattiPage> {
       for (int i = 0; i < 4; i++) {
         if (nextIndex + i < events.length) {
           final evt = events[nextIndex + i];
-          final d = DateTime.parse(evt['date']);
+          final d = DateTime.parse(evt['date'].toString());
           final dateStr = "${d.day} ${_getMonthShort(d.month)}";
-          phases.add({"date": dateStr, "phase_name": evt['phase'] ?? 'biasa'});
+          phases.add({
+            "date": dateStr,
+            "phase_name": evt['phase']?.toString() ?? 'biasa',
+          });
         }
       }
 
@@ -492,6 +499,49 @@ class _PatipattiPageState extends State<PatipattiPage> {
         _displayPhases = [];
       });
     }
+  }
+
+  // 7️⃣ RELOAD PREFERENCE SETELAH KEMBALI DARI KALENDER
+  Future<void> _reloadUposathaPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedVersion = prefs.getString(_keyUposathaVersion);
+
+      if (savedVersion != null && savedVersion != _selectedUposathaVersion) {
+        debugPrint(
+          '🔄 Reloading version from SharedPreferences: $savedVersion',
+        );
+        setState(() {
+          _selectedUposathaVersion = savedVersion;
+          _isLoadingUposatha = true;
+        });
+
+        _calculateDisplayData();
+
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          setState(() => _isLoadingUposatha = false);
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error reloading preference: $e');
+    }
+  }
+
+  // 6️⃣ UPDATE VERSI YANG DIPILIH
+  Future<void> _updateVersion(String newVersion) async {
+    setState(() {
+      _selectedUposathaVersion = newVersion;
+      _isLoadingUposatha = true;
+    });
+
+    _calculateDisplayData();
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    setState(() => _isLoadingUposatha = false);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUposathaVersion, newVersion);
   }
 
   String _getMonthShort(int month) {
@@ -515,25 +565,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
   String _getMoonIcon(String? phaseName) {
     if (phaseName == null) return '🌑';
     final lower = phaseName.toLowerCase();
-    if (lower.contains('purnama') || lower.contains('full')) return '🌕';
-    if (lower.contains('awal') || lower.contains('first')) return '🌓';
-    if (lower.contains('akhir') || lower.contains('last')) return '🌗';
+    if (lower == 'purnama') return '🌕';
+    if (lower == 'separuh-awal') return '🌓';
+    if (lower == 'separuh-akhir') return '🌗';
+    if (lower == 'baru') return '🌑';
     return '🌑';
-  }
-
-  Future<void> _updateVersion(String newVersion) async {
-    setState(() {
-      _selectedUposathaVersion = newVersion;
-      _isLoadingUposatha = true;
-    });
-
-    _calculateDisplayData();
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    setState(() => _isLoadingUposatha = false);
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyUposathaVersion, newVersion);
   }
 
   Future<void> _launchCustomTab(BuildContext context, String url) async {
@@ -677,15 +713,21 @@ class _PatipattiPageState extends State<PatipattiPage> {
     }
   }
 
+  // 1️⃣ LOAD PREFERENCES (VERSI YANG DIPILIH USER)
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      // NOTE: Key uposatha lama kita ignore karena pake system baru
-      final savedParitta = prefs.getString(_keyParitta);
-      if (savedParitta != null && _parittaData.containsKey(savedParitta)) {
-        _selectedParittaTradition = savedParitta;
-      }
-    });
+
+    // Load Uposatha version
+    final savedUposathaVersion = prefs.getString(_keyUposathaVersion);
+    if (savedUposathaVersion != null) {
+      setState(() => _selectedUposathaVersion = savedUposathaVersion);
+    }
+
+    // ✅ TAMBAH: Load Paritta tradition
+    final savedParittaTradition = prefs.getString(_keyParitta);
+    if (savedParittaTradition != null) {
+      setState(() => _selectedParittaTradition = savedParittaTradition);
+    }
   }
 
   Future<void> _savePreference(String key, String value) async {
@@ -1434,6 +1476,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                   color: accentColor,
                                   fontWeight: FontWeight.w600,
                                 ),
+
+                                hint: Text(
+                                  "Memuat...",
+                                  style: TextStyle(color: textColor),
+                                ),
                                 items: _availableVersions.map((version) {
                                   // PAKE LIST BARU DARI JSON
                                   return DropdownMenuItem(
@@ -1448,10 +1495,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                   );
                                 }).toList(),
                                 onChanged: (value) {
-                                  if (value != null)
+                                  if (value != null) {
                                     _updateVersion(
                                       value,
                                     ); // PANGGIL FUNGSI UPDATE BARU
+                                  }
                                 },
                               ),
                             ),
@@ -1525,8 +1573,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             lightBg: lightBg,
                             borderColor: borderColor,
                             isHorizontal: true,
-                            onTap: () {
-                              Navigator.push(
+
+                            // ✅ JUGA UPDATE BAGIAN onTap KALENDER BUTTON JADI:
+                            onTap: () async {
+                              // ✅ AWAIT HASIL DARI KALENDER & RELOAD
+                              await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => UposathaKalenderPage(
@@ -1534,6 +1585,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                   ),
                                 ),
                               );
+                              // ✅ RELOAD PREFERENCE SETELAH KEMBALI
+                              await _reloadUposathaPreference();
                             },
                           ),
                         ),
@@ -1546,7 +1599,20 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             lightBg: lightBg,
                             borderColor: borderColor,
                             isHorizontal: true,
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => HtmlReaderPage(
+                                    title:
+                                        'Panduan Uposatha', // Judul yang muncul di AppBar
+                                    chapterFiles:
+                                        DaftarIsi.upo, // ✅ Ini kodenya "upo"
+                                    initialIndex: 0,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -1656,7 +1722,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             },
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        /*  const SizedBox(width: 8),
                         Expanded(
                           child: _buildMenuButton(
                             label: "Audio",
@@ -1669,10 +1735,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             onTap: () {},
                           ),
                         ),
+                        */
                         const SizedBox(width: 8),
                         Expanded(
                           child: _buildMenuButton(
-                            label: "Video",
+                            label: "Video/Audio",
                             icon: Icons.play_circle_outline,
                             color: accentColor,
                             lightBg: lightBg,

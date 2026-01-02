@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
-import 'dart:ui'; // Buat ImageFilter.blur
+import 'dart:ui';
 
 class MeditationTimerPage extends StatefulWidget {
   const MeditationTimerPage({super.key});
@@ -18,6 +18,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   final AudioPlayer _endBellPlayer = AudioPlayer();
   final AudioPlayer _ambientPlayer = AudioPlayer();
   late final VolumeController _volumeController;
+  StreamSubscription? _bellCompleteSubscription;
 
   int _hours = 0;
   int _minutes = 10;
@@ -36,7 +37,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   bool _isPaused = false;
   int _remainingSeconds = 0;
   Timer? _timer;
-  Timer? _previewDebounce;
   Timer? _stopPreviewTimer;
 
   final List<String> _bellOptions = [
@@ -65,10 +65,66 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   @override
   void initState() {
     super.initState();
-    _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+    _initializeAudioPlayers();
     _initializeVolumeController();
     _loadSettings();
     _loadDeviceVolume();
+  }
+
+  void _initializeAudioPlayers() {
+    // Set audio context untuk background playback
+    _startBellPlayer.setReleaseMode(ReleaseMode.stop);
+    _endBellPlayer.setReleaseMode(ReleaseMode.stop);
+    _ambientPlayer.setReleaseMode(ReleaseMode.loop);
+
+    // Set audio context agar bisa jalan saat layar mati
+    _startBellPlayer.setAudioContext(
+      AudioContext(
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: {AVAudioSessionOptions.mixWithOthers},
+        ),
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: false,
+          stayAwake: true,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.gain,
+        ),
+      ),
+    );
+
+    _endBellPlayer.setAudioContext(
+      AudioContext(
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: {AVAudioSessionOptions.mixWithOthers},
+        ),
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: false,
+          stayAwake: true,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.gain,
+        ),
+      ),
+    );
+
+    _ambientPlayer.setAudioContext(
+      AudioContext(
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: {AVAudioSessionOptions.mixWithOthers},
+        ),
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: false,
+          stayAwake: true,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.gain,
+        ),
+      ),
+    );
   }
 
   void _initializeVolumeController() {
@@ -81,8 +137,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   @override
   void dispose() {
     _timer?.cancel();
-    _previewDebounce?.cancel();
     _stopPreviewTimer?.cancel();
+    _bellCompleteSubscription?.cancel();
     _startBellPlayer.dispose();
     _endBellPlayer.dispose();
     _ambientPlayer.dispose();
@@ -120,10 +176,9 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     await prefs.setDouble(_keyAmbientVolume, _ambientVolume);
   }
 
-  // --- HEADER BARU: STYLE FLOATING PILL (Sama kayak Tematik) ---
   Widget _buildGlassAppBar() {
     return Positioned(
-      top: MediaQuery.of(context).padding.top, // Posisi di bawah status bar
+      top: MediaQuery.of(context).padding.top,
       left: 0,
       right: 0,
       child: Padding(
@@ -150,7 +205,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    // Tombol Close (Style Bulat Putih + Shadow)
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
@@ -165,18 +219,14 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                       ),
                       child: IconButton(
                         icon: Icon(
-                          Icons.close, // Icon Close karena Timer
+                          Icons.arrow_back,
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
                         onPressed: () async {
                           if (_isRunning) {
                             final canExit = await _confirmExit();
                             if (canExit && context.mounted) {
-                              setState(() {
-                                _isRunning = false;
-                                _isPreparation = false;
-                                _isPaused = false;
-                              });
+                              Navigator.pop(context);
                             }
                           } else {
                             Navigator.pop(context);
@@ -185,7 +235,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Judul
                     Expanded(
                       child: Text(
                         'Timer Meditasi',
@@ -225,47 +274,80 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   }
 
   Future<void> _playPreview(String sound, String type) async {
-    _previewDebounce?.cancel();
     _stopPreviewTimer?.cancel();
 
+    // Stop semua audio dulu
     await _startBellPlayer.stop();
     await _endBellPlayer.stop();
     await _ambientPlayer.stop();
 
     if (sound == 'Tanpa Bel' || sound == 'Tanpa Latar') return;
 
-    _previewDebounce = Timer(const Duration(milliseconds: 300), () async {
-      try {
-        if (type == 'start') {
-          await _startBellPlayer.setVolume(_startBellVolume * _deviceVolume);
-          await _startBellPlayer.play(AssetSource('sounds/$sound'));
-        } else if (type == 'end') {
-          await _endBellPlayer.setVolume(_endBellVolume * _deviceVolume);
-          await _endBellPlayer.play(AssetSource('sounds/$sound'));
-        } else if (type == 'ambient') {
-          await _ambientPlayer.setVolume(_ambientVolume * _deviceVolume);
-          await _ambientPlayer.play(
-            AssetSource('sounds/${sound.toLowerCase()}.mp3'),
-          );
+    // Langsung play tanpa debounce
+    try {
+      if (type == 'start') {
+        await _startBellPlayer.setVolume(_startBellVolume * _deviceVolume);
+        await _startBellPlayer.play(AssetSource('sounds/$sound'));
 
-          _stopPreviewTimer = Timer(const Duration(seconds: 4), () {
-            if (mounted) _ambientPlayer.stop();
-          });
-        }
-      } catch (e) {
-        debugPrint('Error playing preview: $e');
+        _stopPreviewTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted) _startBellPlayer.stop();
+        });
+      } else if (type == 'end') {
+        await _endBellPlayer.setVolume(_endBellVolume * _deviceVolume);
+        await _endBellPlayer.play(AssetSource('sounds/$sound'));
+
+        _stopPreviewTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted) _endBellPlayer.stop();
+        });
+      } else if (type == 'ambient') {
+        await _ambientPlayer.setVolume(_ambientVolume * _deviceVolume);
+        await _ambientPlayer.play(
+          AssetSource('sounds/${sound.toLowerCase()}.mp3'),
+        );
+
+        _stopPreviewTimer = Timer(const Duration(seconds: 5), () {
+          if (mounted) _ambientPlayer.stop();
+        });
       }
-    });
+    } catch (e) {
+      debugPrint('Error playing preview: $e');
+    }
   }
 
   void _startMeditation() {
-    _saveSettings();
-    setState(() {
-      _isRunning = true;
-      _isPreparation = true;
-      _remainingSeconds = 10;
-    });
-    _startTimer();
+    // Cancel semua timer preview dan subscription
+    _stopPreviewTimer?.cancel();
+    _bellCompleteSubscription?.cancel();
+
+    // Stop SEMUA audio dulu sebelum mulai
+    Future.wait([
+          _startBellPlayer.stop(),
+          _endBellPlayer.stop(),
+          _ambientPlayer.stop(),
+        ])
+        .then((_) {
+          _saveSettings();
+          if (mounted) {
+            setState(() {
+              _isRunning = true;
+              _isPreparation = true;
+              _remainingSeconds = 10;
+            });
+            _startTimer();
+          }
+        })
+        .catchError((e) {
+          debugPrint('Error stopping audio: $e');
+          _saveSettings();
+          if (mounted) {
+            setState(() {
+              _isRunning = true;
+              _isPreparation = true;
+              _remainingSeconds = 10;
+            });
+            _startTimer();
+          }
+        });
   }
 
   void _startTimer() {
@@ -278,16 +360,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             if (_isPreparation) {
               _isPreparation = false;
               _remainingSeconds = (_hours * 3600) + (_minutes * 60) + _seconds;
-
-              _playStartBell();
-
-              if (_ambient != 'Tanpa Latar') {
-                Future.delayed(const Duration(seconds: 3), () {
-                  if (mounted && _isRunning && !_isPaused) {
-                    _playAmbient();
-                  }
-                });
-              }
+              _playStartBellThenAmbient();
             } else {
               _finishMeditation();
             }
@@ -297,13 +370,44 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     });
   }
 
-  Future<void> _playStartBell() async {
+  Future<void> _playStartBellThenAmbient() async {
+    // Cancel subscription lama
+    await _bellCompleteSubscription?.cancel();
+
+    // Stop semua audio dulu
+    await _startBellPlayer.stop();
+    await _endBellPlayer.stop();
+    await _ambientPlayer.stop();
+
     if (_startBell != 'Tanpa Bel') {
       try {
         await _startBellPlayer.setVolume(_startBellVolume * _deviceVolume);
         await _startBellPlayer.play(AssetSource('sounds/$_startBell'));
+
+        // Tunggu bell selesai
+        _bellCompleteSubscription = _startBellPlayer.onPlayerComplete.listen((
+          event,
+        ) {
+          if (mounted && _isRunning && !_isPaused && !_isPreparation) {
+            _playAmbient();
+          }
+          _bellCompleteSubscription?.cancel();
+        });
       } catch (e) {
-        debugPrint('Error: $e');
+        debugPrint('Error playing start bell: $e');
+        // Fallback: play ambient setelah delay
+        if (_ambient != 'Tanpa Latar') {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted && _isRunning && !_isPaused && !_isPreparation) {
+              _playAmbient();
+            }
+          });
+        }
+      }
+    } else {
+      // Tidak ada bell, langsung play ambient
+      if (_ambient != 'Tanpa Latar') {
+        _playAmbient();
       }
     }
   }
@@ -314,12 +418,15 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
         await _endBellPlayer.setVolume(_endBellVolume * _deviceVolume);
         await _endBellPlayer.play(AssetSource('sounds/$_endBell'));
       } catch (e) {
-        debugPrint('Error: $e');
+        debugPrint('Error playing end bell: $e');
       }
     }
   }
 
   Future<void> _playAmbient() async {
+    // Double check state
+    if (!_isRunning || _isPreparation || _isPaused) return;
+
     if (_ambient != 'Tanpa Latar') {
       try {
         await _ambientPlayer.setVolume(_ambientVolume * _deviceVolume);
@@ -327,12 +434,14 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           AssetSource('sounds/${_ambient.toLowerCase()}.mp3'),
         );
       } catch (e) {
-        debugPrint('Error: $e');
+        debugPrint('Error playing ambient: $e');
       }
     }
   }
 
   void _pauseResume() {
+    if (!mounted) return;
+
     setState(() => _isPaused = !_isPaused);
     if (_isPaused) {
       if (_ambient != 'Tanpa Latar') _ambientPlayer.pause();
@@ -343,13 +452,23 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
 
   void _finishMeditation() {
     _timer?.cancel();
+    _bellCompleteSubscription?.cancel();
+
+    // Stop start bell dan ambient
+    _startBellPlayer.stop();
     _ambientPlayer.stop();
-    _playEndBell();
+
     setState(() {
       _isRunning = false;
       _isPreparation = false;
       _isPaused = false;
     });
+
+    // Play end bell setelah delay kecil
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _playEndBell();
+    });
+
     _showCompletionDialog();
   }
 
@@ -376,12 +495,17 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     );
     if (result == true) {
       _timer?.cancel();
+      _bellCompleteSubscription?.cancel();
+      _startBellPlayer.stop();
+      _endBellPlayer.stop();
       _ambientPlayer.stop();
-      setState(() {
-        _isRunning = false;
-        _isPreparation = false;
-        _isPaused = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isRunning = false;
+          _isPreparation = false;
+          _isPaused = false;
+        });
+      }
     }
     return result ?? false;
   }
@@ -393,7 +517,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       builder: (context) => AlertDialog(
         title: const Text('🙏 Meditasi Selesai'),
         content: const Text(
-          'Semoga meditasi Anda membawa kedamaian dan kebijaksanaan.',
+          'Sabbe sattā bhavantu sukhitattā.\nNibbānaṁ paramaṁ sukhaṁ\nSādhu sādhu sādhu!',
         ),
         actions: [
           TextButton(
@@ -505,31 +629,33 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: _bellOptions.map((bell) {
-              return RadioListTile<String>(
-                title: Text(_getBellDisplayName(bell)),
-                value: bell,
-                groupValue: tempSelection,
-                onChanged: (value) {
-                  if (value != null) {
-                    setDialogState(() => tempSelection = value);
-                    setState(() {
-                      if (type == 'start') {
-                        _startBell = value;
-                      } else {
-                        _endBell = value;
-                      }
-                    });
-                    _saveSettings();
-                    _playPreview(value, type);
-                  }
+              return InkWell(
+                onTap: () {
+                  setDialogState(() => tempSelection = bell);
+                  setState(() {
+                    if (type == 'start') {
+                      _startBell = bell;
+                    } else {
+                      _endBell = bell;
+                    }
+                  });
+                  _saveSettings();
+                  _playPreview(bell, type);
                 },
+                child: RadioListTile<String>(
+                  title: Text(_getBellDisplayName(bell)),
+                  value: bell,
+                  groupValue: tempSelection,
+                  onChanged: null,
+                  toggleable: false,
+                ),
               );
             }).toList(),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                _previewDebounce?.cancel();
+                _stopPreviewTimer?.cancel();
                 _startBellPlayer.stop();
                 _endBellPlayer.stop();
                 Navigator.pop(context);
@@ -552,25 +678,27 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: _ambientOptions.map((ambient) {
-              return RadioListTile<String>(
-                title: Text(ambient),
-                value: ambient,
-                groupValue: tempSelection,
-                onChanged: (value) {
-                  if (value != null) {
-                    setDialogState(() => tempSelection = value);
-                    setState(() => _ambient = value);
-                    _saveSettings();
-                    _playPreview(value, 'ambient');
-                  }
+              return InkWell(
+                onTap: () {
+                  setDialogState(() => tempSelection = ambient);
+                  setState(() => _ambient = ambient);
+                  _saveSettings();
+                  _playPreview(ambient, 'ambient');
                 },
+                child: RadioListTile<String>(
+                  title: Text(ambient),
+                  value: ambient,
+                  groupValue: tempSelection,
+                  onChanged: null,
+                  toggleable: false,
+                ),
               );
             }).toList(),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                _previewDebounce?.cancel();
+                _stopPreviewTimer?.cancel();
                 _ambientPlayer.stop();
                 Navigator.pop(context);
               },
@@ -698,28 +826,18 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       canPop: !_isRunning,
       onPopInvokedWithResult: (didPop, result) async {
         if (!didPop) {
-          final shouldPop = await _confirmExit();
-          if (shouldPop && context.mounted) {
-            setState(() {
-              _isRunning = false;
-              _isPreparation = false;
-              _isPaused = false;
-            });
-          }
+          await _confirmExit();
         }
       },
       child: Scaffold(
         body: Stack(
           children: [
-            // 1. KONTEN (Dibungkus SafeArea)
             SafeArea(
               bottom: false,
               child: _isRunning
                   ? _buildTimerView(isDark, accentColor)
                   : _buildSettingsView(isDark, accentColor),
             ),
-
-            // 2. APPBAR (Floating Style)
             _buildGlassAppBar(),
           ],
         ),
@@ -741,9 +859,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 👇 TAMBAH INI (Spacer aman biar ga nabrak header)
           const SizedBox(height: 80),
-
           Text(
             _isPreparation ? 'Persiapan' : 'Meditasi',
             style: TextStyle(
@@ -804,11 +920,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 👇 TAMBAH INI (Spacer buat Header Floating)
           const SizedBox(height: 80),
-
           _buildSectionHeader(context, 'Waktu'),
-
           _buildSettingItem(
             child: InkWell(
               onTap: _showDurationPicker,
@@ -822,9 +935,9 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'Durasi',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                      style: TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Row(
                       children: [
@@ -848,9 +961,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               ),
             ),
           ),
-
           _buildSectionHeader(context, 'Suara'),
-
           _buildSettingItem(
             child: InkWell(
               onTap: () => _showBellPicker('start'),
@@ -886,7 +997,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               ),
             ),
           ),
-
           _buildSettingItem(
             child: InkWell(
               onTap: () => _showBellPicker('end'),
@@ -922,7 +1032,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               ),
             ),
           ),
-
           _buildSettingItem(
             child: InkWell(
               onTap: _showAmbientPicker,
@@ -958,9 +1067,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               ),
             ),
           ),
-
           const SizedBox(height: 32),
-
           Row(
             children: [
               IconButton(

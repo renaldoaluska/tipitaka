@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'dart:ui';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ TAMBAH INI
 
 class UposathaKalenderPage extends StatefulWidget {
   final String initialVersion;
@@ -17,10 +16,8 @@ class UposathaKalenderPage extends StatefulWidget {
 }
 
 class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
-  // --- KONFIGURASI ---
-  final String _dataUrl =
-      'https://raw.githubusercontent.com/renaldoaluska/tipitaka/refs/heads/main/json/uposatha.json';
-  static const String _keyUposathaCache = 'uposatha_json_cache';
+  // Firebase Realtime Database instance
+  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
 
   // State
   late DateTime _focusedDate;
@@ -36,13 +33,17 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
   // Style Constant
   final Color _accentColor = const Color(0xFFF57F17);
 
+  // ✅ TAMBAH KEY YANG SAMA DENGAN PATIPATTI
+  static const String _keyUposathaVersion = 'selected_uposatha_version';
+
   @override
   void initState() {
     super.initState();
     _selectedVersion = widget.initialVersion;
     _focusedDate = DateTime.now();
     _pageController = PageController(initialPage: _focusedDate.month - 1);
-    _loadCacheAndFetch();
+    _loadDataFromFirebase();
+    _setupRealtimeListener();
   }
 
   @override
@@ -51,39 +52,63 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     super.dispose();
   }
 
-  Future<void> _loadCacheAndFetch() async {
-    final prefs = await SharedPreferences.getInstance();
-    final cachedJson = prefs.getString(_keyUposathaCache);
-    if (cachedJson != null) {
-      try {
-        final decoded = json.decode(cachedJson);
-        _processJsonData(decoded);
-      } catch (e) {
-        debugPrint("Cache rusak");
-      }
-    }
-
+  // Load data sekali dari Firebase
+  Future<void> _loadDataFromFirebase() async {
     try {
-      final response = await http.get(Uri.parse(_dataUrl));
-      if (response.statusCode == 200) {
-        final decoded = json.decode(response.body);
-        await prefs.setString(_keyUposathaCache, response.body);
-        if (mounted) {
-          _processJsonData(decoded);
-          setState(() => _isLoading = false);
-        }
+      setState(() => _isLoading = true);
+
+      final snapshot = await _databaseRef.child('uposatha').get();
+
+      if (snapshot.exists) {
+        final data = snapshot.value;
+        _processFirebaseData(data);
+      } else {
+        debugPrint('No data available in Firebase');
+      }
+
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
-      debugPrint("Gagal fetch online: $e");
-      if (mounted) setState(() => _isLoading = false);
+      debugPrint("Error loading from Firebase: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat data: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  void _processJsonData(dynamic jsonRaw) {
-    if (jsonRaw is! Map) return;
+  // Setup listener untuk realtime updates
+  void _setupRealtimeListener() {
+    _databaseRef.child('uposatha').onValue.listen((event) {
+      if (event.snapshot.exists) {
+        final data = event.snapshot.value;
+        _processFirebaseData(data);
+      }
+    });
+  }
+
+  void _processFirebaseData(dynamic data) {
+    if (data is! Map) return;
+
     setState(() {
-      _calendarData = Map<String, List<dynamic>>.from(jsonRaw);
+      _calendarData = {};
+
+      // Convert Firebase data ke format yang kita butuhin
+      data.forEach((key, value) {
+        if (value is List) {
+          _calendarData[key.toString()] = value;
+        }
+      });
+
       _availableVersions = _calendarData.keys.toList();
+
+      // Validasi selected version
       if (!_availableVersions.contains(_selectedVersion) &&
           _availableVersions.isNotEmpty) {
         _selectedVersion = _availableVersions.first;
@@ -94,9 +119,10 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
   String _getMoonIcon(String? phaseName) {
     if (phaseName == null) return '🌑';
     final lower = phaseName.toLowerCase();
-    if (lower.contains('purnama') || lower.contains('full')) return '🌕';
-    if (lower.contains('awal') || lower.contains('first')) return '🌓';
-    if (lower.contains('akhir') || lower.contains('last')) return '🌗';
+    if (lower == 'purnama') return '🌕';
+    if (lower == 'separuh-awal') return '🌓';
+    if (lower == 'separuh-akhir') return '🌗';
+    if (lower == 'baru') return '🌑';
     return '🌑';
   }
 
@@ -105,9 +131,15 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     final traditionEvents = _calendarData[_selectedVersion];
     if (traditionEvents != null) {
       for (var event in traditionEvents) {
-        DateTime eventDate = DateTime.parse(event['date']);
-        if (eventDate.year == year && eventDate.month == month) {
-          events[eventDate.day] = _getMoonIcon(event['phase']);
+        if (event is Map) {
+          try {
+            DateTime eventDate = DateTime.parse(event['date'].toString());
+            if (eventDate.year == year && eventDate.month == month) {
+              events[eventDate.day] = _getMoonIcon(event['phase']?.toString());
+            }
+          } catch (e) {
+            debugPrint('Error parsing date: $e');
+          }
         }
       }
     }
@@ -137,6 +169,17 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     );
   }
 
+  // ✅ TAMBAH FUNGSI SAVE KE SHARED PREFERENCES
+  Future<void> _saveVersionPreference(String version) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyUposathaVersion, version);
+      debugPrint('✅ Saved version to SharedPreferences: $version');
+    } catch (e) {
+      debugPrint('❌ Error saving preference: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -153,17 +196,16 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
       backgroundColor: bgColor,
       body: Stack(
         children: [
-          // 1. CONTENT
+          // CONTENT
           SafeArea(
             bottom: false,
             child: _isLoading
                 ? Center(child: CircularProgressIndicator(color: _accentColor))
                 : Column(
                     children: [
-                      // ✅ SPACER INI AMAN & WAJIB (Biar konten ga ketutupan header)
                       const SizedBox(height: 75),
 
-                      // 2. NAVIGASI BULAN
+                      // NAVIGASI BULAN
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
                         child: Row(
@@ -238,7 +280,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                         ),
                       ),
 
-                      // 3. MAIN CARD
+                      // MAIN CARD
                       Expanded(
                         child: Container(
                           margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
@@ -256,7 +298,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                           clipBehavior: Clip.antiAlias,
                           child: Column(
                             children: [
-                              // A. DROPDOWN VERSI
+                              // DROPDOWN VERSI
                               Container(
                                 margin: const EdgeInsets.fromLTRB(
                                   16,
@@ -338,6 +380,8 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                                                 () =>
                                                     _selectedVersion = newValue,
                                               );
+                                              // ✅ SAVE KE SHARED PREFERENCES
+                                              _saveVersionPreference(newValue);
                                             }
                                           },
                                         ),
@@ -347,7 +391,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                                 ),
                               ),
 
-                              // B. HEADER HARI
+                              // HEADER HARI
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
                                 child: Row(
@@ -391,7 +435,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                                 endIndent: 16,
                               ),
 
-                              // C. CALENDAR GRID
+                              // CALENDAR GRID
                               Expanded(
                                 child: PageView.builder(
                                   controller: _pageController,
@@ -403,7 +447,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                                 ),
                               ),
 
-                              // D. FOOTER LEGEND
+                              // FOOTER LEGEND
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.symmetric(
@@ -440,7 +484,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                   ),
           ),
 
-          // 4. HEADER FLOATING
+          // HEADER FLOATING
           _buildHeader(context),
         ],
       ),

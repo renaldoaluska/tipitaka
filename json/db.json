@@ -1,0 +1,265 @@
+{
+  "uposatha": {
+    "Saṅgha Theravāda Indonesia": [
+      {"date": "2026-01-03", "phase": "purnama"},
+      {"date": "2026-01-11", "phase": "separuh-akhir"},
+      {"date": "2026-01-18", "phase": "baru"},
+      {"date": "2026-01-26", "phase": "separuh-awal"},
+      {"date": "2026-02-02", "phase": "purnama"},
+      {"date": "2026-02-10", "phase": "separuh-akhir"},
+      {"date": "2026-02-16", "phase": "baru"},
+      {"date": "2026-02-24", "phase": "separuh-awal"},
+      {"date": "2026-03-03", "phase": "purnama"},
+      {"date": "2026-03-11", "phase": "separuh-akhir"},
+      {"date": "2026-03-18", "phase": "baru"},
+      {"date": "2026-03-26", "phase": "separuh-awal"},
+      {"date": "2026-04-02", "phase": "purnama"},
+      {"date": "2026-04-10", "phase": "separuh-akhir"},
+      {"date": "2026-04-16", "phase": "baru"},
+      {"date": "2026-04-24", "phase": "separuh-awal"},
+      {"date": "2026-05-01", "phase": "purnama"},
+      {"date": "2026-05-09", "phase": "separuh-akhir"},
+      {"date": "2026-05-16", "phase": "baru"},
+      {"date": "2026-05-24", "phase": "separuh-awal"},
+      {"date": "2026-05-31", "phase": "purnama"},
+      {"date": "2026-06-08", "phase": "separuh-akhir"},
+      {"date": "2026-06-14", "phase": "baru"},
+      {"date": "2026-06-22", "phase": "separuh-awal"},
+      {"date": "2026-06-29", "phase": "purnama"},
+      {"date": "2026-07-07", "phase": "separuh-akhir"},
+      {"date": "2026-07-14", "phase": "baru"},
+      {"date": "2026-07-22", "phase": "separuh-awal"},
+      {"date": "2026-07-29", "phase": "purnama"},
+      {"date": "2026-08-06", "phase": "separuh-akhir"},
+      {"date": "2026-08-13", "phase": "baru"},
+      {"date": "2026-08-21", "phase": "separuh-awal"},
+      {"date": "2026-08-28", "phase": "purnama"},
+      {"date": "2026-09-05", "phase": "separuh-akhir"},
+      {"date": "2026-09-11", "phase": "baru"},
+      {"date": "2026-09-19", "phase": "separuh-awal"},
+      {"date": "2026-09-26", "phase": "purnama"},
+      {"date": "2026-10-04", "phase": "separuh-akhir"},
+      {"date": "2026-10-11", "phase": "baru"},
+      {"date": "2026-10-19", "phase": "separuh-awal"},
+      {"date": "2026-10-26", "phase": "purnama"},
+      {"date": "2026-11-03", "phase": "separuh-akhir"},
+      {"date": "2026-11-09", "phase": "baru"},
+      {"date": "2026-11-17", "phase": "separuh-awal"},
+      {"date": "2026-11-24", "phase": "purnama"},
+      {"date": "2026-12-02", "phase": "separuh-akhir"},
+      {"date": "2026-12-09", "phase": "baru"},
+      {"date": "2026-12-17", "phase": "separuh-awal"},
+      {"date": "2026-12-24", "phase": "purnama"}
+    ],
+    "PATVDH Indonesia": [
+      {"date": "2026-01-02", "phase": "purnama"},
+      {"date": "2026-01-10", "phase": "separuh-akhir"},
+      {"date": "2026-01-17", "phase": "baru"},
+      {"date": "2026-01-25", "phase": "separuh-awal"},
+      {"date": "2026-02-01", "phase": "purnama"},
+      {"date": "2026-02-09", "phase": "separuh-akhir"},
+      {"date": "2026-02-15", "phase": "baru"},
+      {"date": "2026-02-23", "phase": "separuh-awal"},
+      {"date": "2026-03-02", "phase": "purnama"},
+      {"date": "2026-03-10", "phase": "separuh-akhir"},
+      {"date": "2026-03-17", "phase": "baru"},
+      {"date": "2026-03-25", "phase": "separuh-awal"},
+      {"date": "2026-04-01", "phase": "purnama"},
+      {"date": "2026-04-09", "phase": "separuh-akhir"},
+      {"date": "2026-04-15", "phase": "baru"},
+      {"date": "2026-04-23", "phase": "separuh-awal"},
+      {"date": "2026-04-30", "phase": "purnama"},
+      {"date": "2026-05-08", "phase": "separuh-akhir"},
+      {"date": "2026-05-15", "phase": "baru"},
+      {"date": "2026-05-23", "phase": "separuh-awal"},
+      {"date": "2026-05-30", "phase": "purnama"},
+      {"date": "2026-06-07", "phase": "separuh-akhir"},
+      {"date": "2026-06-14", "phase": "baru"},
+      {"date": "2026-06-22", "phase": "separuh-awal"},
+      {"date": "2026-06-29", "phase": "purnama"},
+      {"date": "2026-07-07", "phase": "separuh-akhir"},
+      {"date": "2026-07-14", "phase": "baru"},
+      {"date": "2026-07-22", "phase": "separuh-awal"},
+      {"date": "2026-07-29", "phase": "purnama"},
+      {"date": "2026-08-06", "phase": "separuh-akhir"},
+      {"date": "2026-08-13", "phase": "baru"},
+      {"date": "2026-08-21", "phase": "separuh-awal"},
+      {"date": "2026-08-28", "phase": "purnama"},
+      {"date": "2026-09-05", "phase": "separuh-akhir"},
+      {"date": "2026-09-11", "phase": "baru"},
+      {"date": "2026-09-19", "phase": "separuh-awal"},
+      {"date": "2026-09-26", "phase": "purnama"},
+      {"date": "2026-10-04", "phase": "separuh-akhir"},
+      {"date": "2026-10-11", "phase": "baru"},
+      {"date": "2026-10-19", "phase": "separuh-awal"},
+      {"date": "2026-10-26", "phase": "purnama"},
+      {"date": "2026-11-03", "phase": "separuh-akhir"},
+      {"date": "2026-11-09", "phase": "baru"},
+      {"date": "2026-11-17", "phase": "separuh-awal"},
+      {"date": "2026-11-24", "phase": "purnama"},
+      {"date": "2026-12-02", "phase": "separuh-akhir"},
+      {"date": "2026-12-09", "phase": "baru"},
+      {"date": "2026-12-17", "phase": "separuh-awal"},
+      {"date": "2026-12-24", "phase": "purnama"}
+    ]
+  },
+  "video": {
+      "a) Pengantar": [
+      {
+        "title": "Meditasi dalam Aktifitas Sehari-hari",
+        "author": "Sayadaw Pandita",
+        "id": "-b-K3tEa168"
+      },
+      {
+        "title": "Postur Sikap Duduk Meditasi Yang Benar",
+        "author": "Sayadaw Pandita",
+        "id": "h3qOHhEoxeA"
+      },
+      {
+        "title": "Cara Meditasi Jalan yang Benar (Cankamana)",
+        "author": "Sayadaw Pandita",
+        "id": "szc2NoJoHQI"
+      }
+    ],
+    
+    "b) Pemula":[
+      {
+        "title": "Pondasi Meditasi Yang Benar: Dasar & Pemula, Penting untuk Dipahami!",
+        "author": "Bhikkhu Santacitto",
+        "id": "X67i_g3fbQc"
+      },
+      
+      {
+        "title": "Pengantar Meditasi",
+        "author": "Bhikkhu Ñāṇukkaṁsa",
+        "id": "7yR9TYxlY8k"
+      },
+      
+      {
+        "title": "Mengatasi Rasa Kesemutan dalam Meditasi",
+        "author": "Bhikkhu Santacitto",
+        "id": "quCXDSQ-ofs"
+      },
+      
+      {
+        "title": "Cara mengatasi kantuk pada saat meditasi",
+        "author": "Bhikkhu Ñāṇukkaṁsa",
+        "id": "ewDBVEFem0A"
+      },
+      {
+        "title": "Bagaimana agar tidak tegang dalam meditasi Ānāpānassati",
+        "author": "Bhikkhu Ñāṇukkaṁsa",
+        "id": "D1YGemfuHo8"
+      },
+      {
+        "title": "10 Penghalang dalam Meditasi",
+        "author": "Bhikkhu Santacitto",
+        "id": "sd6J79G5imI"
+      },
+      {
+        "title": "Teknik Sederhana Meditasi untuk Sehari-hari",
+        "author": "Bhikkhu Santacitto",
+        "id": "nDOJz1Ei0CA"
+      },
+    
+      {
+        "title": "Membuat Meditasi Terarah!",
+        "author": "Bhikkhu Santacitto",
+        "id": "XU1MjbUoNwg"
+      },
+                  {
+        "title": "Mengapa Harus Kesadaran?",
+        "author": "Bhikkhu Santacitto",
+        "id": "iway25-60qA"
+      },
+      {
+        "title": "Meditasi dalam Sutta",
+        "author": "Bhikkhu Santacitto",
+        "id": "6M-SeZQFbdo"
+      },
+            {
+        "title": "Praktik Samatha atau Vipassana Dulu? Penjelasan Berdasarkan Tipitaka",
+        "author": "Bhikkhu Santacitto",
+        "id": "tqAVblGA-HQ"
+      }
+    ]
+    ,
+      "c) Napas": [
+      {
+        "title": "Pengantar Meditasi Ānāpānasati Awal",
+        "author": "Bhikkhu Ñāṇukkaṁsa",
+        "id": "5rRhWkT54Y8"
+      },
+      {
+        "title": "Meditasi Ānāpānasati Tingkat Lanjutan",
+        "author": "Bhikkhu Ñāṇukkaṁsa",
+        "id": "ZepGkgpax3g"
+      },
+      {
+        "title": "Empat Tahap Meditasi Keluar Masuknya Napas",
+        "author": "Bhikkhu Santacitto",
+        "id": "F_f91WQy13w"
+      }
+    ],
+      "d) Lainnya": [
+      {
+        "title": "Manfaat Meditasi Samatha untuk Pelenyapan Kotoran Batin",
+        "author": "Bhikkhu Santacitto",
+        "id": "27LNh8gZy84"
+      },
+      {
+        "title": "Cara Meditasi Cinta Kasih (Mettābhāvanā)",
+        "author": "Bhikkhu Santacitto",
+        "id": "OKtn8Kpzu2M"
+      },
+      {
+        "title": "Objek Meditasi 10 Kasiṇa",
+        "author": "Bhikkhu Santacitto",
+        "id": "SE1k-W0yqZI"
+      },
+      
+      {
+        "title": "Penjelasan tentang Meditasi Jalan dan Manfaatnya",
+        "author": "Bhikkhu Ñāṇukkaṁsa",
+        "id": "duv1jzwCptU"
+      },
+      {
+        "title": "Meditasi Asubha",
+        "author": "Sayalay Dipankara",
+        "id": "43dX40eXaHU"
+      }
+    ],
+    "e) Vipassanā":[
+      {
+        "title": "Pengantar Meditasi Vipassanā",
+        "author": "Bhikkhu Santacitto",
+        "id": "cNweTaw9ipg"
+      },
+            {
+        "title": "Persepsi Anatta dalam Meditasi",
+        "author": "Bhikkhu Santacitto",
+        "id": "GiljurDaVUw"
+      },
+      {
+        "title": "Hal-Hal Penting dalam Meditasi Vipassanā",
+        "author": "Bhikkhu Santacitto",
+        "id": "pjtxzEWYnkY"
+      },
+      {
+        "title": "Meditasi Vipassanā  untuk Pencerahan & Pembebasan",
+        "author": "Bhikkhu Santacitto",
+        "id": "Jmf6KCAm-EM"
+      },
+      {
+        "title": "Meditasi Vipassanā: Kesadaran Pasif dan Kebijaksanaan",
+        "author": "Bhikkhu Santacitto",
+        "id": "IFLdYAhL53o"
+      },
+      {
+        "title": "16 Pengetahuan (Ñāṇa) dalam Meditasi Vipassanā",
+        "author": "Bhikkhu Santacitto",
+        "id": "_RAG9JVRejU"
+      }
+    ]
+  }
+}

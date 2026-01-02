@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "767872125298",
+    "firebase_url": "https://mydhamma-8-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "mydhamma-8",
+    "storage_bucket": "mydhamma-8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:767872125298:android:04399e37f9f3f2f4a3f5eb",
+        "android_client_info": {
+          "package_name": "id.aluska.tipitaka"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDvbF5QXYpyXBXFVjoZh_dm4w8wYj5Hk0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

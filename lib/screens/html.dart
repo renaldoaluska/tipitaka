@@ -1394,7 +1394,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                           padding: const EdgeInsets.all(8.0),
                           child: Icon(
                             Icons.arrow_back,
-                            size: 20,
+                            // size: 20,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
