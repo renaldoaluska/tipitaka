@@ -61,44 +61,6 @@
     {"date": "2026-12-17", "phase": "separuh-awal"},
     {"date": "2026-12-24", "phase": "purnama"}
   ],
-"Lunar Tionghoa": [
-    {"date": "2026-01-03", "phase": "purnama"},
-    {"date": "2026-01-19", "phase": "baru"},
-    
-    {"date": "2026-02-02", "phase": "purnama"},
-    {"date": "2026-02-17", "phase": "baru"},
-    
-    {"date": "2026-03-03", "phase": "purnama"},
-    {"date": "2026-03-19", "phase": "baru"},
-    
-    {"date": "2026-04-02", "phase": "purnama"},
-    {"date": "2026-04-17", "phase": "baru"},
-    
-    {"date": "2026-05-01", "phase": "purnama"},
-    {"date": "2026-05-17", "phase": "baru"},
-    {"date": "2026-05-31", "phase": "purnama"},
-    
-    {"date": "2026-06-15", "phase": "baru"},
-    {"date": "2026-06-29", "phase": "purnama"},
-    
-    {"date": "2026-07-14", "phase": "baru"},
-    {"date": "2026-07-29", "phase": "purnama"},
-    
-    {"date": "2026-08-13", "phase": "baru"},
-    {"date": "2026-08-28", "phase": "purnama"},
-    
-    {"date": "2026-09-11", "phase": "baru"},
-    {"date": "2026-09-26", "phase": "purnama"},
-    
-    {"date": "2026-10-10", "phase": "baru"},
-    {"date": "2026-10-26", "phase": "purnama"},
-    
-    {"date": "2026-11-09", "phase": "baru"},
-    {"date": "2026-11-24", "phase": "purnama"},
-    
-    {"date": "2026-12-09", "phase": "baru"},
-    {"date": "2026-12-24", "phase": "purnama"}
-  ],
 "PATVDH Indonesia": [
     {"date": "2026-01-02", "phase": "purnama"},
     {"date": "2026-01-10", "phase": "separuh-akhir"},
