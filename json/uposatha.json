@@ -1,16 +1,164 @@
 {
   "Saṅgha Theravāda Indonesia": [
+    {"date": "2026-01-03", "phase": "purnama"},
+    {"date": "2026-01-11", "phase": "separuh-akhir"},
+    {"date": "2026-01-18", "phase": "baru"},
+    {"date": "2026-01-26", "phase": "separuh-awal"},
+    
+    {"date": "2026-02-02", "phase": "purnama"},
+    {"date": "2026-02-10", "phase": "separuh-akhir"},
+    {"date": "2026-02-16", "phase": "baru"},
+    {"date": "2026-02-24", "phase": "separuh-awal"},
+    
+    {"date": "2026-03-03", "phase": "purnama"},
+    {"date": "2026-03-11", "phase": "separuh-akhir"},
+    {"date": "2026-03-18", "phase": "baru"},
+    {"date": "2026-03-26", "phase": "separuh-awal"},
+    
+    {"date": "2026-04-02", "phase": "purnama"},
+    {"date": "2026-04-10", "phase": "separuh-akhir"},
+    {"date": "2026-04-16", "phase": "baru"},
+    {"date": "2026-04-24", "phase": "separuh-awal"},
+    
+    {"date": "2026-05-01", "phase": "purnama"},
+    {"date": "2026-05-09", "phase": "separuh-akhir"},
+    {"date": "2026-05-16", "phase": "baru"},
+    {"date": "2026-05-24", "phase": "separuh-awal"},
+    {"date": "2026-05-31", "phase": "purnama"},
+    
+    {"date": "2026-06-08", "phase": "separuh-akhir"},
+    {"date": "2026-06-14", "phase": "baru"},
+    {"date": "2026-06-22", "phase": "separuh-awal"},
+    {"date": "2026-06-29", "phase": "purnama"},
+    
+    {"date": "2026-07-07", "phase": "separuh-akhir"},
+    {"date": "2026-07-14", "phase": "baru"},
+    {"date": "2026-07-22", "phase": "separuh-awal"},
+    {"date": "2026-07-29", "phase": "purnama"},
+    
+    {"date": "2026-08-06", "phase": "separuh-akhir"},
+    {"date": "2026-08-13", "phase": "baru"},
+    {"date": "2026-08-21", "phase": "separuh-awal"},
+    {"date": "2026-08-28", "phase": "purnama"},
+    
+    {"date": "2026-09-05", "phase": "separuh-akhir"},
+    {"date": "2026-09-11", "phase": "baru"},
+    {"date": "2026-09-19", "phase": "separuh-awal"},
+    {"date": "2026-09-26", "phase": "purnama"},
+    
+    {"date": "2026-10-04", "phase": "separuh-akhir"},
+    {"date": "2026-10-11", "phase": "baru"},
+    {"date": "2026-10-19", "phase": "separuh-awal"},
+    {"date": "2026-10-26", "phase": "purnama"},
+    
+    {"date": "2026-11-03", "phase": "separuh-akhir"},
+    {"date": "2026-11-09", "phase": "baru"},
+    {"date": "2026-11-17", "phase": "separuh-awal"},
+    {"date": "2026-11-24", "phase": "purnama"},
+    
+    {"date": "2026-12-02", "phase": "separuh-akhir"},
+    {"date": "2026-12-09", "phase": "baru"},
+    {"date": "2026-12-17", "phase": "separuh-awal"},
+    {"date": "2026-12-24", "phase": "purnama"}
+  ],
+"Lunar Tionghoa": [
+    {"date": "2026-01-03", "phase": "purnama"},
+    {"date": "2026-01-19", "phase": "baru"},
+    
+    {"date": "2026-02-02", "phase": "purnama"},
+    {"date": "2026-02-17", "phase": "baru"},
+    
+    {"date": "2026-03-03", "phase": "purnama"},
+    {"date": "2026-03-19", "phase": "baru"},
+    
+    {"date": "2026-04-02", "phase": "purnama"},
+    {"date": "2026-04-17", "phase": "baru"},
+    
+    {"date": "2026-05-01", "phase": "purnama"},
+    {"date": "2026-05-17", "phase": "baru"},
+    {"date": "2026-05-31", "phase": "purnama"},
+    
+    {"date": "2026-06-15", "phase": "baru"},
+    {"date": "2026-06-29", "phase": "purnama"},
+    
+    {"date": "2026-07-14", "phase": "baru"},
+    {"date": "2026-07-29", "phase": "purnama"},
+    
+    {"date": "2026-08-13", "phase": "baru"},
+    {"date": "2026-08-28", "phase": "purnama"},
+    
+    {"date": "2026-09-11", "phase": "baru"},
+    {"date": "2026-09-26", "phase": "purnama"},
+    
+    {"date": "2026-10-10", "phase": "baru"},
+    {"date": "2026-10-26", "phase": "purnama"},
+    
+    {"date": "2026-11-09", "phase": "baru"},
+    {"date": "2026-11-24", "phase": "purnama"},
+    
+    {"date": "2026-12-09", "phase": "baru"},
+    {"date": "2026-12-24", "phase": "purnama"}
+  ],
+"Pa-Auk Tawya": [
     {"date": "2026-01-02", "phase": "purnama"},
     {"date": "2026-01-10", "phase": "separuh-akhir"},
     {"date": "2026-01-17", "phase": "baru"},
-    {"date": "2026-01-25", "phase": "separuh-awal"}
-  ],
-  "Pa-Auk Tawya": [
-    {"date": "2026-01-03", "phase": "purnama"},
-    {"date": "2026-01-11", "phase": "separuh-akhir"}
-  ],
-  "Lunar Tionghoa": [
-    {"date": "2026-01-29", "phase": "baru (imlek)"},
-    {"date": "2026-02-12", "phase": "purnama (cap go meh)"}
+    {"date": "2026-01-25", "phase": "separuh-awal"},
+    
+    {"date": "2026-02-01", "phase": "purnama"},
+    {"date": "2026-02-09", "phase": "separuh-akhir"},
+    {"date": "2026-02-15", "phase": "baru"},
+    {"date": "2026-02-23", "phase": "separuh-awal"},
+    
+    {"date": "2026-03-02", "phase": "purnama"},
+    {"date": "2026-03-10", "phase": "separuh-akhir"},
+    {"date": "2026-03-17", "phase": "baru"},
+    {"date": "2026-03-25", "phase": "separuh-awal"},
+    
+    {"date": "2026-04-01", "phase": "purnama"},
+    {"date": "2026-04-09", "phase": "separuh-akhir"},
+    {"date": "2026-04-15", "phase": "baru"},
+    {"date": "2026-04-23", "phase": "separuh-awal"},
+    {"date": "2026-04-30", "phase": "purnama"},
+    
+    {"date": "2026-05-08", "phase": "separuh-akhir"},
+    {"date": "2026-05-15", "phase": "baru"},
+    {"date": "2026-05-23", "phase": "separuh-awal"},
+    {"date": "2026-05-30", "phase": "purnama"},
+    
+    {"date": "2026-06-07", "phase": "separuh-akhir"},
+    {"date": "2026-06-14", "phase": "baru"},
+    {"date": "2026-06-22", "phase": "separuh-awal"},
+    {"date": "2026-06-29", "phase": "purnama"},
+    
+    {"date": "2026-07-07", "phase": "separuh-akhir"},
+    {"date": "2026-07-14", "phase": "baru"},
+    {"date": "2026-07-22", "phase": "separuh-awal"},
+    {"date": "2026-07-29", "phase": "purnama"},
+    
+    {"date": "2026-08-06", "phase": "separuh-akhir"},
+    {"date": "2026-08-13", "phase": "baru"},
+    {"date": "2026-08-21", "phase": "separuh-awal"},
+    {"date": "2026-08-28", "phase": "purnama"},
+    
+    {"date": "2026-09-05", "phase": "separuh-akhir"},
+    {"date": "2026-09-11", "phase": "baru"},
+    {"date": "2026-09-19", "phase": "separuh-awal"},
+    {"date": "2026-09-26", "phase": "purnama"},
+    
+    {"date": "2026-10-04", "phase": "separuh-akhir"},
+    {"date": "2026-10-11", "phase": "baru"},
+    {"date": "2026-10-19", "phase": "separuh-awal"},
+    {"date": "2026-10-26", "phase": "purnama"},
+    
+    {"date": "2026-11-03", "phase": "separuh-akhir"},
+    {"date": "2026-11-09", "phase": "baru"},
+    {"date": "2026-11-17", "phase": "separuh-awal"},
+    {"date": "2026-11-24", "phase": "purnama"},
+    
+    {"date": "2026-12-02", "phase": "separuh-akhir"},
+    {"date": "2026-12-09", "phase": "baru"},
+    {"date": "2026-12-17", "phase": "separuh-awal"},
+    {"date": "2026-12-24", "phase": "purnama"}
   ]
 }
