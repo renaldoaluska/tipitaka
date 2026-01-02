@@ -1,8 +1,10 @@
-import 'dart:ui';
+import 'dart:convert'; // Buat ngolah JSON
+import 'dart:ui'; // Buat efek kaca (Blur)
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Buat ngatur status bar
+import 'package:http/http.dart' as http; // Buat request internet
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/services.dart';
 
 class VideoPage extends StatefulWidget {
   const VideoPage({super.key});
@@ -12,46 +14,43 @@ class VideoPage extends StatefulWidget {
 }
 
 class _VideoPageState extends State<VideoPage> {
-  // ==========================================
-  // 1. DATA VIDEO (MANUAL CURATION)
-  // ==========================================
-  // Lu tinggal copas "Video ID" dari link Youtube.
-  // Misal: https://www.youtube.com/watch?v=inpok4MKVLM -> ID nya "inpok4MKVLM"
+  // --- GANTI LINK INI PAKE LINK GITHUB/JSDELIVR LU ---
+  final String _dataUrl =
+      'https://cdn.jsdelivr.net/gh/renaldoaluska/tipitaka@main/json/videos.json';
 
-  final List<Map<String, String>> _praktikVideos = [
-    {
-      'title': 'Meditasi Pemula 5 Menit',
-      'author': 'Pagar Kehidupan',
-      'id': 'inpok4MKVLM', // Ganti ID ini
-    },
-    {
-      'title': 'Guided Meditation for Deep Sleep',
-      'author': 'Great Meditation',
-      'id': 'aEqlQvczMJQ',
-    },
-    {
-      'title': 'Latihan Pernafasan Diafragma',
-      'author': 'Satu Persen',
-      'id': 'q0D4t-T9r9U',
-    },
-  ];
+  // Variabel buat nampung data masa depan (Future)
+  late Future<Map<String, dynamic>> _videosFuture;
 
-  final List<Map<String, String>> _teoriVideos = [
-    {
-      'title': 'Apa itu Mindfulness?',
-      'author': 'Pijar Psikologi',
-      'id': 'OpJ2gXJ3_gE',
-    },
-    {
-      'title': 'Manfaat Meditasi Secara Ilmiah',
-      'author': 'Kok Bisa?',
-      'id': 'n6zZHwK2aT0',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _videosFuture = _fetchVideos();
+  }
 
-  // ==========================================
-  // 2. LOGIC UI & APP BAR
-  // ==========================================
+  // Fungsi buat download data dari GitHub
+  Future<Map<String, dynamic>> _fetchVideos() async {
+    try {
+      final response = await http.get(Uri.parse(_dataUrl));
+
+      if (response.statusCode == 200) {
+        // Berhasil download, ubah Teks jadi Data (Map)
+        return json.decode(response.body);
+      } else {
+        throw Exception('Gagal memuat data (Error ${response.statusCode})');
+      }
+    } catch (e) {
+      throw Exception('Periksa koneksi internet Anda');
+    }
+  }
+
+  // Fungsi Refresh kalo ditarik ke bawah
+  Future<void> _refreshData() async {
+    setState(() {
+      _videosFuture = _fetchVideos();
+    });
+  }
+
+  // --- WIDGETS ---
 
   Widget _buildGlassAppBar() {
     return Positioned(
@@ -117,7 +116,7 @@ class _VideoPageState extends State<VideoPage> {
             width: 4,
             height: 24,
             decoration: BoxDecoration(
-              color: Colors.redAccent, // Warna Youtube banget
+              color: Colors.redAccent,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -135,7 +134,7 @@ class _VideoPageState extends State<VideoPage> {
     );
   }
 
-  Widget _buildVideoCard(Map<String, String> video) {
+  Widget _buildVideoCard(dynamic video) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -154,18 +153,17 @@ class _VideoPageState extends State<VideoPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            // Buka Player Halaman Baru
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => PlayerScreen(videoId: video['id']!),
+                builder: (context) => PlayerScreen(videoId: video['id']),
               ),
             );
           },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // THUMBNAIL
+              // Thumbnail
               Stack(
                 alignment: Alignment.center,
                 children: [
@@ -179,6 +177,13 @@ class _VideoPageState extends State<VideoPage> {
                       height: 180,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: 180,
+                        color: Colors.grey[300],
+                        child: const Center(
+                          child: Icon(Icons.image, color: Colors.grey),
+                        ),
+                      ),
                       errorWidget: (context, url, error) => Container(
                         height: 180,
                         color: Colors.grey[300],
@@ -186,7 +191,6 @@ class _VideoPageState extends State<VideoPage> {
                       ),
                     ),
                   ),
-                  // Icon Play di tengah gambar
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -201,47 +205,39 @@ class _VideoPageState extends State<VideoPage> {
                   ),
                 ],
               ),
-
-              // TEXT INFO
+              // Info Text
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            video['title']!,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.person_outline,
-                                size: 14,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                video['author']!,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    Text(
+                      video['title'] ?? 'Tanpa Judul',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.person_outline,
+                          size: 14,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          video['author'] ?? 'Unknown',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -258,30 +254,78 @@ class _VideoPageState extends State<VideoPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // KONTEN UTAMA (LIST)
-          SingleChildScrollView(
-            // Padding top disesuain biar ga ketutupan AppBar
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 70,
-              bottom: 24,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // --- BAGIAN 1: PRAKTIK ---
-                _buildSectionTitle('Praktik & Panduan'),
-                ..._praktikVideos.map((video) => _buildVideoCard(video)),
+          // FUTURE BUILDER: Handle Loading, Error, & Data
+          FutureBuilder<Map<String, dynamic>>(
+            future: _videosFuture,
+            builder: (context, snapshot) {
+              // 1. Kalo lagi Loading
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-                const SizedBox(height: 16),
+              // 2. Kalo Error
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.wifi_off_rounded,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Gagal memuat video.\n${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: _refreshData,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Coba Lagi'),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-                // --- BAGIAN 2: TEORI ---
-                _buildSectionTitle('Teori & Pengetahuan'),
-                ..._teoriVideos.map((video) => _buildVideoCard(video)),
-              ],
-            ),
+              // 3. Kalo Berhasil (Data Ada)
+              final data = snapshot.data!;
+              final praktikList = data['praktik'] as List<dynamic>? ?? [];
+              final teoriList = data['teori'] as List<dynamic>? ?? [];
+
+              return RefreshIndicator(
+                onRefresh: _refreshData,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top + 70,
+                    bottom: 24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (praktikList.isNotEmpty) ...[
+                        _buildSectionTitle('Praktik & Panduan'),
+                        ...praktikList.map((v) => _buildVideoCard(v)),
+                      ],
+
+                      const SizedBox(height: 16),
+
+                      if (teoriList.isNotEmpty) ...[
+                        _buildSectionTitle('Teori & Pengetahuan'),
+                        ...teoriList.map((v) => _buildVideoCard(v)),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
 
-          // APPBAR KACA (Melayang)
+          // APPBAR KACA (Overlay)
           _buildGlassAppBar(),
         ],
       ),
@@ -289,12 +333,10 @@ class _VideoPageState extends State<VideoPage> {
   }
 }
 
-// ==========================================
-// 3. LAYAR PEMUTAR VIDEO (PLAYER SCREEN)
-// ==========================================
+// --- PLAYER SCREEN (Sama kayak sebelumnya tapi udah fix fullscreen) ---
+
 class PlayerScreen extends StatefulWidget {
   final String videoId;
-
   const PlayerScreen({super.key, required this.videoId});
 
   @override
@@ -313,14 +355,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
         autoPlay: true,
         mute: false,
         enableCaption: true,
-        // forceHD: true, // Opsional kalo mau paksa HD
       ),
     );
   }
 
   @override
   void dispose() {
-    // 3. JAGA-JAGA: Balikin status bar kalo user langsung back/kill page
+    // Balikin status bar kalo user langsung back dari fullscreen
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.manual,
       overlays: SystemUiOverlay.values,
@@ -332,15 +373,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return YoutubePlayerBuilder(
+      // Logic Fullscreen ada di sini (Builder)
       onEnterFullScreen: () {
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       },
       onExitFullScreen: () {
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-        // Atau: SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
       },
-
-      // Ini widget yang handle rotasi otomatis
       player: YoutubePlayer(
         controller: _controller,
         showVideoProgressIndicator: true,

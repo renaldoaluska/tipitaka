@@ -9,6 +9,7 @@ import '../screens/html.dart';
 import '../data/html_data.dart';
 import 'meditasi_timer.dart';
 import 'meditasi_video.dart';
+import 'uposatha_kalender.dart';
 
 class PatipattiPage extends StatefulWidget {
   final String? highlightSection;
@@ -1578,7 +1579,17 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             lightBg: lightBg,
                             borderColor: borderColor,
                             isHorizontal: true,
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  // Kita oper versi yang lagi dipilih user biar nyambung
+                                  builder: (context) => UposathaKalenderPage(
+                                    initialVersion: _selectedUposathaVersion,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),

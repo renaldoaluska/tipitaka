@@ -1,0 +1,12 @@
+{
+  "Saṅgha Theravāda Indonesia": [
+    { "date": "2026-01-02", "phase": "🌑", "desc": "Bulan Baru" },
+    { "date": "2026-01-10", "phase": "🌓", "desc": "8 Awal" },
+    { "date": "2026-01-17", "phase": "🌕", "desc": "Purnama" },
+    { "date": "2026-01-25", "phase": "🌗", "desc": "8 Akhir" }
+  ],
+  "Pa-Auk Tawya": [
+    { "date": "2026-01-03", "phase": "🌑", "desc": "Bulan Baru" },
+    { "date": "2026-01-18", "phase": "🌕", "desc": "Purnama" }
+  ]
+}

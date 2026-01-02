@@ -515,10 +515,11 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                   if (value != null) {
                     setDialogState(() => tempSelection = value);
                     setState(() {
-                      if (type == 'start')
+                      if (type == 'start') {
                         _startBell = value;
-                      else
+                      } else {
                         _endBell = value;
+                      }
                     });
                     _saveSettings();
                     _playPreview(value, type);
