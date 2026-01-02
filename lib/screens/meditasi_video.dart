@@ -52,49 +52,69 @@ class _VideoPageState extends State<VideoPage> {
 
   // --- WIDGETS ---
 
+  // HEADER BARU: STYLE FLOATING PILL (Sama kayak Timer & Kalender)
   Widget _buildGlassAppBar() {
     return Positioned(
-      top: 0,
+      top: MediaQuery.of(context).padding.top, // Posisi di bawah status bar
       left: 0,
       right: 0,
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            color: Theme.of(
-              context,
-            ).scaffoldBackgroundColor.withValues(alpha: 0.85),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.85),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    InkWell(
-                      onTap: () => Navigator.pop(context),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerHighest,
-                          shape: BoxShape.circle,
+                    // Tombol Back (Bulat)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.arrow_back,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
-                        child: const Icon(Icons.arrow_back, size: 20),
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    const Expanded(
+                    const SizedBox(width: 12),
+                    // Judul
+                    Expanded(
                       child: Text(
                         'Video Panduan',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -109,7 +129,7 @@ class _VideoPageState extends State<VideoPage> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: Row(
         children: [
           Container(
@@ -254,78 +274,82 @@ class _VideoPageState extends State<VideoPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // FUTURE BUILDER: Handle Loading, Error, & Data
-          FutureBuilder<Map<String, dynamic>>(
-            future: _videosFuture,
-            builder: (context, snapshot) {
-              // 1. Kalo lagi Loading
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          // 1. KONTEN (Dibungkus SafeArea)
+          SafeArea(
+            bottom: false,
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: _videosFuture,
+              builder: (context, snapshot) {
+                // Loading
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              // 2. Kalo Error
-              if (snapshot.hasError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.wifi_off_rounded,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Gagal memuat video.\n${snapshot.error}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: _refreshData,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Coba Lagi'),
-                      ),
-                    ],
+                // Error
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.wifi_off_rounded,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Gagal memuat video.\n${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: _refreshData,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Coba Lagi'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Success
+                final data = snapshot.data!;
+                final praktikList = data['praktik'] as List<dynamic>? ?? [];
+                final teoriList = data['teori'] as List<dynamic>? ?? [];
+
+                return RefreshIndicator(
+                  onRefresh: _refreshData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    // Hapus padding top manual
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 👇 TAMBAH INI (Spacer aman buat Header Floating)
+                        const SizedBox(height: 80),
+
+                        if (praktikList.isNotEmpty) ...[
+                          _buildSectionTitle('Praktik & Panduan'),
+                          ...praktikList.map((v) => _buildVideoCard(v)),
+                        ],
+
+                        const SizedBox(height: 16),
+
+                        if (teoriList.isNotEmpty) ...[
+                          _buildSectionTitle('Teori & Pengetahuan'),
+                          ...teoriList.map((v) => _buildVideoCard(v)),
+                        ],
+                      ],
+                    ),
                   ),
                 );
-              }
-
-              // 3. Kalo Berhasil (Data Ada)
-              final data = snapshot.data!;
-              final praktikList = data['praktik'] as List<dynamic>? ?? [];
-              final teoriList = data['teori'] as List<dynamic>? ?? [];
-
-              return RefreshIndicator(
-                onRefresh: _refreshData,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).padding.top + 70,
-                    bottom: 24,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (praktikList.isNotEmpty) ...[
-                        _buildSectionTitle('Praktik & Panduan'),
-                        ...praktikList.map((v) => _buildVideoCard(v)),
-                      ],
-
-                      const SizedBox(height: 16),
-
-                      if (teoriList.isNotEmpty) ...[
-                        _buildSectionTitle('Teori & Pengetahuan'),
-                        ...teoriList.map((v) => _buildVideoCard(v)),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
+              },
+            ),
           ),
 
-          // APPBAR KACA (Overlay)
+          // 2. HEADER FLOATING (Overlay)
           _buildGlassAppBar(),
         ],
       ),
@@ -333,7 +357,7 @@ class _VideoPageState extends State<VideoPage> {
   }
 }
 
-// --- PLAYER SCREEN (Sama kayak sebelumnya tapi udah fix fullscreen) ---
+// --- PLAYER SCREEN (FULLSCREEN FIX) ---
 
 class PlayerScreen extends StatefulWidget {
   final String videoId;

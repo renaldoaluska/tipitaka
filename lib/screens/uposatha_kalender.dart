@@ -156,257 +156,288 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
           // 1. CONTENT
           SafeArea(
             bottom: false,
-            child: Column(
-              children: [
-                // ✅ SPACER INI AMAN & WAJIB (Biar konten ga ketutupan header)
-                const SizedBox(height: 75),
-
-                // 2. NAVIGASI BULAN
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: _isLoading
+                ? Center(child: CircularProgressIndicator(color: _accentColor))
+                : Column(
                     children: [
-                      Text(
-                        _formatMonthYear(_focusedDate),
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.1)
-                              : Colors.grey.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      // ✅ SPACER INI AMAN & WAJIB (Biar konten ga ketutupan header)
+                      const SizedBox(height: 75),
+
+                      // 2. NAVIGASI BULAN
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            IconButton(
-                              onPressed: _focusedDate.month > 1
-                                  ? () => _changeMonthByArrow(-1)
-                                  : null,
-                              icon: const Icon(Icons.chevron_left_rounded),
-                              color: textColor,
-                              disabledColor: textColor.withValues(alpha: 0.2),
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                            Text(
+                              _formatMonthYear(_focusedDate),
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: textColor,
+                                letterSpacing: -0.5,
                               ),
-                              constraints: const BoxConstraints(minWidth: 40),
                             ),
                             Container(
-                              width: 1,
-                              height: 20,
-                              color: textColor.withValues(alpha: 0.1),
-                            ),
-                            IconButton(
-                              onPressed: _focusedDate.month < 12
-                                  ? () => _changeMonthByArrow(1)
-                                  : null,
-                              icon: const Icon(Icons.chevron_right_rounded),
-                              color: textColor,
-                              disabledColor: textColor.withValues(alpha: 0.2),
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.1)
+                                    : Colors.grey.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              constraints: const BoxConstraints(minWidth: 40),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: _focusedDate.month > 1
+                                        ? () => _changeMonthByArrow(-1)
+                                        : null,
+                                    icon: const Icon(
+                                      Icons.chevron_left_rounded,
+                                    ),
+                                    color: textColor,
+                                    disabledColor: textColor.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 40,
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 1,
+                                    height: 20,
+                                    color: textColor.withValues(alpha: 0.1),
+                                  ),
+                                  IconButton(
+                                    onPressed: _focusedDate.month < 12
+                                        ? () => _changeMonthByArrow(1)
+                                        : null,
+                                    icon: const Icon(
+                                      Icons.chevron_right_rounded,
+                                    ),
+                                    color: textColor,
+                                    disabledColor: textColor.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 40,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
 
-                // 3. MAIN CARD
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: [
-                        // A. DROPDOWN VERSI
-                        Container(
-                          margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 2,
-                          ),
+                      // 3. MAIN CARD
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                           decoration: BoxDecoration(
-                            color: lightBg.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: borderColor.withValues(alpha: 0.5),
-                            ),
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          child: Row(
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
                             children: [
-                              Icon(
-                                Icons.school_outlined,
-                                size: 18,
-                                color: _accentColor,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                "Versi",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: subtextColor,
+                              // A. DROPDOWN VERSI
+                              Container(
+                                margin: const EdgeInsets.fromLTRB(
+                                  16,
+                                  16,
+                                  16,
+                                  8,
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value:
-                                        _availableVersions.contains(
-                                          _selectedVersion,
-                                        )
-                                        ? _selectedVersion
-                                        : null,
-                                    isExpanded: true,
-                                    icon: Icon(
-                                      Icons.keyboard_arrow_down_rounded,
-                                      color: _accentColor,
-                                      size: 20,
-                                    ),
-                                    dropdownColor: Theme.of(context).cardColor,
-                                    hint: Text(
-                                      "Memuat...",
-                                      style: TextStyle(color: textColor),
-                                    ),
-                                    items: _availableVersions.map((
-                                      String value,
-                                    ) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(
-                                          value,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: value == _selectedVersion
-                                                ? _accentColor
-                                                : textColor,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      );
-                                    }).toList(),
-                                    onChanged: (newValue) {
-                                      if (newValue != null) {
-                                        setState(
-                                          () => _selectedVersion = newValue,
-                                        );
-                                      }
-                                    },
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: lightBg.withValues(alpha: 0.3),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: borderColor.withValues(alpha: 0.5),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // B. HEADER HARI
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children:
-                                [
-                                      "Sen",
-                                      "Sel",
-                                      "Rab",
-                                      "Kam",
-                                      "Jum",
-                                      "Sab",
-                                      "Min",
-                                    ]
-                                    .map(
-                                      (day) => SizedBox(
-                                        width: 32,
-                                        child: Text(
-                                          day,
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 11,
-                                            color: day == "Min"
-                                                ? Colors.red[400]
-                                                : Colors.grey[500],
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.school_outlined,
+                                      size: 18,
+                                      color: _accentColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "Versi",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        color: subtextColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value:
+                                              _availableVersions.contains(
+                                                _selectedVersion,
+                                              )
+                                              ? _selectedVersion
+                                              : null,
+                                          isExpanded: true,
+                                          icon: Icon(
+                                            Icons.keyboard_arrow_down_rounded,
+                                            color: _accentColor,
+                                            size: 20,
                                           ),
+                                          dropdownColor: Theme.of(
+                                            context,
+                                          ).cardColor,
+                                          hint: Text(
+                                            "Memuat...",
+                                            style: TextStyle(color: textColor),
+                                          ),
+                                          items: _availableVersions.map((
+                                            String value,
+                                          ) {
+                                            return DropdownMenuItem<String>(
+                                              value: value,
+                                              child: Text(
+                                                value,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      value == _selectedVersion
+                                                      ? _accentColor
+                                                      : textColor,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            );
+                                          }).toList(),
+                                          onChanged: (newValue) {
+                                            if (newValue != null) {
+                                              setState(
+                                                () =>
+                                                    _selectedVersion = newValue,
+                                              );
+                                            }
+                                          },
                                         ),
                                       ),
-                                    )
-                                    .toList(),
-                          ),
-                        ),
-                        Divider(
-                          height: 1,
-                          color: isDark ? Colors.white10 : Colors.grey[200],
-                          indent: 16,
-                          endIndent: 16,
-                        ),
+                                    ),
+                                  ],
+                                ),
+                              ),
 
-                        // C. CALENDAR GRID
-                        Expanded(
-                          child: PageView.builder(
-                            controller: _pageController,
-                            itemCount: 12,
-                            onPageChanged: _onPageChanged,
-                            itemBuilder: (context, index) {
-                              return _buildMonthGrid(index + 1);
-                            },
-                          ),
-                        ),
-
-                        // D. FOOTER LEGEND
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: lightBg.withValues(alpha: 0.3),
-                            border: Border(
-                              top: BorderSide(
+                              // B. HEADER HARI
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  children:
+                                      [
+                                            "Sen",
+                                            "Sel",
+                                            "Rab",
+                                            "Kam",
+                                            "Jum",
+                                            "Sab",
+                                            "Min",
+                                          ]
+                                          .map(
+                                            (day) => SizedBox(
+                                              width: 32,
+                                              child: Text(
+                                                day,
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 11,
+                                                  color: day == "Min"
+                                                      ? Colors.red[400]
+                                                      : Colors.grey[500],
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                ),
+                              ),
+                              Divider(
+                                height: 1,
                                 color: isDark
                                     ? Colors.white10
-                                    : Colors.black.withValues(alpha: 0.03),
+                                    : Colors.grey[200],
+                                indent: 16,
+                                endIndent: 16,
                               ),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _buildFooterLegend('🌑', 'Baru'),
-                              _buildFooterLegend('🌓', 'Paruh Awal'),
-                              _buildFooterLegend('🌕', 'Purnama'),
-                              _buildFooterLegend('🌗', 'Paruh Akhir'),
+
+                              // C. CALENDAR GRID
+                              Expanded(
+                                child: PageView.builder(
+                                  controller: _pageController,
+                                  itemCount: 12,
+                                  onPageChanged: _onPageChanged,
+                                  itemBuilder: (context, index) {
+                                    return _buildMonthGrid(index + 1);
+                                  },
+                                ),
+                              ),
+
+                              // D. FOOTER LEGEND
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: lightBg.withValues(alpha: 0.3),
+                                  border: Border(
+                                    top: BorderSide(
+                                      color: isDark
+                                          ? Colors.white10
+                                          : Colors.black.withValues(
+                                              alpha: 0.03,
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildFooterLegend('🌑', 'Baru'),
+                                    _buildFooterLegend('🌓', 'Paruh Awal'),
+                                    _buildFooterLegend('🌕', 'Purnama'),
+                                    _buildFooterLegend('🌗', 'Paruh Akhir'),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
 
           // 4. HEADER FLOATING

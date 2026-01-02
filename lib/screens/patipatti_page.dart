@@ -58,7 +58,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
   // URL JSON
   final String _dataUrl =
-      'https://cdn.jsdelivr.net/gh/renaldoaluska/tipitaka@main/json/uposatha.json';
+      //  'https://cdn.jsdelivr.net/gh/renaldoaluska/tipitaka@main/json/uposatha.json';
+      'https://raw.githubusercontent.com/renaldoaluska/tipitaka/refs/heads/main/json/uposatha.json';
 
   // ═══════════════════════════════════════════════════════════
   // 📚 STATE PARITTA

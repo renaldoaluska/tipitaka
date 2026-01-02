@@ -1025,7 +1025,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final colors = _themeColors;
     final bool isFirst = _currentIndex <= 0;
     final bool isLast = _currentIndex >= widget.chapterFiles.length - 1;
-    final double topPadding = MediaQuery.of(context).padding.top + 60;
+    // final double topPadding = MediaQuery.of(context).padding.top + 60;
 
     return PopScope(
       canPop: false,
@@ -1039,8 +1039,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         body: Stack(
           children: [
             // CONTENT
-            Padding(
-              padding: EdgeInsets.only(top: topPadding),
+            SafeArea(
+              bottom: false, // Biar konten bawah tembus ke navbar/FAB
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
@@ -1049,73 +1049,78 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                     )
                   : AnimatedSwitcher(
                       duration: const Duration(milliseconds: 400),
-                      transitionBuilder:
-                          (Widget child, Animation<double> animation) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            );
-                          },
+                      transitionBuilder: (child, animation) =>
+                          FadeTransition(opacity: animation, child: child),
                       child: SingleChildScrollView(
                         key: ValueKey<int>(_currentIndex),
                         controller: _scrollController,
-
-                        // --- BAGIAN INI ---
-                        // Logikanya:
-                        // Kalo player aktif (_isPlayerVisible = true) -> kasih padding gede (misal 340)
-                        // Kalo player mati  (_isPlayerVisible = false) -> padding standar (120)
                         padding: EdgeInsets.only(
+                          // 👇 Padding bawah tetep pake logic player
                           bottom: _isPlayerVisible ? 340 : 120,
                         ),
+                        child: Column(
+                          // 👈 Tambah Column biar bisa kasih Spacer
+                          children: [
+                            // 👇 SPACER WAJIB (Biar ga ketutupan Header)
+                            const SizedBox(height: 80),
 
-                        // -----------------------
-                        child: SelectionArea(
-                          child: Html(
-                            data: _displayHtmlContent,
-                            style: _getHtmlStyles(),
-                            extensions: [
-                              TagExtension(
-                                tagsToExtend: {"mark-highlight"},
-                                builder: (extensionContext) {
-                                  final indexStr =
-                                      extensionContext.attributes['index'];
-                                  if (indexStr != null) {
-                                    final int index = int.parse(indexStr);
-                                    final key = GlobalKey();
-                                    _searchKeys[index] = key;
+                            // KONTEN HTML (SelectionArea)
+                            SelectionArea(
+                              child: Html(
+                                data: _displayHtmlContent,
+                                style: _getHtmlStyles(),
 
-                                    return Container(
-                                      key: key,
-                                      decoration: BoxDecoration(
-                                        color: Colors.yellow,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 2,
-                                      ),
-                                      child: Text(
+                                extensions: [
+                                  TagExtension(
+                                    tagsToExtend: {"mark-highlight"},
+                                    builder: (extensionContext) {
+                                      final indexStr =
+                                          extensionContext.attributes['index'];
+                                      if (indexStr != null) {
+                                        final int index = int.parse(indexStr);
+                                        final key = GlobalKey();
+                                        _searchKeys[index] = key;
+
+                                        return Container(
+                                          key: key,
+                                          decoration: BoxDecoration(
+                                            color: Colors.yellow,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 2,
+                                          ),
+                                          child: Text(
+                                            extensionContext.element!.text,
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return Text(
                                         extensionContext.element!.text,
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return Text(extensionContext.element!.text);
+                                      );
+                                    },
+                                  ),
+                                ],
+
+                                onLinkTap: (url, attributes, element) {
+                                  if (url != null) _handleLinkTap(url);
                                 },
                               ),
-                            ],
-                            onLinkTap: (url, attributes, element) {
-                              if (url != null) _handleLinkTap(url);
-                            },
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
             ),
+            // =======================
 
-            // HEADER
+            // HEADER (Panggil fungsi yang baru diedit tadi)
             _buildHeader(),
           ],
         ),
@@ -1339,64 +1344,97 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   Widget _buildHeader() {
     return Positioned(
-      top: 0,
+      // 👇 1. Posisi turun di bawah status bar
+      top: MediaQuery.of(context).padding.top,
       left: 0,
       right: 0,
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            color: Theme.of(
-              context,
-            ).colorScheme.surface.withValues(alpha: 0.85),
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 8,
-              bottom: 12,
-              left: 16,
-              right: 16,
-            ),
-            child: Row(
-              children: [
-                InkWell(
-                  onTap: _handleBackNavigation,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      shape: BoxShape.circle,
+      child: Padding(
+        // 👇 2. Kasih margin biar ngambang (Floating Pill)
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.85),
+                // 👇 3. Padding dalem lebih tipis karena udah ada margin luar
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    // TOMBOL BACK (Bulat + Shadow)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: InkWell(
+                        onTap: _handleBackNavigation, // Tetep pake logic lama
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Icon(
+                            Icons.arrow_back,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Icon(Icons.arrow_back, size: 20),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 12),
+
+                    // JUDUL & HALAMAN
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              // Pakai warna tema biar adaptif
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            "Halaman ${_currentIndex + 1} / ${widget.chapterFiles.length}",
+                            style: TextStyle(
+                              fontSize: 11,
+                              // Warna subtitle agak pudar
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        "Halaman ${_currentIndex + 1} / ${widget.chapterFiles.length}",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

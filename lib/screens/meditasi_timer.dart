@@ -82,7 +82,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   void dispose() {
     _timer?.cancel();
     _previewDebounce?.cancel();
-    _stopPreviewTimer?.cancel(); // <--- TAMBAH INI
+    _stopPreviewTimer?.cancel();
     _startBellPlayer.dispose();
     _endBellPlayer.dispose();
     _ambientPlayer.dispose();
@@ -120,63 +120,79 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     await prefs.setDouble(_keyAmbientVolume, _ambientVolume);
   }
 
+  // --- HEADER BARU: STYLE FLOATING PILL (Sama kayak Tematik) ---
   Widget _buildGlassAppBar() {
     return Positioned(
-      top: 0,
+      top: MediaQuery.of(context).padding.top, // Posisi di bawah status bar
       left: 0,
       right: 0,
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            color: Theme.of(
-              context,
-            ).scaffoldBackgroundColor.withValues(alpha: 0.85),
-            // HAPUS padding manual yang ribet tadi
-            // Ganti pake SafeArea, tapi set bottom: false biar ga ngefek ke bawah
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.85),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    InkWell(
-                      onTap: () async {
-                        if (_isRunning) {
-                          final canExit = await _confirmExit();
-                          if (canExit && context.mounted) {
-                            setState(() {
-                              _isRunning = false;
-                              _isPreparation = false;
-                              _isPaused = false;
-                            });
-                          }
-                        } else {
-                          Navigator.pop(context);
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerHighest,
-                          shape: BoxShape.circle,
+                    // Tombol Close (Style Bulat Putih + Shadow)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.close, // Icon Close karena Timer
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
-                        child: const Icon(Icons.close, size: 20),
+                        onPressed: () async {
+                          if (_isRunning) {
+                            final canExit = await _confirmExit();
+                            if (canExit && context.mounted) {
+                              setState(() {
+                                _isRunning = false;
+                                _isPreparation = false;
+                                _isPaused = false;
+                              });
+                            }
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    const Expanded(
+                    const SizedBox(width: 12),
+                    // Judul
+                    Expanded(
                       child: Text(
                         'Timer Meditasi',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -209,21 +225,15 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   }
 
   Future<void> _playPreview(String sound, String type) async {
-    // 1. BATALIN semua rencana yang lama (Debounce & Jadwal Stop)
-    // Ini kuncinya biar timer lama gak "membunuh" suara baru
     _previewDebounce?.cancel();
     _stopPreviewTimer?.cancel();
 
-    // 2. Matiin semua suara dulu biar sepi
     await _startBellPlayer.stop();
     await _endBellPlayer.stop();
     await _ambientPlayer.stop();
 
-    // Kalo milih "Tanpa...", yaudah stop aja, gak usah lanjut
     if (sound == 'Tanpa Bel' || sound == 'Tanpa Latar') return;
 
-    // 3. Mulai Debounce (Tunggu user diem dulu 300ms, baru play)
-    // Biar kalo dia nge-scroll cepet, gak semua file keload bikin lag
     _previewDebounce = Timer(const Duration(milliseconds: 300), () async {
       try {
         if (type == 'start') {
@@ -238,8 +248,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             AssetSource('sounds/${sound.toLowerCase()}.mp3'),
           );
 
-          // 4. Jadwalin Stop pake Timer yang BISA DIBATALIN (_stopPreviewTimer)
-          // Jangan pake Future.delayed biasa
           _stopPreviewTimer = Timer(const Duration(seconds: 4), () {
             if (mounted) _ambientPlayer.stop();
           });
@@ -267,21 +275,14 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           if (_remainingSeconds > 0) {
             _remainingSeconds--;
           } else {
-            // --- BAGIAN INI YANG DIUBAH ---
             if (_isPreparation) {
               _isPreparation = false;
               _remainingSeconds = (_hours * 3600) + (_minutes * 60) + _seconds;
 
-              // 1. Mainkan Bel DULUAN
               _playStartBell();
 
-              // 2. Hapus/Comment baris _playAmbient() yang lama di sini
-              // _playAmbient(); <--- INI JANGAN DIPAKE LANGSUNG
-
-              // 3. Kita kasih delay (jeda) misal 3 detik, baru ambient masuk
               if (_ambient != 'Tanpa Latar') {
                 Future.delayed(const Duration(seconds: 3), () {
-                  // Cek lagi: takutnya user keburu stop/pause pas lagi jeda 3 detik itu
                   if (mounted && _isRunning && !_isPaused) {
                     _playAmbient();
                   }
@@ -290,7 +291,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             } else {
               _finishMeditation();
             }
-            // --- SELESAI UBAH ---
           }
         });
       }
@@ -506,9 +506,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             mainAxisSize: MainAxisSize.min,
             children: _bellOptions.map((bell) {
               return RadioListTile<String>(
-                // --- BAGIAN INI DIGANTI ---
                 title: Text(_getBellDisplayName(bell)),
-                // --------------------------
                 value: bell,
                 groupValue: tempSelection,
                 onChanged: (value) {
@@ -601,7 +599,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           color: Theme.of(context).scaffoldBackgroundColor,
           child: Column(
             children: [
-              // --- Header ---
               Container(
                 decoration: BoxDecoration(
                   color: isDark ? Colors.grey[900] : Colors.grey[200],
@@ -624,9 +621,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // --- VALIDASI PAKE POPUP ---
                         if (tempDuration.inSeconds < 60) {
-                          // Ganti SnackBar jadi showDialog biar nongol di atas Sheet
                           showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
@@ -640,10 +635,9 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                               ],
                             ),
                           );
-                          return; // Stop di sini
+                          return;
                         }
 
-                        // Save kalo lolos
                         setState(() {
                           _hours = tempDuration.inHours;
                           _minutes = tempDuration.inMinutes % 60;
@@ -660,8 +654,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                   ],
                 ),
               ),
-
-              // --- Wheel Picker ---
               Expanded(
                 child: CupertinoTimerPicker(
                   mode: CupertinoTimerPickerMode.hms,
@@ -717,22 +709,17 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
         }
       },
       child: Scaffold(
-        // Body dibikin full screen (tanpa SafeArea) biar scroll-nya tembus ke atas
         body: Stack(
           children: [
-            // KONTEN
-            Padding(
-              // Kita tetep butuh ini biar konten awal ga ketutupan AppBar
-              // Tapi sekarang hitungannya lebih simpel
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 70,
-              ),
+            // 1. KONTEN (Dibungkus SafeArea)
+            SafeArea(
+              bottom: false,
               child: _isRunning
                   ? _buildTimerView(isDark, accentColor)
                   : _buildSettingsView(isDark, accentColor),
             ),
 
-            // APPBAR (Melayang di atas konten)
+            // 2. APPBAR (Floating Style)
             _buildGlassAppBar(),
           ],
         ),
@@ -750,10 +737,13 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // 👇 TAMBAH INI (Spacer aman biar ga nabrak header)
+          const SizedBox(height: 80),
+
           Text(
             _isPreparation ? 'Persiapan' : 'Meditasi',
             style: TextStyle(
@@ -814,7 +804,9 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- HEADER: PENGATURAN WAKTU ---
+          // 👇 TAMBAH INI (Spacer buat Header Floating)
+          const SizedBox(height: 80),
+
           _buildSectionHeader(context, 'Waktu'),
 
           _buildSettingItem(
@@ -831,7 +823,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Durasi', // Kasih label jelas di dalem
+                      'Durasi',
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Row(
@@ -857,10 +849,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             ),
           ),
 
-          // --- HEADER: PENGATURAN SUARA ---
           _buildSectionHeader(context, 'Suara'),
 
-          // Item 1: Bel Mulai
           _buildSettingItem(
             child: InkWell(
               onTap: () => _showBellPicker('start'),
@@ -897,7 +887,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             ),
           ),
 
-          // Item 2: Bel Selesai
           _buildSettingItem(
             child: InkWell(
               onTap: () => _showBellPicker('end'),
@@ -934,7 +923,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             ),
           ),
 
-          // Item 3: Suara Latar
           _buildSettingItem(
             child: InkWell(
               onTap: _showAmbientPicker,
@@ -973,7 +961,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
 
           const SizedBox(height: 32),
 
-          // Tombol Aksi di bawah
           Row(
             children: [
               IconButton(
@@ -1007,46 +994,41 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               ),
             ],
           ),
-          const SizedBox(height: 20), // Spasi bawah biar ga mentok
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  // Cuma buat ngebungkus kontennya aja, ga pake judul lagi
   Widget _buildSettingItem({required Widget child}) {
     return Padding(padding: const EdgeInsets.only(bottom: 12), child: child);
   }
 
-  // Fungsi buat ngerapihin nama file jadi nama cantik
   String _getBellDisplayName(String filename) {
     if (filename == 'Tanpa Bel') return filename;
-    // Hapus .mp3, terus ubah 'bel' jadi 'Bel ' (pake spasi biar ada jarak)
     return filename.replaceAll('.mp3', '').replaceAll('bel', 'Bel ');
   }
 }
 
-// Fungsi baru buat bikin Header a la ExploreTab
 Widget _buildSectionHeader(BuildContext context, String title) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-  // Logic warna divider copas dari ExploreTab
   final dividerColor = isDarkMode
       ? const Color.fromARGB(77, 158, 158, 158)
       : const Color.fromARGB(102, 158, 158, 158);
 
   return Padding(
-    padding: const EdgeInsets.only(top: 24, bottom: 8), // Jarak atas-bawah
+    padding: const EdgeInsets.only(top: 24, bottom: 8),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const SizedBox(width: 4), // Dikit indent biar sejajar
+            const SizedBox(width: 4),
             Text(
-              title.toUpperCase(), // Biasanya header digedein semua biar tegas
+              title.toUpperCase(),
               style: TextStyle(
-                fontSize: 13, // Ukuran pas buat label section
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 letterSpacing: 1.0,
