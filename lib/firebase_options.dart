@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -40,54 +41,54 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCd_INjni0WgaDGPBX1HfY5Hf-3FuGq9hs',
-    appId: '1:767872125298:web:7d6c130d63acd35ba3f5eb',
-    messagingSenderId: '767872125298',
-    projectId: 'mydhamma-8',
-    authDomain: 'mydhamma-8.firebaseapp.com',
-    databaseURL: 'https://mydhamma-8-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'mydhamma-8.firebasestorage.app',
-    measurementId: 'G-6ZM6DC80YC',
+  static final FirebaseOptions web = FirebaseOptions(
+    apiKey: dotenv.env['WEB_API_KEY']!,
+    appId: dotenv.env['WEB_APP_ID']!,
+    messagingSenderId: dotenv.env['WEB_MESSAGING_SENDER_ID']!,
+    projectId: dotenv.env['WEB_PROJECT_ID']!,
+    authDomain: dotenv.env['WEB_AUTH_DOMAIN'],
+    databaseURL: dotenv.env['WEB_DATABASE_URL'],
+    storageBucket: dotenv.env['WEB_STORAGE_BUCKET'],
+    measurementId: dotenv.env['WEB_MEASUREMENT_ID'],
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBDvbF5QXYpyXBXFVjoZh_dm4w8wYj5Hk0',
-    appId: '1:767872125298:android:04399e37f9f3f2f4a3f5eb',
-    messagingSenderId: '767872125298',
-    projectId: 'mydhamma-8',
-    databaseURL: 'https://mydhamma-8-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'mydhamma-8.firebasestorage.app',
+  static final FirebaseOptions android = FirebaseOptions(
+    apiKey: dotenv.env['ANDROID_API_KEY']!,
+    appId: dotenv.env['ANDROID_APP_ID']!,
+    messagingSenderId: dotenv.env['ANDROID_MESSAGING_SENDER_ID']!,
+    projectId: dotenv.env['ANDROID_PROJECT_ID']!,
+    databaseURL: dotenv.env['ANDROID_DATABASE_URL'],
+    storageBucket: dotenv.env['ANDROID_STORAGE_BUCKET'],
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAV15ELsOrzeaXgplAfCyaROA6gSt5VUbY',
-    appId: '1:767872125298:ios:0e50fa5ec4be5fdba3f5eb',
-    messagingSenderId: '767872125298',
-    projectId: 'mydhamma-8',
-    databaseURL: 'https://mydhamma-8-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'mydhamma-8.firebasestorage.app',
-    iosBundleId: 'id.aluska.tipitaka',
+  static final FirebaseOptions ios = FirebaseOptions(
+    apiKey: dotenv.env['IOS_API_KEY']!,
+    appId: dotenv.env['IOS_APP_ID']!,
+    messagingSenderId: dotenv.env['IOS_MESSAGING_SENDER_ID']!,
+    projectId: dotenv.env['IOS_PROJECT_ID']!,
+    databaseURL: dotenv.env['IOS_DATABASE_URL'],
+    storageBucket: dotenv.env['IOS_STORAGE_BUCKET'],
+    iosBundleId: dotenv.env['IOS_BUNDLE_ID'],
   );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAV15ELsOrzeaXgplAfCyaROA6gSt5VUbY',
-    appId: '1:767872125298:ios:0e50fa5ec4be5fdba3f5eb',
-    messagingSenderId: '767872125298',
-    projectId: 'mydhamma-8',
-    databaseURL: 'https://mydhamma-8-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'mydhamma-8.firebasestorage.app',
-    iosBundleId: 'id.aluska.tipitaka',
+  static final FirebaseOptions macos = FirebaseOptions(
+    apiKey: dotenv.env['MACOS_API_KEY']!,
+    appId: dotenv.env['MACOS_APP_ID']!,
+    messagingSenderId: dotenv.env['MACOS_MESSAGING_SENDER_ID']!,
+    projectId: dotenv.env['MACOS_PROJECT_ID']!,
+    databaseURL: dotenv.env['MACOS_DATABASE_URL'],
+    storageBucket: dotenv.env['MACOS_STORAGE_BUCKET'],
+    iosBundleId: dotenv.env['MACOS_BUNDLE_ID'],
   );
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCd_INjni0WgaDGPBX1HfY5Hf-3FuGq9hs',
-    appId: '1:767872125298:web:e5afb587784fe4b9a3f5eb',
-    messagingSenderId: '767872125298',
-    projectId: 'mydhamma-8',
-    authDomain: 'mydhamma-8.firebaseapp.com',
-    databaseURL: 'https://mydhamma-8-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'mydhamma-8.firebasestorage.app',
-    measurementId: 'G-K98X1E3TZ0',
+  static final FirebaseOptions windows = FirebaseOptions(
+    apiKey: dotenv.env['WINDOWS_API_KEY']!,
+    appId: dotenv.env['WINDOWS_APP_ID']!,
+    messagingSenderId: dotenv.env['WINDOWS_MESSAGING_SENDER_ID']!,
+    projectId: dotenv.env['WINDOWS_PROJECT_ID']!,
+    authDomain: dotenv.env['WINDOWS_AUTH_DOMAIN'],
+    databaseURL: dotenv.env['WINDOWS_DATABASE_URL'],
+    storageBucket: dotenv.env['WINDOWS_STORAGE_BUCKET'],
+    measurementId: dotenv.env['WINDOWS_MEASUREMENT_ID'],
   );
 }
