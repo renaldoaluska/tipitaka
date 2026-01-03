@@ -291,6 +291,15 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     }
   }
 
+  double _getAspectRatio(BuildContext context) {
+    final orientation = MediaQuery.of(context).orientation;
+
+    if (orientation == Orientation.landscape) {
+      return 1.8; // 👈 Lebih pipih (lebar > tinggi)
+    }
+    return 1.0; // Portrait tetap square
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -395,200 +404,263 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
 
                       // MAIN CARD
                       Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            children: [
-                              // DROPDOWN VERSI
-                              Container(
-                                margin: const EdgeInsets.fromLTRB(
-                                  16,
-                                  16,
-                                  16,
-                                  8,
+                        child: Center(
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 800),
+                            margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: lightBg.withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: borderColor.withValues(alpha: 0.5),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(
+                              children: [
+                                // DROPDOWN VERSI
+                                Container(
+                                  margin: const EdgeInsets.fromLTRB(
+                                    16,
+                                    16,
+                                    16,
+                                    8,
                                   ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.school_outlined,
-                                      size: 18,
-                                      color: _accentColor,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: lightBg.withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: borderColor.withValues(alpha: 0.5),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      "Versi",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        color: subtextColor,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.school_outlined,
+                                        size: 18,
+                                        color: _accentColor,
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          value:
-                                              _availableVersions.contains(
-                                                _selectedVersion,
-                                              )
-                                              ? _selectedVersion
-                                              : null,
-                                          isExpanded: true,
-                                          icon: Icon(
-                                            Icons.keyboard_arrow_down_rounded,
-                                            color: _accentColor,
-                                            size: 20,
-                                          ),
-                                          dropdownColor: Theme.of(
-                                            context,
-                                          ).cardColor,
-                                          hint: Text(
-                                            "Memuat...",
-                                            style: TextStyle(color: textColor),
-                                          ),
-                                          items: _availableVersions.map((
-                                            String value,
-                                          ) {
-                                            return DropdownMenuItem<String>(
-                                              value: value,
-                                              child: Text(
-                                                value,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w600,
-                                                  color:
-                                                      value == _selectedVersion
-                                                      ? _accentColor
-                                                      : textColor,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            );
-                                          }).toList(),
-                                          onChanged: (newValue) {
-                                            if (newValue != null) {
-                                              setState(
-                                                () =>
-                                                    _selectedVersion = newValue,
-                                              );
-                                              _saveVersionPreference(newValue);
-                                            }
-                                          },
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        "Versi",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          color: subtextColor,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // HEADER HARI
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceAround,
-                                  children:
-                                      [
-                                            "Sen",
-                                            "Sel",
-                                            "Rab",
-                                            "Kam",
-                                            "Jum",
-                                            "Sab",
-                                            "Min",
-                                          ]
-                                          .map(
-                                            (day) => SizedBox(
-                                              width: 32,
-                                              child: Text(
-                                                day,
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 11,
-                                                  color: day == "Min"
-                                                      ? Colors.red[400]
-                                                      : Colors.grey[500],
-                                                ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            value:
+                                                _availableVersions.contains(
+                                                  _selectedVersion,
+                                                )
+                                                ? _selectedVersion
+                                                : null,
+                                            isExpanded: true,
+                                            icon: Icon(
+                                              Icons.keyboard_arrow_down_rounded,
+                                              color: _accentColor,
+                                              size: 20,
+                                            ),
+                                            dropdownColor: Theme.of(
+                                              context,
+                                            ).cardColor,
+                                            hint: Text(
+                                              "Memuat...",
+                                              style: TextStyle(
+                                                color: textColor,
                                               ),
                                             ),
-                                          )
-                                          .toList(),
-                                ),
-                              ),
-                              Divider(
-                                height: 1,
-                                color: isDark
-                                    ? Colors.white10
-                                    : Colors.grey[200],
-                                indent: 16,
-                                endIndent: 16,
-                              ),
-
-                              // CALENDAR GRID
-                              Expanded(
-                                child: PageView.builder(
-                                  controller: _pageController,
-                                  itemCount: 12,
-                                  onPageChanged: _onPageChanged,
-                                  itemBuilder: (context, index) {
-                                    return _buildMonthGrid(index + 1);
-                                  },
-                                ),
-                              ),
-
-                              // FOOTER LEGEND
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: lightBg.withValues(alpha: 0.3),
-                                  border: Border(
-                                    top: BorderSide(
-                                      color: isDark
-                                          ? Colors.white10
-                                          : Colors.black.withValues(
-                                              alpha: 0.03,
-                                            ),
-                                    ),
+                                            items: _availableVersions.map((
+                                              String value,
+                                            ) {
+                                              return DropdownMenuItem<String>(
+                                                value: value,
+                                                child: Text(
+                                                  value,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color:
+                                                        value ==
+                                                            _selectedVersion
+                                                        ? _accentColor
+                                                        : textColor,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: (newValue) {
+                                              if (newValue != null) {
+                                                setState(
+                                                  () => _selectedVersion =
+                                                      newValue,
+                                                );
+                                                _saveVersionPreference(
+                                                  newValue,
+                                                );
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    _buildFooterLegend('🌑', 'Baru'),
-                                    _buildFooterLegend('🌓', 'Paruh Awal'),
-                                    _buildFooterLegend('🌕', 'Purnama'),
-                                    _buildFooterLegend('🌗', 'Paruh Akhir'),
-                                  ],
+
+                                // HEADER HARI
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    0,
+                                    8,
+                                    0,
+                                    8,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children:
+                                        [
+                                              "Sen",
+                                              "Sel",
+                                              "Rab",
+                                              "Kam",
+                                              "Jum",
+                                              "Sab",
+                                              "Min",
+                                            ]
+                                            .map(
+                                              (day) => SizedBox(
+                                                width: 32,
+                                                child: Text(
+                                                  day,
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 11,
+                                                    color: day == "Min"
+                                                        ? Colors.red[400]
+                                                        : Colors.grey[500],
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                  ),
                                 ),
-                              ),
-                            ],
+                                Divider(
+                                  height: 1,
+                                  color: isDark
+                                      ? Colors.white10
+                                      : Colors.grey[200],
+                                  indent: 16,
+                                  endIndent: 16,
+                                ),
+
+                                // CALENDAR GRID
+                                Expanded(
+                                  child: PageView.builder(
+                                    controller: _pageController,
+                                    itemCount: 12,
+                                    onPageChanged: _onPageChanged,
+                                    itemBuilder: (context, index) {
+                                      return _buildMonthGrid(index + 1);
+                                    },
+                                  ),
+                                ),
+
+                                // 👇 BANNER OFFLINE (dipindah ke sini)
+                                if (!_isOnline &&
+                                    MediaQuery.of(context).orientation ==
+                                        Orientation.portrait)
+                                  Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.cloud_off,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Expanded(
+                                          child: Text(
+                                            'Mode Offline - Data tersimpan',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.refresh,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          onPressed: () => _initializeData(),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                // FOOTER LEGEND
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: lightBg.withValues(alpha: 0.3),
+                                    border: Border(
+                                      top: BorderSide(
+                                        color: isDark
+                                            ? Colors.white10
+                                            : Colors.black.withValues(
+                                                alpha: 0.03,
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      _buildFooterLegend('🌑', 'Baru'),
+                                      _buildFooterLegend('🌓', 'Paruh Awal'),
+                                      _buildFooterLegend('🌕', 'Purnama'),
+                                      _buildFooterLegend('🌗', 'Paruh Akhir'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -598,60 +670,8 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
 
           // HEADER FLOATING
           _buildHeader(context),
-          if (!_isOnline)
-            Positioned(
-              bottom: 100,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  width:
-                      MediaQuery.of(context).size.width *
-                      0.85, // ✅ 80% dari lebar layar
-                  child: Material(
-                    color: Colors.orange,
-                    borderRadius: BorderRadius.circular(8),
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.cloud_off,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Mode Offline - Data tersimpan',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.refresh,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            onPressed: () => _initializeData(),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+
+          // 👆 HAPUS Positioned banner offline yang lama di sini
         ],
       ),
     );
@@ -798,15 +818,17 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     final firstDayOfMonth = DateTime(_currentYear, month, 1);
     final int startingWeekday = firstDayOfMonth.weekday;
     final uposathaEvents = _getUposathaDaysForMonth(_currentYear, month);
-
+    final orientation = MediaQuery.of(context).orientation;
     return GridView.builder(
       padding: const EdgeInsets.all(12),
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
-        childAspectRatio: 1.0,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
+        childAspectRatio: _getAspectRatio(context),
+        mainAxisSpacing: orientation == Orientation.landscape
+            ? 2
+            : 4, // 👈 Lebih rapat di landscape
+        crossAxisSpacing: orientation == Orientation.landscape ? 2 : 4,
       ),
       itemCount: daysInMonth + (startingWeekday - 1),
       itemBuilder: (context, index) {

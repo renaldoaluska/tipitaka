@@ -1491,54 +1491,240 @@ class _HomeState extends State<Home> {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      title: const Text("Kontribusi"),
-                      content: const Text(
-                        "Aplikasi ini dikembangkan secara terbuka dengan mettā, karuṇā, muditā, dan upekkhā.\n\n"
-                        "Anda bisa kontribusi dengan:\n"
-                        "• Memberi masukan\n"
-                        "• Membantu dokumentasi\n"
-                        "• Menyumbang kode\n"
-                        "• Menyebarkan aplikasi ini\n\n"
-                        "Pilih salah satu opsi di bawah.\nTerima kasih <3",
+                      contentPadding: EdgeInsets.zero,
+                      content: Container(
+                        width: MediaQuery.of(context).size.width * 0.85,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Theme.of(context).cardColor,
+                              Theme.of(
+                                context,
+                              ).cardColor.withValues(alpha: 0.95),
+                            ],
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Header dengan gradient
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    const Color(0xFFF57F17),
+                                    const Color(
+                                      0xFFF57F17,
+                                    ).withValues(alpha: 0.8),
+                                  ],
+                                ),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(20),
+                                  topRight: Radius.circular(20),
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  const Icon(
+                                    Icons.volunteer_activism_rounded,
+                                    size: 48,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    "Kontribusi",
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "mettā · karuṇā · muditā · upekkhā",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                      fontStyle: FontStyle.italic,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Content
+                            Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Aplikasi ini dikembangkan secara terbuka dengan semangat berbagi kebajikan.",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      height: 1.5,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.8),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 20),
+
+                                  // Cara kontribusi dengan icon
+                                  _buildContribItem(
+                                    ctx,
+                                    Icons.feedback_rounded,
+                                    "Memberi masukan & saran",
+                                  ),
+                                  _buildContribItem(
+                                    ctx,
+                                    Icons.description_rounded,
+                                    "Membantu dokumentasi",
+                                  ),
+                                  _buildContribItem(
+                                    ctx,
+                                    Icons.code_rounded,
+                                    "Menyumbang kode program",
+                                  ),
+                                  _buildContribItem(
+                                    ctx,
+                                    Icons.share_rounded,
+                                    "Menyebarkan ke sesama",
+                                  ),
+
+                                  const SizedBox(height: 20),
+                                  Center(
+                                    child: Text(
+                                      "Terima kasih atas dukungan Anda 🙏",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFFF57F17),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Action buttons
+                            Container(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              child: Column(
+                                children: [
+                                  // Email button
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.of(ctx).pop();
+                                        final uri = Uri(
+                                          scheme: 'mailto',
+                                          path: 'aluskaindonesia@gmail.com',
+                                          query: Uri.encodeFull(
+                                            'subject=Saran Aplikasi Tripitaka Indonesia'
+                                            '&body=--- tulis saran Anda di bawah ---',
+                                          ),
+                                        );
+                                        launchUrl(
+                                          uri,
+                                          mode: LaunchMode.externalApplication,
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.email_rounded,
+                                        size: 20,
+                                      ),
+                                      label: const Text("Kirim Email"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFFF57F17,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        elevation: 0,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // GitHub button
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () {
+                                        Navigator.of(ctx).pop();
+                                        launchUrl(
+                                          Uri.parse(
+                                            "https://github.com/renaldoaluska/tipitaka",
+                                          ),
+                                          mode: LaunchMode.externalApplication,
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.code_rounded,
+                                        size: 20,
+                                      ),
+                                      label: const Text("Buka GitHub"),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: const Color(
+                                          0xFFF57F17,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        side: const BorderSide(
+                                          color: Color(0xFFF57F17),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // Close button
+                                  TextButton(
+                                    onPressed: () => Navigator.of(ctx).pop(),
+                                    child: Text(
+                                      "Tutup",
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(ctx).pop();
-                            final uri = Uri(
-                              scheme: 'mailto',
-                              path: 'aluskaindonesia@gmail.com',
-                              query: Uri.encodeFull(
-                                'subject=Saran Aplikasi Tripitaka Indonesia'
-                                '&body=--- tulis saran Anda di bawah ---',
-                              ),
-                            );
-                            launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            );
-                          },
-                          child: const Text("Kirim Email"),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(ctx).pop();
-                            launchUrl(
-                              Uri.parse(
-                                "https://github.com/renaldoaluska/tipitaka",
-                              ),
-                              mode: LaunchMode.externalApplication,
-                            );
-                          },
-                          child: const Text("Buka GitHub"),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          child: const Text("Tutup"),
-                        ),
-                      ],
                     ),
                   );
                 },
@@ -1548,6 +1734,35 @@ class _HomeState extends State<Home> {
         ),
         const SizedBox(height: 16),
       ],
+    );
+  }
+
+  Widget _buildContribItem(BuildContext context, IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF57F17).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: const Color(0xFFF57F17)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurface,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
