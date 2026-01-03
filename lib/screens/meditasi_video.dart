@@ -883,7 +883,8 @@ class _VideoPageState extends State<VideoPage> {
                     ),
                   ),
                   TextSpan(
-                    text: "Pengaturan • Timer • Riwayat Lokal",
+                    text:
+                        "Paritta • Pendahuluan Tematik • Panduan Uposatha\nAbhidhammattha-Saṅgaha • Timer Meditasi",
                     style: TextStyle(
                       fontSize: 12,
                       color: subTextColor.withValues(alpha: 0.8),
