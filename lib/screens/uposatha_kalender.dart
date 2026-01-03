@@ -602,7 +602,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
           // ✅ OFFLINE INDICATOR
           if (!_isOnline)
             Positioned(
-              bottom: 16,
+              bottom: 80,
               left: 16,
               right: 16,
               child: Material(
