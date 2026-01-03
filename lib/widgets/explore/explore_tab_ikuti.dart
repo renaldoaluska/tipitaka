@@ -85,24 +85,22 @@ class ExploreTabIkuti extends StatelessWidget {
       {"title": "Akun Instagram", "isHeader": "true"},
       {
         "title": "@MedkomSTI",
-        "desc":
-            "Akun Instagram media dan komunikasi Saṅgha Theravāda Indonesia",
+        "desc": "Akun media dan komunikasi Saṅgha Theravāda Indonesia",
         "url": "https://www.instagram.com/medkomsti/",
       },
       {
         "title": "@PelitaBuddha",
-        "desc": "Akun Instagram yang rutin mengunggah kutipan Buddhis",
+        "desc": "Akun yang rutin mengunggah kutipan Buddhis",
         "url": "https://www.instagram.com/pelitabuddha/",
       },
       {
         "title": "@TipitakaHarian",
-        "desc": "Akun Instagram yang rutin mengunggah kutipan Buddhis",
+        "desc": "Akun yang rutin mengunggah kutipan Buddhis",
         "url": "https://www.instagram.com/tipitakaharian/",
       },
       {
         "title": "@Sasana_Buddha",
-        "desc":
-            "Akun Instagram kajian Buddhis berlandaskan Tipiṭaka dan Aṭṭhakathā",
+        "desc": "Akun kajian Buddhis berlandaskan Tipiṭaka dan Aṭṭhakathā",
         "url": "https://www.instagram.com/sasana_buddha/",
       },
     ];

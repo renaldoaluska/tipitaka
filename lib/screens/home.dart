@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '../styles/nikaya_style.dart';
+import '../widgets/compact_card.dart';
 import '../widgets/icon_button_builder.dart';
 import '../widgets/header_depan.dart';
 import '../widgets/explore/explore_tab_app.dart';
@@ -1471,22 +1472,27 @@ class _HomeState extends State<Home> {
                   // ATUR JARAK ANTAR LISTVIEW ITEM
                   // padding: EdgeInsets.only(bottom: isLast ? 6 : 8),
                   padding: EdgeInsets.only(bottom: 8),
-                  child: CompactCardBuilder(
+                  child: CompactCard(
                     title: item["title"] as String,
                     //   subtitle: item["subtitle"] as String,
                     icon: item["icon"] as IconData,
                     color: item["color"] as Color,
+                    titleFontSize: 13, // 👈 Override
+                    titleFontWeight: FontWeight.w500, // 👈 Override
                     onTap: () => _openExplore(context, item["index"] as int),
                   ),
                 );
               }),
 
               // Kontribusi card
-              CompactCardBuilder(
+              CompactCard(
                 title: "Kontribusi",
                 //    subtitle: "Ikut kembangkan aplikasi ini",
                 icon: Icons.code,
                 color: Colors.blueGrey,
+
+                titleFontSize: 13,
+                titleFontWeight: FontWeight.w500,
                 onTap: () => _showContributionDialog(context),
               ),
             ],
@@ -1738,102 +1744,6 @@ class _HomeState extends State<Home> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class CompactCardBuilder extends StatelessWidget {
-  final String title;
-  // final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const CompactCardBuilder({
-    super.key,
-    required this.title,
-    //  required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-  @override
-  Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Material(
-      color: isDarkMode
-          ? Colors.grey[850]?.withValues(alpha: 0.4)
-          : Colors.grey[100],
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDarkMode ? Colors.grey[800]! : Colors.grey[300]!,
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            children: [
-              // Icon dengan ukuran lebih kecil
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 20, color: color),
-              ),
-              const SizedBox(width: 12),
-              // Text content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        //ukuran font judul eksplor
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: isDarkMode ? Colors.white : Colors.black87,
-                        height: 1.2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    /*    Text(
-                      subtitle,
-                      style: TextStyle(
-                        //ukuuran font desc
-                        fontSize: 12,
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        height: 1.3,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),*/
-                  ],
-                ),
-              ),
-              // 🔥 TAMBAH ICON OPEN_IN_NEW
-              Icon(
-                Icons.open_in_new,
-                size: 16,
-                color: isDarkMode ? Colors.grey[600] : Colors.grey[400],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_custom_tabs/flutter_custom_tabs.dart' as custom_tabs;
+import 'package:tipitaka/widgets/compact_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ExploreTab extends StatelessWidget {
@@ -103,10 +104,9 @@ class ExploreTab extends StatelessWidget {
 
         // --- TAMPILAN ITEM (Menggunakan CompactCardBuilder agar sama dengan Home) ---
         return Padding(
-          padding: const EdgeInsets.only(
-            bottom: 8,
-          ), // Jarak antar card disesuaikan
-          child: CompactCardBuilder(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: CompactCard(
+            // 👈 Pakai widget dari file terpisah
             title: item["title"] ?? "",
             subtitle: item["desc"] ?? "",
             icon: defaultIcon,
