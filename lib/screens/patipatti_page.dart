@@ -25,16 +25,14 @@ class PatipattiPage extends StatefulWidget {
 
 class _PatipattiPageState extends State<PatipattiPage>
     with AutomaticKeepAliveClientMixin {
+  String? _lastCampaignFetchTimeStr; // ✅ Tambah ini
+  DateTime? _lastDermaClickTime; // ✅ Untuk satpam refresh
+
   // Variabel buat nyatet waktu terakhir refresh Uposatha
   DateTime? _lastUposathaRefreshTime;
   // Tambah key baru buat simpan waktu
   static const String _keyLastFetchTime = 'last_fetch_timestamp';
-  static const String _keyLastCampaignFetch = 'last_campaign_fetch_time';
-  static const String _keyLastCampaignData = 'last_campaign_data_string'; //
-  String? _lastCampaignFetchTimeStr;
-  // Variabel buat nyimpen waktu terakhir pencet refresh Derma
-  DateTime? _lastDermaClickTime;
-  // Tambah variabel state buat nampung teksnya
+
   String? _lastFetchTimeStr;
   bool _isCampaignError = false; // Tambah ini di deklarasi variabel
   bool _showViewAllButton = false;
@@ -564,12 +562,6 @@ class _PatipattiPageState extends State<PatipattiPage>
     }
   }
 
-  // Helper kecil buat nambahin angka 0 di depan (misal bulan 1 jadi 01)
-  String _twoDigits(int n) {
-    if (n >= 10) return "$n";
-    return "0$n";
-  }
-
   Future<void> _loadUposathaFromFirebase() async {
     try {
       setState(() => _isLoadingUposatha = true);
@@ -944,6 +936,7 @@ class _PatipattiPageState extends State<PatipattiPage>
     );
   }
 
+  // ✅ FUNGSI SATPAM - Cegah spam refresh
   void _handleDermaRefresh() {
     final now = DateTime.now();
 
@@ -951,7 +944,7 @@ class _PatipattiPageState extends State<PatipattiPage>
     if (_lastDermaClickTime != null) {
       final difference = now.difference(_lastDermaClickTime!);
 
-      // LOGIC: Kalau selisihnya kurang dari 5 detik, tolak!
+      // LOGIC: Kalau selisihnya kurang dari 11 detik, tolak!
       if (difference.inSeconds < 11) {
         // 1. Hapus antrian snackbar lama biar gak numpuk
         ScaffoldMessenger.of(context).clearSnackBars();
@@ -962,106 +955,191 @@ class _PatipattiPageState extends State<PatipattiPage>
             content: Text(
               "Tunggu sebentar sebelum refresh lagi",
               style: TextStyle(
-                // fontWeight: FontWeight.bold,
-                color: (Theme.of(context).colorScheme.surface),
+                color: Theme.of(context).colorScheme.surface,
                 fontSize: 12,
               ),
             ),
             backgroundColor: Theme.of(context).colorScheme.secondary,
-            behavior: SnackBarBehavior.floating, // Biar ngambang (keren dikit)
+            behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
             margin: const EdgeInsets.all(16),
-            duration: const Duration(seconds: 2), // Muncul sebentar aja
+            duration: const Duration(seconds: 2),
           ),
         );
         return; // ⛔ BERHENTI DI SINI, jangan load data
       }
     }
 
-    // Kalau lolos (udah lebih dari 5 detik atau baru pertama kali):
-    _lastDermaClickTime = now; // Catat waktu sekarang
-    _loadCampaigns(); // Panggil fungsi aslinya
+    // Kalau lolos (udah lebih dari 11 detik atau baru pertama kali):
+    _lastDermaClickTime = now;
+    _loadCampaigns(forceRefresh: true); // ✅ PAKSA REFRESH SERVER
   }
 
-  // Timpa method _loadCampaigns dengan yang ini:
-  // Update Logic _loadCampaigns biar JUJUR
-  Future<void> _loadCampaigns({String? categoryId}) async {
+  Future<void> _loadCampaigns({
+    String? categoryId,
+    bool forceRefresh = false,
+  }) async {
     setState(() {
       _isLoadingCampaigns = true;
-      _isCampaignError = false; // Reset error dulu pas mulai loading
+      _isCampaignError = false;
     });
 
     try {
-      // A. FETCH DATA
-      List<Campaign> newCampaigns;
+      // ✅ FETCH SEMUA KATEGORI SEKALIGUS
+      final result = await _danaService
+          .fetchAllCampaigns(forceRefresh: forceRefresh)
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('Timeout saat fetch campaigns');
+            },
+          );
+
+      // ✅ DEBUG: Print semua kategori yang ada
+      debugPrint('📋 Categories from API:');
+      result.dataByCategory.forEach((key, value) {
+        debugPrint('   - "$key" (${value.length} campaigns)');
+      });
+
+      // ✅ FILTER berdasarkan kategori yang dipilih
+      List<Campaign> displayCampaigns = [];
+
       if (categoryId != null) {
-        newCampaigns = await _danaService.fetchCampaigns(categoryId);
-      } else {
-        newCampaigns = await _danaService.fetchTopCampaigns();
-      }
+        // 1. Cari nama kategori expected dari map
+        final entry = DanaEverydayService.categories.entries.firstWhere(
+          (e) => e.value == categoryId,
+          orElse: () => const MapEntry('', ''),
+        );
 
-      if (mounted) {
-        // 👇 LOGIC JUJUR: Cek dulu, ada isinya gak?
-        if (newCampaigns.isNotEmpty) {
-          // --- KASUS SUKSES & ADA DATA ---
-          final prefs = await SharedPreferences.getInstance();
-          final now = DateTime.now();
-          final timeToDisplay =
-              "${now.year}-${_twoDigits(now.month)}-${_twoDigits(now.day)} ${_twoDigits(now.hour)}:${_twoDigits(now.minute)}:${_twoDigits(now.second)}";
-
-          // 1. Simpan Waktu (Hanya kalau sukses dapet data)
-          await prefs.setString(_keyLastCampaignFetch, timeToDisplay);
-
-          // 2. Simpan Data Cache
-          String newCampaignSignature = newCampaigns
-              .map((c) => "${c.name}-${c.percent}-${c.formattedCollected}")
-              .join("|");
-          await prefs.setString(_keyLastCampaignData, newCampaignSignature);
-
-          // 3. Update Jam di UI
-          setState(() {
-            _lastCampaignFetchTimeStr = timeToDisplay; // ✅ JAM BARU
-            _isCampaignError = false;
-          });
-
-          debugPrint('✅ Data Campaign loaded. Jam diupdate: $timeToDisplay');
-        } else {
-          // --- KASUS KOSONG / OFFLINE ---
-          // JANGAN update jam! Biarin pake jam terakhir yg sukses.
-          debugPrint('⚠️ Data Kosong (Offline?). Jam TIDAK diupdate.');
-
-          setState(() {
-            _isCampaignError = true; // Tandai error biar muncul icon Wifi Off
-          });
+        if (entry.key.isEmpty) {
+          throw Exception('Category ID $categoryId not found in map');
         }
 
-        // C. UPDATE LIST DATA (Tetap update listnya)
+        final expectedName = entry.key;
+        debugPrint('🔍 Looking for category: "$expectedName"');
+
+        // 2. Coba exact match dulu
+        if (result.dataByCategory.containsKey(expectedName)) {
+          displayCampaigns = result.dataByCategory[expectedName]!;
+          debugPrint(
+            '✅ Exact match found: ${displayCampaigns.length} campaigns',
+          );
+        }
+        // 3. Kalau ga ada, coba case-insensitive match
+        else {
+          final lowerExpected = expectedName.toLowerCase();
+          bool found = false;
+
+          for (final mapEntry in result.dataByCategory.entries) {
+            if (mapEntry.key.toLowerCase() == lowerExpected) {
+              displayCampaigns = mapEntry.value;
+              debugPrint(
+                '✅ Case-insensitive match: "${mapEntry.key}" (${displayCampaigns.length})',
+              );
+              found = true;
+              break;
+            }
+          }
+
+          // 4. Kalau masih ga ketemu, log error tapi jangan crash
+          if (!found) {
+            debugPrint('⚠️ No match for "$expectedName"');
+            debugPrint(
+              '⚠️ Available: ${result.dataByCategory.keys.join(", ")}',
+            );
+          }
+        }
+
+        // Ambil max 8 per kategori
+        displayCampaigns = displayCampaigns.take(8).toList();
+      } else {
+        // "Semua" → Ambil top 12, sort by HARI TERSISA (terdekat dulu)
+        displayCampaigns = result.allCampaigns;
+
+        // ✅ SORT BY DAYS REMAINING (paling sedikit dulu)
+        displayCampaigns.sort((a, b) {
+          // Campaign yang udah lewat deadline (daysRemaining = 0) → taruh belakang
+          if (a.daysRemaining == 0 && b.daysRemaining > 0) return 1;
+          if (b.daysRemaining == 0 && a.daysRemaining > 0) return -1;
+
+          // Sort ascending (paling sedikit hari dulu)
+          return a.daysRemaining.compareTo(b.daysRemaining);
+        });
+
+        displayCampaigns = displayCampaigns.take(12).toList();
+        debugPrint(
+          '✅ "Semua" selected: ${displayCampaigns.length} campaigns (sorted by deadline)',
+        );
+      }
+
+      // ✅ VALIDASI
+      if (displayCampaigns.isEmpty) {
+        debugPrint('⚠️ No campaigns to display');
+      }
+
+      // Validasi data quality
+      final validCampaigns = displayCampaigns
+          .where((c) => c.name.isNotEmpty && c.categoryName.isNotEmpty)
+          .toList();
+
+      if (validCampaigns.length != displayCampaigns.length) {
+        debugPrint(
+          '⚠️ Filtered ${displayCampaigns.length - validCampaigns.length} invalid campaigns',
+        );
+      }
+
+      // ✅ UPDATE TIMESTAMP CUMA KALAU FETCH SERVER
+      if (mounted && result.wasFetchedFromServer) {
+        final now = DateTime.now();
+        final timeToDisplay =
+            "${now.year}-${_twoDigits(now.month)}-${_twoDigits(now.day)} "
+            "${_twoDigits(now.hour)}:${_twoDigits(now.minute)}:${_twoDigits(now.second)}";
+
+        await _danaService.saveLastUpdateTime(timeToDisplay);
+
         setState(() {
-          _campaigns = newCampaigns;
+          _lastCampaignFetchTimeStr = timeToDisplay;
+        });
+
+        debugPrint('✅ Fetched from SERVER! Updated timestamp: $timeToDisplay');
+      } else {
+        debugPrint('📦 From CACHE. Timestamp NOT updated.');
+      }
+
+      // ✅ UPDATE UI
+      if (mounted) {
+        setState(() {
+          _campaigns = validCampaigns;
           _isLoadingCampaigns = false;
+          _isCampaignError = false;
           _showViewAllButton = false;
         });
       }
-    } catch (e) {
-      debugPrint("❌ Gagal load campaign: $e");
+    } on TimeoutException catch (e) {
+      debugPrint("⏱️ Timeout: $e");
       if (mounted) {
         setState(() {
           _isLoadingCampaigns = false;
-          _isCampaignError = true; // Tandai error
-          // Jam JANGAN diubah
+          _isCampaignError = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Gagal memuat data. Cek koneksi internet."),
-          ),
-        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint("❌ Error fetch campaigns: $e");
+      debugPrint("Stack trace: $stackTrace");
+      if (mounted) {
+        setState(() {
+          _isLoadingCampaigns = false;
+          _isCampaignError = true;
+        });
       }
     }
   }
 
-  // 1️⃣ LOAD PREFERENCES (VERSI YANG DIPILIH USER)
+  // Helper untuk format angka jadi 2 digit
+  String _twoDigits(int n) => n.toString().padLeft(2, '0');
+
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -1071,14 +1149,14 @@ class _PatipattiPageState extends State<PatipattiPage>
       setState(() => _selectedUposathaVersion = savedUposathaVersion);
     }
 
-    //  TAMBAH: Load Paritta tradition
+    // Load Paritta tradition
     final savedParittaTradition = prefs.getString(_keyParitta);
     if (savedParittaTradition != null) {
       setState(() => _selectedParittaTradition = savedParittaTradition);
     }
 
-    //  TAMBAH INI: Load waktu update Campaign
-    final savedCampaignTime = prefs.getString(_keyLastCampaignFetch);
+    // ✅ TAMBAH INI: Load waktu update Campaign
+    final savedCampaignTime = prefs.getString('last_campaign_update_time');
     if (savedCampaignTime != null) {
       setState(() => _lastCampaignFetchTimeStr = savedCampaignTime);
     }
@@ -1257,6 +1335,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // BAGIAN KIRI (Label "DĀNA")
                     Text(
                       "DĀNA",
                       style: TextStyle(
@@ -1266,8 +1345,8 @@ class _PatipattiPageState extends State<PatipattiPage>
                         letterSpacing: 1.2,
                       ),
                     ),
-                    // BAGIAN KANAN (Ganti Total)
-                    // Hapus Row yang isinya "Didukung oleh...", ganti jadi ini:
+
+                    // ✅ BAGIAN KANAN (Ganti Total dengan Timestamp)
                     if (_lastCampaignFetchTimeStr != null)
                       RichText(
                         text: TextSpan(
@@ -1323,7 +1402,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                                 ),
                               ),
                               Text(
-                                "Praktik Memberi",
+                                "Yayasan Dana Everyday",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: subtextColor,
@@ -1338,6 +1417,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                             color: accentColor,
                             size: 20,
                           ),
+
                           // Panggil fungsi satpam tadi
                           onPressed: _isLoadingCampaigns
                               ? null
@@ -1357,10 +1437,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                             isSelected: _selectedCategory == 'Semua',
                             accentColor: accentColor,
                             lightBg: lightBg,
-                            onTap: () {
-                              setState(() => _selectedCategory = 'Semua');
-                              _loadCampaigns();
-                            },
+                            onTap: () => _onCategorySelected('Semua'),
                           ),
                           ...DanaEverydayService.categories.entries.map((
                             entry,
@@ -1370,10 +1447,10 @@ class _PatipattiPageState extends State<PatipattiPage>
                               isSelected: _selectedCategory == entry.key,
                               accentColor: accentColor,
                               lightBg: lightBg,
-                              onTap: () {
-                                setState(() => _selectedCategory = entry.key);
-                                _loadCampaigns(categoryId: entry.value);
-                              },
+                              onTap: () => _onCategorySelected(
+                                entry.key,
+                                categoryId: entry.value,
+                              ),
                             );
                           }),
                         ],
@@ -1411,6 +1488,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                                   },
                                   child: ListView.separated(
                                     controller: _campaignScrollController,
+
                                     scrollDirection: Axis.horizontal,
                                     padding: const EdgeInsets.only(right: 95),
                                     itemCount: _campaigns.length,
@@ -1504,6 +1582,23 @@ class _PatipattiPageState extends State<PatipattiPage>
         ),
       ),
     );
+  }
+
+  // Fungsi pembantu untuk menangani logika ganti kategori
+  void _onCategorySelected(String categoryName, {String? categoryId}) {
+    // 1. Reset Scroll ke Kiri (Fix UX)
+    if (_campaignScrollController.hasClients) {
+      _campaignScrollController.jumpTo(0);
+    }
+
+    // 2. Update State UI
+    setState(() {
+      _selectedCategory = categoryName;
+      _showViewAllButton = false; // Reset tombol view all
+    });
+
+    // 3. Load Data Baru
+    _loadCampaigns(categoryId: categoryId);
   }
 
   Widget _buildCampaignCard({
@@ -1817,7 +1912,7 @@ class _PatipattiPageState extends State<PatipattiPage>
         MediaQuery.of(context).orientation == Orientation.landscape;
 
     //tinggi kotak bulan
-    final phaseBoxHeight = isLandscape ? 172.0 : 85.0; // ✅ 130 aja cukup
+    final phaseBoxHeight = isLandscape ? 169.0 : 85.0; // ✅ 130 aja cukup
     // final phaseBoxHeight = isTabletLandscape ? 185.0 : 85.0;
 
     //final cardMargin = isTabletLandscape ? 8.0 : 16.0;

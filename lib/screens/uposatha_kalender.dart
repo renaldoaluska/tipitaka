@@ -195,13 +195,15 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                "Tunggu sebentar sebelum refresh lagi ⏳",
+                "Tunggu sebentar sebelum refresh lagi",
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.surface,
-                  fontWeight: FontWeight.bold,
+                  // fontWeight: FontWeight.bold,
+                  color: (Theme.of(context).colorScheme.surface),
+                  fontSize: 12,
                 ),
               ),
-              backgroundColor: _accentColor, // Pake warna oranye khas Uposatha
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
