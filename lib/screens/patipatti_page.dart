@@ -11,6 +11,8 @@ import 'meditasi_timer.dart';
 import 'meditasi_video.dart';
 import 'uposatha_kalender.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'dart:convert';
+import 'dart:async';
 
 class PatipattiPage extends StatefulWidget {
   final String? highlightSection;
@@ -42,6 +44,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
   // ═══════════════════════════════════════════════════════════
   String _selectedUposathaVersion = "Saṅgha Theravāda Indonesia";
   bool _isLoadingUposatha = false;
+  bool _isOnline = true;
+
+  static const String _keyUposathaData = 'cached_uposatha_data';
 
   // Variable buat nyimpen data mentah dari JSON
   Map<String, List<dynamic>> _uposathaData = {};
@@ -351,7 +356,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
   void initState() {
     super.initState();
     _loadPreferences();
-    _loadUposathaFromFirebase(); // ← GANTI INI
+    _loadUposathaData(); // ← GANTI INI
     _setupRealtimeListener();
     _loadCampaigns();
 
@@ -375,43 +380,134 @@ class _PatipattiPageState extends State<PatipattiPage> {
     }
   }
 
-  // 2️⃣ LOAD DATA DARI FIREBASE (SEKALI SAAT INIT)
+  Future<void> _loadUposathaData() async {
+    // 1. Load dari cache dulu
+    final hasCache = await _loadFromCache();
+
+    // 2. Kalau ada cache, set loading selesai & tampilkan
+    if (hasCache && mounted) {
+      setState(() => _isLoadingUposatha = false);
+      _calculateDisplayData();
+    }
+
+    // 3. Fetch dari Firebase (background)
+    await _loadUposathaFromFirebase();
+  }
+
+  Future<bool> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedJson = prefs.getString(_keyUposathaData);
+
+      if (cachedJson != null) {
+        debugPrint('📦 Loading Uposatha from cache...');
+        final Map<String, dynamic> decoded = json.decode(cachedJson);
+
+        Map<String, List<dynamic>> tempData = {};
+        decoded.forEach((key, value) {
+          if (value is List) {
+            tempData[key] = value;
+          }
+        });
+
+        setState(() {
+          _uposathaData = tempData;
+          _availableVersions = _uposathaData.keys.toList();
+
+          if (!_availableVersions.contains(_selectedUposathaVersion) &&
+              _availableVersions.isNotEmpty) {
+            _selectedUposathaVersion = _availableVersions.first;
+          }
+        });
+
+        debugPrint('✅ Uposatha cache loaded');
+        return true;
+      }
+
+      debugPrint('📭 No Uposatha cache found');
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error loading cache: $e');
+      return false;
+    }
+  }
+
+  Future<void> _saveToCache(Map<String, List<dynamic>> data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = json.encode(data);
+      await prefs.setString(_keyUposathaData, jsonString);
+      debugPrint('💾 Uposatha data saved to cache');
+    } catch (e) {
+      debugPrint('❌ Error saving to cache: $e');
+    }
+  }
+
   Future<void> _loadUposathaFromFirebase() async {
     try {
       setState(() => _isLoadingUposatha = true);
 
-      final snapshot = await _databaseRef.child('uposatha').get();
+      debugPrint('🌐 Fetching Uposatha from Firebase...');
+
+      // ✅ TAMBAH TIMEOUT 10 DETIK
+      final snapshot = await _databaseRef
+          .child('uposatha')
+          .get()
+          .timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {
+              throw TimeoutException('Firebase timeout');
+            },
+          );
 
       if (snapshot.exists && mounted) {
         final data = snapshot.value;
         _processFirebaseData(data);
-      }
+        await _saveToCache(_uposathaData);
 
-      if (mounted) {
-        setState(() => _isLoadingUposatha = false);
+        setState(() {
+          _isOnline = true;
+          _isLoadingUposatha = false;
+        });
+        debugPrint('✅ Firebase Uposatha loaded & cached');
       }
     } catch (e) {
-      debugPrint("Error loading from Firebase: $e");
+      debugPrint('❌ Firebase error (probably offline): $e');
+
       if (mounted) {
-        setState(() => _isLoadingUposatha = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memuat data: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ✅ CUKUP SET STATE, NO SNACKBAR
+        setState(() {
+          _isOnline = false;
+          _isLoadingUposatha = false;
+        });
       }
     }
   }
 
-  // 3️⃣ SETUP REALTIME LISTENER (AUTO UPDATE KALAU DATA BERUBAH)
+  // ✅ UPDATE: Setup listener dengan error handling
   void _setupRealtimeListener() {
-    _databaseRef.child('uposatha').onValue.listen((event) {
-      if (event.snapshot.exists && mounted) {
-        final data = event.snapshot.value;
-        _processFirebaseData(data);
-      }
-    });
+    _databaseRef
+        .child('uposatha')
+        .onValue
+        .listen(
+          (event) {
+            if (event.snapshot.exists && mounted) {
+              final data = event.snapshot.value;
+              _processFirebaseData(data);
+              _saveToCache(_uposathaData);
+
+              if (!_isOnline) {
+                setState(() => _isOnline = true);
+              }
+            }
+          },
+          onError: (error) {
+            debugPrint('❌ Realtime listener error: $error');
+            if (mounted && _isOnline) {
+              setState(() => _isOnline = false);
+            }
+          },
+        );
   }
 
   // 4️⃣ PROSES DATA DARI FIREBASE
@@ -1331,6 +1427,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
   // ═══════════════════════════════════════════════════════════
   // 🌙 2. UPOSATHA CARD (Sīla) - SUDAH DIPERBAIKI
   // ═══════════════════════════════════════════════════════════
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🌙 2. UPOSATHA CARD (Sīla) - DENGAN CACHING & OFFLINE MODE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Widget _buildUposathaCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = Theme.of(context).colorScheme.surface;
@@ -1358,6 +1457,50 @@ class _PatipattiPageState extends State<PatipattiPage> {
           child: Column(
             children: [
               _buildHeaderStrip("Sīla"),
+
+              // ✅ OFFLINE INDICATOR (muncul kalau tidak ada koneksi)
+              if (!_isOnline)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  color: Colors.orange.withValues(alpha: 0.2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.cloud_off,
+                        color: Colors.orange,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Mode Offline - Data tersimpan',
+                          style: TextStyle(
+                            color: Colors.orange[700],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.refresh,
+                          color: Colors.orange,
+                          size: 16,
+                        ),
+                        onPressed: () => _loadUposathaData(),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
+
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -1400,7 +1543,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             ],
                           ),
                         ),
-                        // LABEL NEXT EVENT (DINAMIS DARI VARIABLE BARU)
+                        // LABEL NEXT EVENT (DINAMIS)
                         AnimatedOpacity(
                           duration: const Duration(milliseconds: 300),
                           opacity: _isLoadingUposatha ? 0.5 : 1.0,
@@ -1415,7 +1558,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               border: Border.all(color: borderColor),
                             ),
                             child: Text(
-                              _nextUposathaLabel, // PAKE VARIABLE BARU
+                              _nextUposathaLabel,
                               style: const TextStyle(
                                 color: accentColor,
                                 fontSize: 11,
@@ -1427,6 +1570,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
+
+                    // DROPDOWN VERSI
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -1476,13 +1621,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                   color: accentColor,
                                   fontWeight: FontWeight.w600,
                                 ),
-
                                 hint: Text(
                                   "Memuat...",
                                   style: TextStyle(color: textColor),
                                 ),
                                 items: _availableVersions.map((version) {
-                                  // PAKE LIST BARU DARI JSON
                                   return DropdownMenuItem(
                                     value: version,
                                     child: Align(
@@ -1496,9 +1639,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                 }).toList(),
                                 onChanged: (value) {
                                   if (value != null) {
-                                    _updateVersion(
-                                      value,
-                                    ); // PANGGIL FUNGSI UPDATE BARU
+                                    _updateVersion(value);
                                   }
                                 },
                               ),
@@ -1508,6 +1649,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // PREVIEW 4 UPOSATHA TERDEKAT
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
@@ -1522,7 +1665,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           ).dividerColor.withValues(alpha: 0.1),
                         ),
                       ),
-                      child: _isLoadingUposatha || _displayPhases.isEmpty
+                      child: _isLoadingUposatha
                           ? const Center(
                               child: SizedBox(
                                 width: 24,
@@ -1533,10 +1676,35 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                 ),
                               ),
                             )
+                          : _displayPhases.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _isOnline
+                                        ? Icons.info_outline
+                                        : Icons.cloud_off,
+                                    size: 28,
+                                    color: subtextColor.withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _isOnline
+                                        ? 'Belum ada data'
+                                        : 'Offline - Belum ada data tersimpan',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: subtextColor,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: _displayPhases.map((phaseData) {
-                                // PAKE DATA BARU
                                 String icon = _getMoonIcon(
                                   phaseData["phase_name"]!,
                                 );
@@ -1563,6 +1731,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             ),
                     ),
                     const SizedBox(height: 12),
+
+                    // TOMBOL KALENDER & PANDUAN
                     Row(
                       children: [
                         Expanded(
@@ -1573,10 +1743,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             lightBg: lightBg,
                             borderColor: borderColor,
                             isHorizontal: true,
-
-                            // ✅ JUGA UPDATE BAGIAN onTap KALENDER BUTTON JADI:
                             onTap: () async {
-                              // ✅ AWAIT HASIL DARI KALENDER & RELOAD
                               await Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -1604,10 +1771,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => HtmlReaderPage(
-                                    title:
-                                        'Panduan Uposatha', // Judul yang muncul di AppBar
-                                    chapterFiles:
-                                        DaftarIsi.upo, // ✅ Ini kodenya "upo"
+                                    title: 'Panduan Uposatha',
+                                    chapterFiles: DaftarIsi.upo,
                                     initialIndex: 0,
                                   ),
                                 ),

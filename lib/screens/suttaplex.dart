@@ -653,7 +653,6 @@ class _SuttaplexState extends State<Suttaplex> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          // 🔥 Icon sesuai error type
                           _errorType == "network"
                               ? Icons.wifi_off_rounded
                               : Icons.search_off_rounded,
@@ -662,7 +661,6 @@ class _SuttaplexState extends State<Suttaplex> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          // 🔥 Judul sesuai error type
                           _errorType == "network"
                               ? "Tidak Ada Koneksi"
                               : "Kode Tidak Ditemukan",
@@ -674,16 +672,56 @@ class _SuttaplexState extends State<Suttaplex> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          // 🔥 Pesan sesuai error type
-                          _errorType == "network"
-                              ? "Periksa koneksi internet Anda\ndan silakan coba lagi"
-                              : "Kode \"${widget.uid}\" tidak ditemukan.\nPeriksa ejaan atau coba kode lain.\n\nMungkin kode yang dicari adalah bagian dari suatu range\n(mis. 'Bi Pj 2' dalam 'Bi Pj 1-4').",
-                          style: TextStyle(fontSize: 14, color: subTextColor),
+                        // ✅ PAKAI RichText BIAR BISA ATUR STYLE PER BAGIAN
+                        RichText(
                           textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: subTextColor,
+                              height: 1.5,
+                            ),
+                            children: _errorType == "network"
+                                ? [
+                                    const TextSpan(
+                                      text:
+                                          "Mohon periksa koneksi internet Anda\n\n",
+                                    ),
+                                    const TextSpan(
+                                      text:
+                                          "Untuk menghemat ruang penyimpanan, data Tipiṭaka (1 GB+) tidak tersimpan secara offline.\n\n",
+                                    ),
+                                    TextSpan(
+                                      text: "Fitur offline tersedia:\n",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor.withValues(alpha: 0.9),
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text:
+                                          "Paritta • Pendahuluan Tematik • Panduan Uposatha\nAbhidhammattha-Saṅgaha • Timer Meditasi",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: subTextColor.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                      ),
+                                    ),
+                                  ]
+                                : [
+                                    TextSpan(
+                                      text:
+                                          "Kode \"${widget.uid}\" tidak ditemukan.\nPeriksa ejaan atau coba kode lain.\n\n",
+                                    ),
+                                    const TextSpan(
+                                      text:
+                                          "Mungkin kode yang dicari adalah bagian dari suatu range\n(mis. 'Bi Pj 2' dalam 'Bi Pj 1-4').",
+                                    ),
+                                  ],
+                          ),
                         ),
                         const SizedBox(height: 24),
-                        // 🔥 Tombol retry hanya untuk network error
                         if (_errorType == "network")
                           FilledButton.icon(
                             onPressed: () {

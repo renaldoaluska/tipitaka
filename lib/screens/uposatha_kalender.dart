@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'dart:convert';
+import 'dart:async'; // untuk TimeoutException
 import 'package:firebase_database/firebase_database.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ TAMBAH INI
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UposathaKalenderPage extends StatefulWidget {
   final String initialVersion;
@@ -24,6 +26,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
   final int _currentYear = DateTime.now().year;
   late String _selectedVersion;
   bool _isLoading = true;
+  bool _isOnline = true;
   late PageController _pageController;
 
   // Data
@@ -33,8 +36,10 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
   // Style Constant
   final Color _accentColor = const Color(0xFFF57F17);
 
-  // ✅ TAMBAH KEY YANG SAMA DENGAN PATIPATTI
+  // Keys untuk SharedPreferences
   static const String _keyUposathaVersion = 'selected_uposatha_version';
+  static const String _keyUposathaData = 'cached_uposatha_data';
+  static const String _keyLastFetch = 'last_fetch_timestamp';
 
   @override
   void initState() {
@@ -42,8 +47,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     _selectedVersion = widget.initialVersion;
     _focusedDate = DateTime.now();
     _pageController = PageController(initialPage: _focusedDate.month - 1);
-    _loadDataFromFirebase();
-    _setupRealtimeListener();
+    _initializeData();
   }
 
   @override
@@ -52,45 +56,153 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     super.dispose();
   }
 
-  // Load data sekali dari Firebase
+  // ✅ INISIALISASI: Cek cache dulu, baru fetch dari Firebase
+  Future<void> _initializeData() async {
+    setState(() => _isLoading = true);
+
+    // 1. Load cache dulu
+    final hasCache = await _loadFromCache();
+
+    // 2. Kalau ada cache, tampilkan dulu (loading selesai)
+    if (hasCache && mounted) {
+      setState(() => _isLoading = false);
+    }
+
+    // 3. Coba fetch dari Firebase (background)
+    await _loadDataFromFirebase();
+
+    // 4. Setup realtime listener
+    _setupRealtimeListener();
+  }
+
+  // ✅ LOAD DARI CACHE
+  Future<bool> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedJson = prefs.getString(_keyUposathaData);
+
+      if (cachedJson != null) {
+        debugPrint('📦 Loading from cache...');
+        final Map<String, dynamic> decoded = json.decode(cachedJson);
+
+        // Convert ke format yang benar
+        Map<String, List<dynamic>> tempData = {};
+        decoded.forEach((key, value) {
+          if (value is List) {
+            tempData[key] = value;
+          }
+        });
+
+        setState(() {
+          _calendarData = tempData;
+          _availableVersions = _calendarData.keys.toList();
+
+          // Validasi selected version
+          if (!_availableVersions.contains(_selectedVersion) &&
+              _availableVersions.isNotEmpty) {
+            _selectedVersion = _availableVersions.first;
+          }
+        });
+
+        debugPrint('✅ Cache loaded successfully');
+        return true;
+      }
+
+      debugPrint('📭 No cache found');
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error loading cache: $e');
+      return false;
+    }
+  }
+
+  // ✅ SAVE KE CACHE
+  Future<void> _saveToCache(Map<String, List<dynamic>> data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = json.encode(data);
+      await prefs.setString(_keyUposathaData, jsonString);
+      await prefs.setInt(_keyLastFetch, DateTime.now().millisecondsSinceEpoch);
+      debugPrint('💾 Data saved to cache');
+    } catch (e) {
+      debugPrint('❌ Error saving to cache: $e');
+    }
+  }
+
+  // ✅ LOAD DARI FIREBASE (dengan error handling untuk offline)
   Future<void> _loadDataFromFirebase() async {
     try {
-      setState(() => _isLoading = true);
+      debugPrint('🌐 Fetching from Firebase...');
 
-      final snapshot = await _databaseRef.child('uposatha').get();
+      // ✅ TAMBAH TIMEOUT 10 DETIK
+      final snapshot = await _databaseRef
+          .child('uposatha')
+          .get()
+          .timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {
+              throw TimeoutException('Firebase timeout');
+            },
+          );
 
       if (snapshot.exists) {
         final data = snapshot.value;
         _processFirebaseData(data);
-      } else {
-        debugPrint('No data available in Firebase');
-      }
+        await _saveToCache(_calendarData);
 
-      if (mounted) {
-        setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() {
+            _isOnline = true;
+            _isLoading = false;
+          });
+        }
+        debugPrint('✅ Firebase data loaded & cached');
+      } else {
+        debugPrint('📭 No data available in Firebase');
+        if (mounted) {
+          setState(() {
+            _isOnline = true;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      debugPrint("Error loading from Firebase: $e");
+      debugPrint('❌ Firebase error (probably offline): $e');
+
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memuat data: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ✅ CUKUP SET STATE, NO SNACKBAR
+        setState(() {
+          _isOnline = false;
+          _isLoading = false;
+        });
       }
     }
   }
 
   // Setup listener untuk realtime updates
   void _setupRealtimeListener() {
-    _databaseRef.child('uposatha').onValue.listen((event) {
-      if (event.snapshot.exists) {
-        final data = event.snapshot.value;
-        _processFirebaseData(data);
-      }
-    });
+    _databaseRef
+        .child('uposatha')
+        .onValue
+        .listen(
+          (event) {
+            if (event.snapshot.exists) {
+              final data = event.snapshot.value;
+              _processFirebaseData(data);
+              _saveToCache(_calendarData);
+
+              if (mounted && !_isOnline) {
+                setState(() => _isOnline = true);
+              }
+            }
+          },
+          onError: (error) {
+            debugPrint('❌ Realtime listener error: $error');
+            if (mounted && _isOnline) {
+              setState(() => _isOnline = false);
+            }
+          },
+        );
   }
 
   void _processFirebaseData(dynamic data) {
@@ -169,7 +281,6 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     );
   }
 
-  // ✅ TAMBAH FUNGSI SAVE KE SHARED PREFERENCES
   Future<void> _saveVersionPreference(String version) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -201,6 +312,8 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
             bottom: false,
             child: _isLoading
                 ? Center(child: CircularProgressIndicator(color: _accentColor))
+                : _calendarData.isEmpty
+                ? _buildEmptyState()
                 : Column(
                     children: [
                       const SizedBox(height: 75),
@@ -380,7 +493,6 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                                                 () =>
                                                     _selectedVersion = newValue,
                                               );
-                                              // ✅ SAVE KE SHARED PREFERENCES
                                               _saveVersionPreference(newValue);
                                             }
                                           },
@@ -486,7 +598,100 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
 
           // HEADER FLOATING
           _buildHeader(context),
+
+          // ✅ OFFLINE INDICATOR
+          if (!_isOnline)
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: Material(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(8),
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.cloud_off,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Mode Offline - Data tersimpan',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.refresh,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        onPressed: () => _initializeData(),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  // ✅ EMPTY STATE (ketika benar-benar tidak ada data)
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Tidak Ada Data',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Belum ada data tersimpan dan tidak ada koneksi internet',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _initializeData(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Coba Lagi'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accentColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

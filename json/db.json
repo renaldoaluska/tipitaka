@@ -261,5 +261,24 @@
         "id": "_RAG9JVRejU"
       }
     ]
+ },
+  "audio": {
+    "NamakkaraPatha": "namakara",
+    "PujaKatha": "puja",
+    "Pubbabhaganamakkara": "pubbabhaganamakara",
+    "SaranagamanaPatha": "tisarana",
+    "Pancasila": "pancasila",
+    "Buddhanussati": "buddhanussati",
+    "Dhammanussati": "dhammanussati",
+    "Sanghanussati": "sanghanussati",
+    "SaccakiriyaGatha": "saccakiriya",
+    "MangalaSutta": "mangala",
+    "KaraniyamettaSutta": "karaniyametta",
+    "Brahmaviharapharana": "brahmavihara",
+    "AbhinhapaccavekkhanaPatha": "abhinnha",
+    "PancasilaAradhana": "mayam",
+    "ParittaAradhana": "paritta",
+    "DhammadesanaAradhana": "dhammadesana",
+    "Ettavatatiadipattidana": "ettavata"
   }
 }

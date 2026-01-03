@@ -178,7 +178,9 @@ class _VideoPageState extends State<VideoPage> {
     final iconBgColor = isDark
         ? Theme.of(context).colorScheme.surface
         : Colors.white;
-    final shadowColor = isDark ? Colors.black26 : Colors.black.withOpacity(0.1);
+    final shadowColor = isDark
+        ? Colors.black26
+        : Colors.black.withValues(alpha: 0.1);
 
     return Positioned(
       top: MediaQuery.of(context).padding.top,
@@ -318,7 +320,7 @@ class _VideoPageState extends State<VideoPage> {
     final unselectedBg = isDark ? Colors.grey[800] : Colors.grey[100];
     final unselectedText = isDark ? Colors.grey[400] : const Color(0xFF757575);
     final selectedBg = isDark
-        ? kPrimaryColor.withOpacity(0.3)
+        ? kPrimaryColor.withValues(alpha: 0.3)
         : const Color(0xFFFFEBEE);
 
     return Column(
@@ -342,7 +344,7 @@ class _VideoPageState extends State<VideoPage> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             scrollDirection: Axis.horizontal,
             itemCount: list.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final author = list[index];
               final isSelected = _selectedAuthor == author;
@@ -363,7 +365,7 @@ class _VideoPageState extends State<VideoPage> {
                   borderRadius: BorderRadius.circular(20),
                   side: BorderSide(
                     color: isSelected
-                        ? kPrimaryColor.withOpacity(0.5)
+                        ? kPrimaryColor.withValues(alpha: 0.5)
                         : Colors.transparent,
                   ),
                 ),
@@ -390,7 +392,7 @@ class _VideoPageState extends State<VideoPage> {
     final subtitleColor = isDark ? Colors.grey[400] : const Color(0xFF757575);
     final shadowColor = isDark
         ? Colors.transparent
-        : Colors.black.withOpacity(0.05);
+        : Colors.black.withValues(alpha: 0.05);
 
     return Container(
       width: 280,
@@ -455,11 +457,11 @@ class _VideoPageState extends State<VideoPage> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: kPrimaryColor.withOpacity(0.9),
+                      color: kPrimaryColor.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: kPrimaryColor.withOpacity(0.4),
+                          color: kPrimaryColor.withValues(alpha: 0.4),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -890,7 +892,9 @@ class _SeeAllPageState extends State<SeeAllPage> {
     final bgColor = isDark ? Colors.grey[900] : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
     final iconBgColor = isDark ? Colors.grey[800] : Colors.white;
-    final shadowColor = isDark ? Colors.black26 : Colors.black.withOpacity(0.1);
+    final shadowColor = isDark
+        ? Colors.black26
+        : Colors.black.withValues(alpha: 0.1);
 
     return Positioned(
       top: MediaQuery.of(context).padding.top,
@@ -917,7 +921,7 @@ class _SeeAllPageState extends State<SeeAllPage> {
                 sigmaY: _isScrolled ? 10.0 : 0.0,
               ),
               child: Container(
-                color: bgColor?.withOpacity(_isScrolled ? 0.85 : 1.0),
+                color: bgColor?.withValues(alpha: _isScrolled ? 0.85 : 1.0),
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
@@ -1034,7 +1038,9 @@ class _SeeAllPageState extends State<SeeAllPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: isDark ? Colors.transparent : Colors.black.withOpacity(0.04),
+            color: isDark
+                ? Colors.transparent
+                : Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),

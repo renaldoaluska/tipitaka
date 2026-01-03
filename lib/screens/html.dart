@@ -45,6 +45,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   // 🔧 TAMBAH STATE UNTUK AUDIO
   bool _isOnline = true;
+  bool _isLoadingAudio = true;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   // Konten HTML
@@ -151,6 +152,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
     // 🔧 SETUP CONNECTIVITY LISTENER
     _initConnectivity();
+    _loadAudioUrls(); // ✅ TAMBAH INI
+    _setupRealtimeListener(); // ✅ TAMBAH INI
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       _updateConnectionStatus,
     );
@@ -167,6 +170,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     _debounce?.cancel();
     _debounce = null;
 
+    DaftarIsi.disposeRealtimeListener();
     // 🔧 DISPOSE CONNECTIVITY
     _connectivitySubscription?.cancel();
 
@@ -214,10 +218,58 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   void _updateConnectionStatus(List<ConnectivityResult> results) {
     if (!mounted) return;
+    final wasOffline = !_isOnline;
     setState(() {
       _isOnline =
           results.isNotEmpty && !results.contains(ConnectivityResult.none);
     });
+
+    // ✅ AUTO RELOAD kalau balik online
+    if (wasOffline && _isOnline) {
+      debugPrint('🌐 Connection restored - reloading audio URLs...');
+      _loadAudioUrls(forceRefresh: true);
+    }
+  }
+
+  // 🔥 LOAD AUDIO URLS DARI FIREBASE/CACHE
+  Future<void> _loadAudioUrls({bool forceRefresh = false}) async {
+    if (!mounted) return;
+
+    setState(() => _isLoadingAudio = true);
+
+    try {
+      final result = await DaftarIsi.loadAudioUrls(forceRefresh: forceRefresh);
+      debugPrint('✅ Audio URLs loaded: ${result.length} items');
+
+      if (result.isNotEmpty) {
+        final firstKey = result.keys.first;
+        debugPrint('🎵 Sample: $firstKey → ${result[firstKey]}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading audio URLs: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingAudio = false);
+      }
+    }
+  }
+
+  // 🔥 SETUP REALTIME LISTENER (OPTIONAL - untuk auto-update)
+  void _setupRealtimeListener() {
+    DaftarIsi.setupRealtimeListener(
+      onUpdate: (updatedMap) {
+        if (mounted) {
+          debugPrint('🔄 Audio URLs auto-updated: ${updatedMap.length} items');
+
+          // Update UI kalau lagi di halaman yang punya audio
+          if (_hasAudioForCurrentPage()) {
+            setState(() {
+              // Trigger rebuild untuk update audio button state
+            });
+          }
+        }
+      },
+    );
   }
 
   // 🔧 AUDIO METHODS
@@ -231,22 +283,33 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   void _handleAudioButtonPress() {
-    // 1. Cek Koneksi dulu (copy logic lama kamu)
+    // 0. Cek loading → KASIH INFO
+    if (_isLoadingAudio) {
+      _showAudioMessage(
+        "Memuat Data Audio...",
+        "Mohon tunggu sebentar.",
+        Icons.hourglass_empty_rounded,
+        Colors.blue,
+      );
+      return;
+    }
+
+    // 1. Cek offline → KASIH INFO
     if (!_isOnline) {
       _showAudioMessage(
         "Tidak Ada Koneksi Internet",
-        "Mohon periksa koneksi internet Anda...",
+        "Audio memerlukan koneksi internet untuk streaming.",
         Icons.wifi_off_rounded,
         Colors.orange,
       );
       return;
     }
 
-    // 2. Ambil URL audio halaman ini
+    // 2. Ambil URL
     final fileName = _getCurrentFileName();
     final audioUrl = DaftarIsi.audioUrls[fileName];
 
-    // 3. Cek ada audionya gak
+    // 3. Cek ada audionya gak → KASIH INFO
     if (audioUrl == null || audioUrl.isEmpty) {
       _showAudioMessage(
         "Audio Tidak Tersedia",
@@ -254,20 +317,17 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         Icons.music_off_rounded,
         Colors.grey,
       );
-      // Kalau player lagi kebuka tapi ternyata file ini gak ada audio, tutup aja
       if (_isPlayerVisible) {
         setState(() => _isPlayerVisible = false);
       }
       return;
     }
 
-    // 4. LOGIC TOGGLE (SAKELAR)
+    // 4. TOGGLE PLAYER (berhasil)
     setState(() {
       if (_isPlayerVisible) {
-        // Kalau lagi kebuka -> TUTUP
         _isPlayerVisible = false;
       } else {
-        // Kalau lagi ketutup -> BUKA & SET URL BARU
         _currentAudioUrl = audioUrl;
         _isPlayerVisible = true;
       }
@@ -1456,7 +1516,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final bool hasAudioForPage = _hasAudioForCurrentPage();
 
     final bool isAudioButtonEnabled =
-        _isOnline && hasAudioForPage && !_isPlayerVisible;
+        _isOnline && !_isLoadingAudio && hasAudioForPage && !_isPlayerVisible;
 
     Widget buildBtn({
       required IconData icon,
@@ -1543,8 +1603,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
               duration: const Duration(milliseconds: 200),
               child: buildBtn(
                 icon: Icons.headphones_rounded,
+
                 //onTap: _handleAudioButtonPress,
-                onTap: isAudioButtonEnabled ? _handleAudioButtonPress : null,
+                //  onTap: isAudioButtonEnabled ? _handleAudioButtonPress : null,
+                onTap: _handleAudioButtonPress,
               ),
             ),
           ],

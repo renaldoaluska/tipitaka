@@ -87,6 +87,73 @@ class _MenuPageState extends State<MenuPage> {
     }
   }
 
+  Widget _buildErrorHeader(Color cardColor, Color? iconColor, Color textColor) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                color: cardColor.withValues(alpha: 0.85),
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.arrow_back, color: iconColor),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _root?["root_name"] ?? widget.uid,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget buildMenuItem(MenuItem item) {
     final cardColor = Theme.of(context).colorScheme.surface;
     final textColor = Theme.of(context).colorScheme.onSurface;
@@ -209,60 +276,109 @@ class _MenuPageState extends State<MenuPage> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _items.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        // 🔥 Icon sesuai error type
-                        _errorType == "network"
-                            ? Icons.wifi_off_rounded
-                            : Icons.folder_off_rounded,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        // 🔥 Judul sesuai error type
-                        _errorType == "network"
-                            ? "Tidak Ada Koneksi"
-                            : "Data Tidak Tersedia",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        // 🔥 Pesan sesuai error type
-                        _errorType == "network"
-                            ? "Periksa koneksi internet Anda\ndan silakan coba lagi"
-                            : "Menu ini tidak memiliki konten atau belum tersedia",
-                        style: TextStyle(fontSize: 14, color: subTextColor),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      // 🔥 Tombol retry hanya untuk network error
-                      if (_errorType == "network")
-                        FilledButton.icon(
-                          onPressed: () {
-                            setState(() => _loading = true);
-                            _fetchMenu();
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text("Coba Lagi"),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.deepOrange,
+            ? Stack(
+                // ✅ GANTI jadi Stack
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        top: 80,
+                        left: 24,
+                        right: 24,
+                        bottom: 24,
+                      ), // ✅ UBAH padding
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _errorType == "network"
+                                ? Icons.wifi_off_rounded
+                                : Icons.folder_off_rounded,
+                            size: 64,
+                            color: Colors.grey[400],
                           ),
-                        ),
-                    ],
+                          const SizedBox(height: 16),
+                          Text(
+                            _errorType == "network"
+                                ? "Tidak Ada Koneksi"
+                                : "Data Tidak Tersedia",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          // ✅ PAKAI RichText
+                          RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: subTextColor,
+                                height: 1.5,
+                              ),
+                              children: _errorType == "network"
+                                  ? [
+                                      const TextSpan(
+                                        text:
+                                            "Mohon periksa koneksi internet Anda\n\n",
+                                      ),
+                                      const TextSpan(
+                                        text:
+                                            "Untuk menghemat ruang penyimpanan, data Tipiṭaka (1 GB+) tidak tersimpan secara offline.\n\n",
+                                      ),
+                                      TextSpan(
+                                        text: "Fitur offline tersedia:\n",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: textColor.withValues(
+                                            alpha: 0.9,
+                                          ),
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            "Paritta • Pendahuluan Tematik • Panduan Uposatha\nAbhidhammattha-Saṅgaha • Timer Meditasi",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: subTextColor.withValues(
+                                            alpha: 0.8,
+                                          ),
+                                        ),
+                                      ),
+                                    ]
+                                  : [
+                                      const TextSpan(
+                                        text:
+                                            "Menu ini tidak memiliki konten atau belum tersedia",
+                                      ),
+                                    ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          if (_errorType == "network")
+                            FilledButton.icon(
+                              onPressed: () {
+                                setState(() => _loading = true);
+                                _fetchMenu();
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text("Coba Lagi"),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.deepOrange,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              )
+
+                  // ✅ TAMBAHIN HEADER (copy dari bawah tapi simplified)
+                  _buildErrorHeader(cardColor, iconColor, textColor),
+                ],
+              ) // ✅ Tutup Stack
             : Stack(
                 children: [
                   // LIST CONTENT

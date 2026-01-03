@@ -1,39 +1,176 @@
-// file: lib/data/daftar_isi_data.dart
+import 'dart:async';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class DaftarIsi {
-  // 🔧 MAP AUDIO URLs
+  // 🔧 AUDIO BASE URL
   static const String _baseUrl =
       "https://samaggi-phala.or.id/multimedias/paritta/";
-  // kamu cuma perlu pairing nama uniknya aja di sini
-  // format: "NamaFileHTML" : "NamaFileMP3"
-  static final Map<String, String> _rawMap = {
-    "NamakkaraPatha": "namakara",
-    "PujaKatha": "puja",
-    "Pubbabhaganamakkara": "pubbabhaganamakara",
-    "SaranagamanaPatha": "tisarana",
-    "Pancasila": "pancasila",
-    "Buddhanussati": "buddhanussati",
-    "Dhammanussati": "dhammanussati",
-    "Sanghanussati": "sanghanussati",
-    "SaccakiriyaGatha": "saccakiriya",
-    "MangalaSutta": "mangala",
-    "KaraniyamettaSutta": "karaniyametta",
-    "Brahmaviharapharana": "brahmavihara",
-    "AbhinhapaccavekkhanaPatha": "abhinnha",
-    "PancasilaAradhana": "mayam",
-    //"pPancasilaAradhana": "okasa",
-    "ParittaAradhana": "paritta",
-    "DhammadesanaAradhana": "dhammadesana",
-    "Ettavatatiadipattidana": "ettavata",
-    // tinggal tambah ke bawah...
-  };
 
-  // fungsi cerdas buat ngerakit Map lengkapnya secara otomatis
-  static Map<String, String> get audioUrls {
-    return _rawMap.map(
-      (html, mp3) => MapEntry("p$html.html", "$_baseUrl$mp3.mp3"),
+  // 🔥 FIREBASE DATABASE REFERENCE
+  static final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
+
+  // 🔥 CACHE KEYS
+  static const String _audioUrlsCacheKey = 'cached_audio_urls';
+  static const String _audioUrlsTimestampKey = 'cached_audio_urls_timestamp';
+
+  // 🗺️ In-memory storage (loaded from Firebase/cache)
+  static Map<String, String> _audioUrlsMap = {};
+  static bool _isAudioLoaded = false;
+
+  // ========================================================================
+  // 🎵 AUDIO URLs - FIREBASE INTEGRATION
+  // ========================================================================
+
+  /// Load audio URLs from Firebase or cache
+  static Future<Map<String, String>> loadAudioUrls({
+    bool forceRefresh = false,
+  }) async {
+    if (_isAudioLoaded && !forceRefresh && _audioUrlsMap.isNotEmpty) {
+      return _audioUrlsMap;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 1️⃣ Try cache first
+      if (!forceRefresh) {
+        final cachedData = prefs.getString(_audioUrlsCacheKey);
+        if (cachedData != null && cachedData.isNotEmpty) {
+          final Map<String, dynamic> rawData = json.decode(cachedData);
+          _audioUrlsMap = _convertRawToAudioUrls(rawData);
+          _isAudioLoaded = true;
+          return _audioUrlsMap;
+        }
+      }
+
+      // 2️⃣ Fetch from Firebase
+      final snapshot = await _databaseRef
+          .child('audio')
+          .get()
+          .timeout(
+            const Duration(seconds: 3),
+            onTimeout: () => throw TimeoutException('Firebase timeout'),
+          );
+
+      if (!snapshot.exists) {
+        throw Exception('Audio data not found in Firebase');
+      }
+
+      final data = snapshot.value;
+      if (data == null || data is! Map) {
+        throw Exception('Invalid audio data format');
+      }
+
+      final rawAudioData = Map<String, dynamic>.from(data);
+
+      // 3️⃣ Convert & save
+      _audioUrlsMap = _convertRawToAudioUrls(rawAudioData);
+      await prefs.setString(_audioUrlsCacheKey, json.encode(rawAudioData));
+      await prefs.setInt(
+        _audioUrlsTimestampKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+
+      _isAudioLoaded = true;
+      return _audioUrlsMap;
+    } catch (e) {
+      // ⚠️ Fallback to cache
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final cachedData = prefs.getString(_audioUrlsCacheKey);
+
+        if (cachedData != null && cachedData.isNotEmpty) {
+          final rawData = json.decode(cachedData);
+          _audioUrlsMap = _convertRawToAudioUrls(rawData);
+          _isAudioLoaded = true;
+          return _audioUrlsMap;
+        }
+      } catch (_) {}
+
+      return {};
+    }
+  }
+
+  /// Convert: {"NamakkaraPatha": "namakara"} → {"pNamakkaraPatha.html": "url/namakara.mp3"}
+  static Map<String, String> _convertRawToAudioUrls(
+    Map<String, dynamic> rawMap,
+  ) {
+    return rawMap.map(
+      (htmlName, mp3Name) =>
+          MapEntry("p$htmlName.html", "$_baseUrl$mp3Name.mp3"),
     );
   }
+
+  static Map<String, String> get audioUrls {
+    if (!_isAudioLoaded || _audioUrlsMap.isEmpty) return {};
+    return _audioUrlsMap;
+  }
+
+  // 🔥 Realtime listener
+  static StreamSubscription? _audioListener;
+
+  static void setupRealtimeListener({Function(Map<String, String>)? onUpdate}) {
+    _audioListener?.cancel();
+
+    _audioListener = _databaseRef.child('audio').onValue.listen((event) async {
+      if (event.snapshot.exists) {
+        final data = event.snapshot.value;
+        if (data != null && data is Map) {
+          final rawData = Map<String, dynamic>.from(data);
+          _audioUrlsMap = _convertRawToAudioUrls(rawData);
+          _isAudioLoaded = true;
+
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString(_audioUrlsCacheKey, json.encode(rawData));
+            await prefs.setInt(
+              _audioUrlsTimestampKey,
+              DateTime.now().millisecondsSinceEpoch,
+            );
+          } catch (_) {}
+
+          onUpdate?.call(_audioUrlsMap);
+        }
+      }
+    }, onError: (_) {});
+  }
+
+  static void disposeRealtimeListener() {
+    _audioListener?.cancel();
+    _audioListener = null;
+  }
+
+  static Future<void> clearAudioCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_audioUrlsCacheKey);
+    await prefs.remove(_audioUrlsTimestampKey);
+    _audioUrlsMap.clear();
+    _isAudioLoaded = false;
+  }
+
+  static Future<Map<String, dynamic>> getAudioCacheInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timestamp = prefs.getInt(_audioUrlsTimestampKey);
+    final cachedData = prefs.getString(_audioUrlsCacheKey);
+
+    return {
+      'hasCachedData': cachedData != null && cachedData.isNotEmpty,
+      'cachedCount': cachedData != null
+          ? (json.decode(cachedData) as Map).length
+          : 0,
+      'lastUpdate': timestamp != null
+          ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+          : null,
+      'isLoaded': _isAudioLoaded,
+      'loadedCount': _audioUrlsMap.length,
+    };
+  }
+
+  // ========================================================================
+  // 📚 HTML FILE PATHS (unchanged - existing lists below)
+  // ========================================================================
 
   static const List<String> upo = ['assets/web/upo.html'];
   // Ini daftar file untuk kategori TEMATIK

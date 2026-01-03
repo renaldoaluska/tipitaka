@@ -84,3 +84,6 @@ DerivedData/
 *.zip
 *.tar.gz
 *.rar
+
+# Firebase configuration (contains API keys)
+firebase_options.dart

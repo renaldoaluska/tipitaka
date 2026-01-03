@@ -127,22 +127,21 @@ class _AudioHandlerWidgetState extends State<AudioHandlerWidget> {
         0,
       ), // Margin bawah agak gedean dikit
       decoration: BoxDecoration(
-        color: colorScheme.surface, // Background surface standar
-        borderRadius: BorderRadius.circular(24), // Lebih rounded
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           // Shadow 1: Ambient (lembut & menyebar)
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 25, // Semakin gede angka ini, semakin "soft" sebarannya
-            spreadRadius:
-                -5, // Minus biar shadownya gak terlalu lebar ke samping
-            offset: const Offset(0, 10), // Bayangan jatuh ke bawah
+            blurRadius: 25,
+            spreadRadius: -5,
+            offset: const Offset(0, 10),
           ),
-          // Shadow 2: Key (sedikit lebih tegas di bawah biar kerasa ngangkat)
+          // Shadow 2: Key (sedikit lebih tegas di bawah)
           BoxShadow(
-            color: colorScheme.primary.withValues(
-              alpha: 0.1,
-            ), // Ada tint warna primary dikit
+            color: Colors.black.withValues(
+              alpha: 0.15,
+            ), // ✅ UBAH INI (hapus primary)
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
