@@ -598,48 +598,56 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
 
           // HEADER FLOATING
           _buildHeader(context),
-
-          // ✅ OFFLINE INDICATOR
           if (!_isOnline)
             Positioned(
               bottom: 100,
-              left: 16,
-              right: 16,
-              child: Material(
-                color: Colors.orange,
-                borderRadius: BorderRadius.circular(8),
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.cloud_off,
-                        color: Colors.white,
-                        size: 16,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  width:
+                      MediaQuery.of(context).size.width *
+                      0.85, // ✅ 80% dari lebar layar
+                  child: Material(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(8),
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'Mode Offline - Data tersimpan',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.cloud_off,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Mode Offline - Data tersimpan',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.refresh,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            onPressed: () => _initializeData(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.refresh,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        onPressed: () => _initializeData(),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
