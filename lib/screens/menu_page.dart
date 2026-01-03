@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../services/sutta.dart';
 import '../models/menu.dart';
 import 'suttaplex.dart';
@@ -27,6 +28,16 @@ class _MenuPageState extends State<MenuPage> {
   void initState() {
     super.initState();
     _fetchMenu();
+  }
+
+  bool _isTabletLandscape(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final orientation = MediaQuery.of(context).orientation;
+
+    final isTablet = size.shortestSide >= 600;
+    final isLandscape = orientation == Orientation.landscape;
+
+    return isTablet && isLandscape;
   }
 
   Future<void> _fetchMenu() async {
@@ -159,13 +170,17 @@ class _MenuPageState extends State<MenuPage> {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
+    final isTabletLandscape = _isTabletLandscape(context);
+
     final isLeaf = item.nodeType != "branch";
     final displayAcronym = _rootAcronym;
 
     return Card(
       color: cardColor,
       elevation: 1,
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 16),
+      margin: isTabletLandscape
+          ? const EdgeInsets.symmetric(vertical: 0, horizontal: 8)
+          : const EdgeInsets.symmetric(vertical: 5, horizontal: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
@@ -263,9 +278,7 @@ class _MenuPageState extends State<MenuPage> {
     final hasBlurb = previewBlurb.isNotEmpty;
     final isLong = previewBlurb.length > 60;
 
-    // --- PASANG INI (Mulai) ---
-    // Debug log udah ada di _fetchMenu()
-    // --- PASANG INI (Selesai) ---
+    final isTabletLandscape = _isTabletLandscape(context); // ðŸ"¥ TAMBAH INI
 
     return Scaffold(
       appBar: null,
@@ -277,7 +290,6 @@ class _MenuPageState extends State<MenuPage> {
             ? const Center(child: CircularProgressIndicator())
             : _items.isEmpty
             ? Stack(
-                // ✅ GANTI jadi Stack
                 children: [
                   Center(
                     child: Padding(
@@ -378,7 +390,7 @@ class _MenuPageState extends State<MenuPage> {
                   // ✅ TAMBAHIN HEADER (copy dari bawah tapi simplified)
                   _buildErrorHeader(cardColor, iconColor, textColor),
                 ],
-              ) // ✅ Tutup Stack
+              )
             : Stack(
                 children: [
                   // LIST CONTENT
@@ -389,15 +401,29 @@ class _MenuPageState extends State<MenuPage> {
                         child: SizedBox(height: hasBlurb ? 130 : 80),
                       ),
 
-                      // LIST ITEM
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          return buildMenuItem(_items[index]);
-                        }, childCount: _items.length),
-                      ),
+                      // ðŸ"¥ CONDITIONAL: Grid atau List
+                      isTabletLandscape
+                          ? SliverMasonryGrid.count(
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 16,
+                              crossAxisSpacing: 0,
+                              childCount: _items.length,
+                              itemBuilder: (context, index) {
+                                return buildMenuItem(_items[index]);
+                              },
+                            )
+                          : SliverList(
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                return buildMenuItem(_items[index]);
+                              }, childCount: _items.length),
+                            ),
                     ],
                   ),
-                  // FLOATING TRANSPARENT HEADER
+
+                  // FLOATING HEADER (ga diubah)
                   if (_root != null)
                     Positioned(
                       top: 0,

@@ -184,6 +184,8 @@ class _RootPageState extends State<RootPage>
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
     final pages = [
       Home(
         onNavigate: (int index, {String? highlightSection}) {
@@ -195,41 +197,176 @@ class _RootPageState extends State<RootPage>
       const PariyattiContent(tab: 2),
       PatipattiPage(highlightSection: _patipattiHighlight),
     ];
-    // ✅ BUNGKUS SCAFFOLD DENGAN POP SCOPE
+
+    // Pastikan PageController sinkron dengan currentIndex setelah rebuild
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients &&
+          _pageController.page?.round() != _currentIndex) {
+        _pageController.jumpToPage(_currentIndex);
+      }
+    });
+
     return PopScope(
-      // Kalau FAB kebuka, canPop = false (Tahan back button)
-      // Kalau FAB ketutup, canPop = true (Silakan keluar app)
       canPop: !_isFabExpanded,
-
       onPopInvokedWithResult: (didPop, result) {
-        // Kalau sistem sudah mengizinkan keluar (didPop == true), biarkan.
         if (didPop) return;
-
-        // Kalau ditahan (karena FAB kebuka), kita tutup FAB-nya manual
         if (_isFabExpanded) {
           _toggleFab();
         }
       },
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: Stack(
+        body: isTablet
+            ? _buildTabletLayout(pages)
+            : _buildMobileLayout(pages), // ← UBAH BARIS INI
+        bottomNavigationBar: isTablet
+            ? null
+            : _buildBottomNav(), // ← UBAH BARIS INI
+      ),
+    );
+  }
+
+  // Layout untuk tablet/layar besar
+  Widget _buildTabletLayout(List<Widget> pages) {
+    return Row(
+      children: [
+        // Navigation Rail di kiri
+        _buildNavigationRail(),
+        // Content area
+        Expanded(child: _buildMobileLayout(pages)),
+      ],
+    );
+  }
+
+  // Layout untuk mobile (sama seperti sebelumnya)
+  // Layout untuk mobile (sama seperti sebelumnya)
+  Widget _buildMobileLayout(List<Widget> pages) {
+    return Stack(
+      children: [
+        PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            if (mounted) {
+              setState(() => _currentIndex = index);
+            }
+          },
+          physics: const BouncingScrollPhysics(),
+          children: pages,
+        ),
+        if (_currentIndex >= 1 && _currentIndex <= 3) _buildPariyattiOverlay(),
+        if (_currentIndex >= 1 && _currentIndex <= 3) _buildFabSearch(),
+      ],
+    );
+  }
+
+  // Navigation Rail untuk tablet
+  Widget _buildNavigationRail() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final railBg = isDark ? const Color(0xFF303030) : Colors.white;
+
+    return Container(
+      width: 80,
+      decoration: BoxDecoration(
+        color: railBg,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            PageView(
-              controller: _pageController,
-              onPageChanged: (index) {
-                if (mounted) {
-                  setState(() => _currentIndex = index);
-                }
-              },
-              physics: const BouncingScrollPhysics(),
-              children: pages,
+            _buildRailItem(
+              rootIndex: 0,
+              targetPage: 0,
+              icon: 'assets/home.svg',
+              label: 'Cetiya',
             ),
-            if (_currentIndex >= 1 && _currentIndex <= 3)
-              _buildPariyattiOverlay(),
-            if (_currentIndex >= 1 && _currentIndex <= 3) _buildFabSearch(),
+            const SizedBox(height: 24),
+            _buildRailItem(
+              rootIndex: 1,
+              targetPage: _lastPariyattiPage,
+              icon: Icons.menu_book_rounded,
+              label: 'Pariyatti',
+            ),
+            const SizedBox(height: 24),
+            _buildRailItem(
+              rootIndex: 2,
+              targetPage: 4,
+              icon: Icons.self_improvement_rounded,
+              label: 'Paṭipatti',
+            ),
           ],
         ),
-        bottomNavigationBar: _buildBottomNav(),
+      ),
+    );
+  }
+
+  Widget _buildRailItem({
+    required int rootIndex,
+    required int targetPage,
+    required dynamic icon,
+    required String label,
+  }) {
+    final isSelected = _rootTab == rootIndex;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark
+        ? const Color(0xFFBDBDBD)
+        : const Color(0xFF757575);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (targetPage == 4) _patipattiHighlight = null;
+          _navigateToPage(targetPage);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 64,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Colors.deepOrange.withValues(alpha: 0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon is String)
+                SvgPicture.asset(
+                  icon,
+                  width: 28,
+                  height: 28,
+                  colorFilter: ColorFilter.mode(
+                    isSelected ? Colors.deepOrange : baseColor,
+                    BlendMode.srcIn,
+                  ),
+                )
+              else
+                Icon(
+                  icon as IconData,
+                  color: isSelected ? Colors.deepOrange : baseColor,
+                  size: 28,
+                ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? Colors.deepOrange : baseColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

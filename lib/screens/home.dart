@@ -117,17 +117,97 @@ class _HomeState extends State<Home> {
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
     return Scaffold(
       backgroundColor: bgColor,
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          SliverToBoxAdapter(child: _buildQuoteCard()),
-          SliverToBoxAdapter(child: _buildQuickAccess()),
-          // 🔥 HAPUS IF, SELALU MUNCUL
-          SliverToBoxAdapter(child: _buildRecentlyViewed()),
-          SliverToBoxAdapter(child: _buildBookmarks()),
-          SliverToBoxAdapter(child: _buildExploreSection()),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isTablet = constraints.maxWidth >= 600;
+          final isLandscape = constraints.maxWidth > constraints.maxHeight;
+
+          if (isTablet && isLandscape) {
+            // TABLET LANDSCAPE: Grid 2x2 dengan Eksplor combine
+            return CustomScrollView(
+              slivers: [
+                _buildAppBar(),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                // Baris 1: Ayat | Akses Cepat
+                SliverToBoxAdapter(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: _buildQuoteCard(),
+                      ), // ← TAMBAH flex: 4
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 6,
+                        child: _buildQuickAccess(),
+                      ), // ← TAMBAH flex: 6
+                    ],
+                  ),
+                ),
+                // Baris 2: Eksplor | (Terakhir Dilihat + Penanda)
+                SliverToBoxAdapter(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Kolom Kiri: Eksplor (makan tinggi penuh)
+                      Expanded(
+                        flex: 4, // ← TAMBAH INI (40%)
+                        child: _buildExploreSection(),
+                      ),
+                      const SizedBox(width: 16),
+                      // Kolom Kanan: Terakhir Dilihat + Penanda (stack vertikal)
+                      Expanded(
+                        flex: 6, // ← TAMBAH INI (60%)
+                        child: Column(
+                          children: [_buildRecentlyViewed(), _buildBookmarks()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+            /*} else if (isTablet && !isLandscape) {
+            // TABLET PORTRAIT: Ayat | Akses Cepat, lalu sisanya full width
+            return CustomScrollView(
+              slivers: [
+                _buildAppBar(),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                SliverToBoxAdapter(
+                  child: Row(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start, // ← UBAH JADI center
+                    children: [
+                      // Kolom Kiri: Akses Cepat
+                      Expanded(child: _buildQuickAccess()),
+                      const SizedBox(width: 16),
+                      // Kolom Kanan: Ayat
+                      Expanded(child: _buildQuoteCard()),
+                    ],
+                  ),
+                ),
+                SliverToBoxAdapter(child: _buildRecentlyViewed()),
+                SliverToBoxAdapter(child: _buildBookmarks()),
+                SliverToBoxAdapter(child: _buildExploreSection()),
+              ],
+            );
+         */
+          } else {
+            // MOBILE: 1 kolom vertikal (seperti sekarang)
+            return CustomScrollView(
+              slivers: [
+                _buildAppBar(),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                SliverToBoxAdapter(child: _buildQuoteCard()),
+                SliverToBoxAdapter(child: _buildQuickAccess()),
+                SliverToBoxAdapter(child: _buildRecentlyViewed()),
+                SliverToBoxAdapter(child: _buildBookmarks()),
+                SliverToBoxAdapter(child: _buildExploreSection()),
+              ],
+            );
+          }
+        },
       ),
     );
   }
