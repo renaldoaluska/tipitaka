@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/campaign_model.dart';
@@ -378,6 +379,17 @@ class _PatipattiPageState extends State<PatipattiPage> {
         widget.highlightSection != null) {
       _scheduleScroll(widget.highlightSection!);
     }
+  }
+
+  // ðŸ"¥ TAMBAH METHOD INI
+  bool _isTabletLandscape(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final orientation = MediaQuery.of(context).orientation;
+
+    final isTablet = size.shortestSide >= 600;
+    final isLandscape = orientation == Orientation.landscape;
+
+    return isTablet && isLandscape;
   }
 
   Future<void> _loadUposathaData() async {
@@ -834,16 +846,33 @@ class _PatipattiPageState extends State<PatipattiPage> {
   @override
   Widget build(BuildContext context) {
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final isTabletLandscape = _isTabletLandscape(context);
 
     return Scaffold(
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(),
-          SliverToBoxAdapter(child: _buildDermaCard()),
-          SliverToBoxAdapter(
-            child: _buildUposathaCard(),
-          ), // 🔧 INI YG TADI ERROR
+          // 📱 TABLET LANDSCAPE: Derma + Uposatha side-by-side
+          if (isTabletLandscape)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildDermaCard()),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildUposathaCard()),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            // 📱 MOBILE: Stack biasa
+            SliverToBoxAdapter(child: _buildDermaCard()),
+            SliverToBoxAdapter(child: _buildUposathaCard()),
+          ],
           SliverToBoxAdapter(child: _buildMeditationCard()),
           SliverToBoxAdapter(child: _buildParittaCard()),
           const SliverToBoxAdapter(child: SizedBox(height: 10)),
@@ -922,11 +951,14 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ? const Color(0xFF2D6A64)
         : const Color(0xFFB2DFDB);
 
+    final isTabletLandscape = _isTabletLandscape(context);
+    final cardMargin = isTabletLandscape ? 8.0 : 16.0;
+
     return _buildHighlightWrapper(
       sectionKey: 'derma',
       globalKey: _dermaKey,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        margin: EdgeInsets.fromLTRB(cardMargin, 4, cardMargin, 8), // ✅ Dynamic
         child: Card(
           color: cardColor,
           elevation: 0.5,
@@ -1424,9 +1456,6 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 🌙 2. UPOSATHA CARD (Sīla) - SUDAH DIPERBAIKI
-  // ═══════════════════════════════════════════════════════════
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // 🌙 2. UPOSATHA CARD (Sīla) - DENGAN CACHING & OFFLINE MODE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1442,11 +1471,23 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ? const Color(0xFF6D621F)
         : const Color(0xFFFFE082);
 
+    final isTabletLandscape = _isTabletLandscape(context);
+
+    //tinggi kotak bulan
+    final phaseBoxHeight = isTabletLandscape ? 172.0 : 85.0; // ✅ 130 aja cukup
+    // final phaseBoxHeight = isTabletLandscape ? 185.0 : 85.0;
+
+    final cardMargin = isTabletLandscape ? 8.0 : 16.0;
+
     return _buildHighlightWrapper(
       sectionKey: 'uposatha',
       globalKey: _uposathaKey,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        // margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        // margin: EdgeInsets.fromLTRB(cardMargin, 4, cardMargin, 8), // ✅ Dynamic
+        margin: isTabletLandscape
+            ? const EdgeInsets.fromLTRB(0, 4, 8, 8) // Tablet: kiri 0, kanan 8
+            : const EdgeInsets.fromLTRB(16, 4, 16, 8), // Mobile: kiri kanan 16
         child: Card(
           color: cardColor,
           elevation: 0.5,
@@ -1656,7 +1697,8 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         horizontal: 24,
                         vertical: 12,
                       ),
-                      height: 85,
+                      //height: 85,
+                      height: phaseBoxHeight,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
@@ -1703,7 +1745,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               ),
                             )
                           : Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: _displayPhases.map((phaseData) {
                                 String icon = _getMoonIcon(
                                   phaseData["phase_name"]!,
@@ -1714,13 +1756,19 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                   children: [
                                     Text(
                                       icon,
-                                      style: const TextStyle(fontSize: 22),
+                                      style: TextStyle(
+                                        fontSize: isTabletLandscape
+                                            ? 32
+                                            : 22, // ✅ 32 di tablet
+                                      ),
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
                                       date,
                                       style: TextStyle(
-                                        fontSize: 10,
+                                        fontSize: isTabletLandscape
+                                            ? 13
+                                            : 10, // ✅ 13 di tablet
                                         color: textColor,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -2106,37 +2154,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         : AnimatedOpacity(
                             duration: const Duration(milliseconds: 300),
                             opacity: _isLoadingParitta ? 0.0 : 1.0,
-                            child: Column(
-                              children: currentList.map((item) {
-                                if (item['type'] == 'group') {
-                                  return _buildExpansionGroup(
-                                    title: item['label'],
-                                    sectionIcon: item['icon'],
-                                    items: item['items'],
-                                    accentColor: accentColor,
-                                    lightBg: lightBg,
-                                  );
-                                } else {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: _buildMenuButton(
-                                      label: item['label'],
-                                      icon: item['icon'],
-                                      color: accentColor,
-                                      lightBg: lightBg,
-                                      borderColor: borderColor,
-                                      isHorizontal: true,
-                                      onTap: () {
-                                        _openHtmlBook(
-                                          context,
-                                          item['label'],
-                                          item['files'],
-                                        );
-                                      },
-                                    ),
-                                  );
-                                }
-                              }).toList(),
+                            child: _buildParittaItemsList(
+                              currentList,
+                              accentColor,
+                              lightBg,
+                              borderColor,
                             ),
                           ),
                   ],
@@ -2147,6 +2169,73 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildParittaItemsList(
+    List<Map<String, dynamic>> items,
+    Color accentColor,
+    Color lightBg,
+    Color borderColor,
+  ) {
+    final isTabletLandscape = _isTabletLandscape(context);
+
+    if (isTabletLandscape) {
+      // 📱 MODE GRID - Tetap urutan asli
+      return MasonryGridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+        ),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 10,
+        padding: EdgeInsets.zero,
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index]; // ✅ Pakai items langsung
+          return _buildParittaItem(item, accentColor, lightBg, borderColor);
+        },
+      );
+    }
+
+    // 📱 MODE LIST (Portrait/Mobile - Original)
+    return Column(
+      children: items.map((item) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _buildParittaItem(item, accentColor, lightBg, borderColor),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildParittaItem(
+    Map<String, dynamic> item,
+    Color accentColor,
+    Color lightBg,
+    Color borderColor,
+  ) {
+    if (item['type'] == 'group') {
+      return _buildExpansionGroup(
+        title: item['label'],
+        sectionIcon: item['icon'],
+        items: item['items'],
+        accentColor: accentColor,
+        lightBg: lightBg,
+      );
+    } else {
+      return _buildMenuButton(
+        label: item['label'],
+        icon: item['icon'],
+        color: accentColor,
+        lightBg: lightBg,
+        borderColor: borderColor,
+        isHorizontal: true,
+        onTap: () {
+          _openHtmlBook(context, item['label'], item['files']);
+        },
+      );
+    }
   }
 
   Widget _buildCategoryChip({
@@ -2207,69 +2296,215 @@ class _PatipattiPageState extends State<PatipattiPage> {
     final iconBoxColor = isDark
         ? Colors.black26
         : Colors.white.withValues(alpha: 0.6);
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
+    final isTabletLandscape = _isTabletLandscape(context);
+
+    // 📱 TABLET LANDSCAPE: Buka bottom sheet dengan grid
+    if (isTabletLandscape) {
+      return Material(
+        color: lightBg,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => FractionallySizedBox(
+                heightFactor: 0.85,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.close, color: textColor),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: iconBoxColor,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                sectionIcon,
+                                color: accentColor,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.grey.withValues(alpha: 0.2),
+                      ),
+                      // Grid 2 Kolom
+                      Expanded(
+                        child: MasonryGridView.builder(
+                          padding: const EdgeInsets.all(16),
+                          gridDelegate:
+                              const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                              ),
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 10,
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            return _buildMenuButton(
+                              label: item['label'],
+                              icon: item['icon'],
+                              color: accentColor,
+                              lightBg: lightBg,
+                              borderColor: borderColor,
+                              isHorizontal: true,
+                              onTap: () {
+                                Navigator.pop(context); // Tutup bottom sheet
+                                _openHtmlBook(
+                                  context,
+                                  item['label'],
+                                  item['files'],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(14),
+          splashColor: accentColor.withValues(alpha: 0.15),
+          highlightColor: accentColor.withValues(alpha: 0.05),
+          child: Container(
+            height: 54,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: borderColor, width: 1),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: iconBoxColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(sectionIcon, color: accentColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: textColor.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 📱 MOBILE: ExpansionTile biasa (kode lama)
     final expandedContentBg = isDark
         ? lightBg.withValues(alpha: 0.5)
         : lightBg.withValues(alpha: 0.3);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.transparent,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: borderColor, width: 1),
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            backgroundColor: expandedContentBg,
-            collapsedBackgroundColor: lightBg,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.zero,
-            ),
-            collapsedShape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.zero,
-            ),
-            tilePadding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 0,
-            ),
-            childrenPadding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-            leading: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: iconBoxColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(sectionIcon, color: accentColor, size: 20),
-            ),
-            title: Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: textColor,
-              ),
-            ),
-            children: items.map((item) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _buildMenuButton(
-                  label: item['label'],
-                  icon: item['icon'],
-                  color: accentColor,
-                  lightBg: lightBg,
-                  borderColor: borderColor,
-                  isHorizontal: true,
-                  onTap: () {
-                    _openHtmlBook(context, item['label'], item['files']);
-                  },
-                ),
-              );
-            }).toList(),
+    return Material(
+      // ✅ Langsung Material
+      color: Colors.transparent,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: borderColor, width: 1),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          backgroundColor: expandedContentBg,
+          collapsedBackgroundColor: lightBg,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          collapsedShape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
           ),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          childrenPadding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          leading: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: iconBoxColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(sectionIcon, color: accentColor, size: 20),
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: textColor,
+            ),
+          ),
+          children: items.map((item) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _buildMenuButton(
+                label: item['label'],
+                icon: item['icon'],
+                color: accentColor,
+                lightBg: lightBg,
+                borderColor: borderColor,
+                isHorizontal: true,
+                onTap: () {
+                  _openHtmlBook(context, item['label'], item['files']);
+                },
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
