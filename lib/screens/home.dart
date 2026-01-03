@@ -646,7 +646,7 @@ class _HomeState extends State<Home> {
                             Text(
                               b["title"] ?? b["uid"],
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: Theme.of(context).colorScheme.onSurface,
                               ),
@@ -1800,7 +1800,8 @@ class CompactCardBuilder extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 14.5,
+                        //ukuran font judul eksplor
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: isDarkMode ? Colors.white : Colors.black87,
                         height: 1.2,
@@ -1812,7 +1813,8 @@ class CompactCardBuilder extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        //ukuuran font desc
+                        fontSize: 12,
                         color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         height: 1.3,
                       ),
