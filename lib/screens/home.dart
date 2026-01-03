@@ -1363,7 +1363,7 @@ class _HomeState extends State<Home> {
                     bottom: const TabBar(
                       isScrollable: true,
                       tabs: [
-                        Tab(text: "Tipiṭakapp"),
+                        Tab(text: "Tipiṭakapps"),
                         Tab(text: "Kamus & Perpus"),
                         Tab(text: "Artikel & Berita"),
                         Tab(text: "Unduh"),
@@ -1397,43 +1397,43 @@ class _HomeState extends State<Home> {
 
     final exploreItems = [
       {
-        "title": "Tipiṭakapp",
-        "subtitle": "Berbagai aplikasi web Tipiṭaka",
+        "title": "Tipiṭaka Web Apps",
+        // "subtitle": "Berbagai aplikasi web Tipiṭaka",
         "icon": Icons.apps_rounded,
         "color": Colors.orange.shade700,
         "index": 0,
       },
       {
         "title": "Kamus & Perpus",
-        "subtitle": "Aplikasi web kamus dan perpus",
+        //"subtitle": "Aplikasi web kamus dan perpus",
         "icon": Icons.library_books_rounded,
         "color": Colors.blue.shade700,
         "index": 1,
       },
       {
         "title": "Artikel & Berita",
-        "subtitle": "Kumpulan artikel dan berita",
+        // "subtitle": "Kumpulan artikel dan berita",
         "icon": Icons.newspaper_rounded,
         "color": Colors.red.shade600,
         "index": 2,
       },
       {
         "title": "Unduh Sumber Daya",
-        "subtitle": "Ebook, majalah, komik, materi",
+        //   "subtitle": "Ebook, majalah, komik, materi",
         "icon": Icons.download_rounded,
         "color": Colors.green.shade700,
         "index": 3,
       },
       {
         "title": "Forum Diskusi",
-        "subtitle": "Forum diskusi Buddhis",
+        //     "subtitle": "Forum diskusi Buddhis",
         "icon": Icons.forum_rounded,
         "color": Colors.teal.shade600,
         "index": 4,
       },
       {
         "title": "Media Sosial",
-        "subtitle": "Akun media sosial Buddhis",
+        //  "subtitle": "Akun media sosial Buddhis",
         "icon": Icons.people_rounded,
         "color": Colors.indigo.shade600,
         "index": 5,
@@ -1465,14 +1465,15 @@ class _HomeState extends State<Home> {
               // Explore items dengan CompactCardBuilder
               ...exploreItems.asMap().entries.map((entry) {
                 final item = entry.value;
-                final isLast = entry.key == exploreItems.length - 1;
+                //final isLast = entry.key == exploreItems.length - 1;
 
                 return Padding(
                   // ATUR JARAK ANTAR LISTVIEW ITEM
-                  padding: EdgeInsets.only(bottom: isLast ? 6 : 8),
+                  // padding: EdgeInsets.only(bottom: isLast ? 6 : 8),
+                  padding: EdgeInsets.only(bottom: 8),
                   child: CompactCardBuilder(
                     title: item["title"] as String,
-                    subtitle: item["subtitle"] as String,
+                    //   subtitle: item["subtitle"] as String,
                     icon: item["icon"] as IconData,
                     color: item["color"] as Color,
                     onTap: () => _openExplore(context, item["index"] as int),
@@ -1483,7 +1484,7 @@ class _HomeState extends State<Home> {
               // Kontribusi card
               CompactCardBuilder(
                 title: "Kontribusi",
-                subtitle: "Ikut kembangkan aplikasi ini",
+                //    subtitle: "Ikut kembangkan aplikasi ini",
                 icon: Icons.code,
                 color: Colors.blueGrey,
                 onTap: () => _showContributionDialog(context),
@@ -1744,7 +1745,7 @@ class _HomeState extends State<Home> {
 
 class CompactCardBuilder extends StatelessWidget {
   final String title;
-  final String subtitle;
+  // final String subtitle;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
@@ -1752,7 +1753,7 @@ class CompactCardBuilder extends StatelessWidget {
   const CompactCardBuilder({
     super.key,
     required this.title,
-    required this.subtitle,
+    //  required this.subtitle,
     required this.icon,
     required this.color,
     required this.onTap,
@@ -1801,8 +1802,8 @@ class CompactCardBuilder extends StatelessWidget {
                       title,
                       style: TextStyle(
                         //ukuran font judul eksplor
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                         color: isDarkMode ? Colors.white : Colors.black87,
                         height: 1.2,
                       ),
@@ -1810,7 +1811,7 @@ class CompactCardBuilder extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-                    Text(
+                    /*    Text(
                       subtitle,
                       style: TextStyle(
                         //ukuuran font desc
@@ -1820,9 +1821,15 @@ class CompactCardBuilder extends StatelessWidget {
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
+                    ),*/
                   ],
                 ),
+              ),
+              // 🔥 TAMBAH ICON OPEN_IN_NEW
+              Icon(
+                Icons.open_in_new,
+                size: 16,
+                color: isDarkMode ? Colors.grey[600] : Colors.grey[400],
               ),
             ],
           ),
