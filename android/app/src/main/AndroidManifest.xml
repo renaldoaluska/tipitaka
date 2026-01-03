@@ -4,17 +4,7 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
- <queries>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="vnd.youtube" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="instagram" />
-        </intent>
-    </queries>
-
+    
     <application
         android:label="myDhamma"
         android:name="${applicationName}"
