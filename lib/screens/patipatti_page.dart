@@ -63,11 +63,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
   // ═══════════════════════════════════════════════════════════
   // 📚 STATE PARITTA
   // ═══════════════════════════════════════════════════════════
-  String _selectedParittaTradition = "Saṅgha Theravāda Indonesia";
+  String _selectedParittaTradition = "STI (Edisi Lama)";
   bool _isLoadingParitta = false;
 
   final Map<String, List<Map<String, dynamic>>> _parittaData = {
-    "Saṅgha Theravāda Indonesia": [
+    "STI (Edisi Lama)": [
       {
         "type": "link",
         "label": "Panduan Pembacaan",

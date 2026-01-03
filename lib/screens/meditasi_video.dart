@@ -838,30 +838,69 @@ class _VideoPageState extends State<VideoPage> {
 
   Widget _buildOfflineMessage() {
     final isDark = _isDarkMode(context);
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.wifi_off_rounded, size: 80, color: Colors.grey),
-          const SizedBox(height: 24),
-          Text(
-            'Anda Sedang Offline',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Tidak Ada Koneksi',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: _checkConnectivity,
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimaryColor),
-            child: const Text(
-              "Coba Lagi",
-              style: TextStyle(color: Colors.white),
+            const SizedBox(height: 8),
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 14,
+                  color: subTextColor,
+                  height: 1.5,
+                ),
+                children: [
+                  const TextSpan(
+                    text: "Mohon periksa koneksi internet Anda\n\n",
+                  ),
+                  const TextSpan(
+                    text:
+                        "Data video memerlukan koneksi internet untuk dimuat.\n\n",
+                  ),
+                  TextSpan(
+                    text: "Fitur offline tersedia:\n",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: textColor.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  TextSpan(
+                    text: "Pengaturan • Timer • Riwayat Lokal",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: subTextColor.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _checkConnectivity,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Coba Lagi"),
+              style: FilledButton.styleFrom(backgroundColor: kPrimaryColor),
+            ),
+          ],
+        ),
       ),
     );
   }

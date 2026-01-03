@@ -224,9 +224,10 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                         ),
                         onPressed: () async {
                           if (_isRunning) {
+                            final navigator = Navigator.of(context);
                             final canExit = await _confirmExit();
-                            if (canExit && context.mounted) {
-                              Navigator.pop(context);
+                            if (canExit && mounted) {
+                              navigator.pop();
                             }
                           } else {
                             Navigator.pop(context);
@@ -454,7 +455,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     _timer?.cancel();
     _bellCompleteSubscription?.cancel();
 
-    // Stop start bell dan ambient
     _startBellPlayer.stop();
     _ambientPlayer.stop();
 
@@ -464,12 +464,13 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       _isPaused = false;
     });
 
-    // Play end bell setelah delay kecil
     Future.delayed(const Duration(milliseconds: 300), () {
-      _playEndBell();
+      if (mounted) {
+        // Tambah ini
+        _playEndBell();
+        _showCompletionDialog(); // Pindah ke dalam if
+      }
     });
-
-    _showCompletionDialog();
   }
 
   Future<bool> _confirmExit() async {
@@ -629,6 +630,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: _bellOptions.map((bell) {
+              final isSelected = bell == tempSelection;
               return InkWell(
                 onTap: () {
                   setDialogState(() => tempSelection = bell);
@@ -642,12 +644,44 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                   _saveSettings();
                   _playPreview(bell, type);
                 },
-                child: RadioListTile<String>(
-                  title: Text(_getBellDisplayName(bell)),
-                  value: bell,
-                  groupValue: tempSelection,
-                  onChanged: null,
-                  toggleable: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.grey,
+                            width: 2,
+                          ),
+                        ),
+                        child: isSelected
+                            ? Center(
+                                child: Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(_getBellDisplayName(bell))),
+                    ],
+                  ),
                 ),
               );
             }).toList(),
@@ -678,6 +712,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: _ambientOptions.map((ambient) {
+              final isSelected = ambient == tempSelection;
               return InkWell(
                 onTap: () {
                   setDialogState(() => tempSelection = ambient);
@@ -685,12 +720,44 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                   _saveSettings();
                   _playPreview(ambient, 'ambient');
                 },
-                child: RadioListTile<String>(
-                  title: Text(ambient),
-                  value: ambient,
-                  groupValue: tempSelection,
-                  onChanged: null,
-                  toggleable: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.grey,
+                            width: 2,
+                          ),
+                        ),
+                        child: isSelected
+                            ? Center(
+                                child: Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(ambient)),
+                    ],
+                  ),
                 ),
               );
             }).toList(),
@@ -750,19 +817,21 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
                     TextButton(
                       onPressed: () {
                         if (tempDuration.inSeconds < 60) {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Durasi'),
-                              content: const Text('Maaf, minimal 1 menit.'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Siap'),
-                                ),
-                              ],
-                            ),
-                          );
+                          if (context.mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Durasi'),
+                                content: const Text('Maaf, minimal 1 menit.'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Siap'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
                           return;
                         }
 
