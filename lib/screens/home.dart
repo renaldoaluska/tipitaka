@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../styles/nikaya_style.dart';
 import '../widgets/icon_button_builder.dart';
-import '../widgets/panjang_card_builder.dart';
 import '../widgets/header_depan.dart';
 import '../widgets/explore/explore_tab_app.dart';
 import '../widgets/explore/explore_tab_kamus.dart';
@@ -11,7 +10,7 @@ import '../widgets/explore/explore_tab_info.dart';
 import '../widgets/explore/explore_tab_unduh.dart';
 import '../widgets/explore/explore_tab_ikuti.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:ui'; // 👈 Wajib ada buat efek Blur
+import 'dart:ui';
 import '../services/history.dart';
 import '../screens/suttaplex.dart';
 
@@ -1463,271 +1462,31 @@ class _HomeState extends State<Home> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
+              // Explore items dengan CompactCardBuilder
               ...exploreItems.asMap().entries.map((entry) {
                 final item = entry.value;
                 final isLast = entry.key == exploreItems.length - 1;
 
-                return Column(
-                  children: [
-                    PanjangCardBuilder(
-                      title: item["title"] as String,
-                      subtitle: item["subtitle"] as String,
-                      icon: item["icon"] as IconData,
-                      color: item["color"] as Color,
-                      onTap: () => _openExplore(context, item["index"] as int),
-                    ),
-                    if (!isLast) const SizedBox(height: 3),
-                  ],
+                return Padding(
+                  // ATUR JARAK ANTAR LISTVIEW ITEM
+                  padding: EdgeInsets.only(bottom: isLast ? 6 : 8),
+                  child: CompactCardBuilder(
+                    title: item["title"] as String,
+                    subtitle: item["subtitle"] as String,
+                    icon: item["icon"] as IconData,
+                    color: item["color"] as Color,
+                    onTap: () => _openExplore(context, item["index"] as int),
+                  ),
                 );
               }),
-              const SizedBox(height: 3),
-              PanjangCardBuilder(
+
+              // Kontribusi card
+              CompactCardBuilder(
                 title: "Kontribusi",
                 subtitle: "Ikut kembangkan aplikasi ini",
                 icon: Icons.code,
                 color: Colors.blueGrey,
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      content: Container(
-                        width: MediaQuery.of(context).size.width * 0.85,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Theme.of(context).cardColor,
-                              Theme.of(
-                                context,
-                              ).cardColor.withValues(alpha: 0.95),
-                            ],
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Header dengan gradient
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    const Color(0xFFF57F17),
-                                    const Color(
-                                      0xFFF57F17,
-                                    ).withValues(alpha: 0.8),
-                                  ],
-                                ),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20),
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  const Icon(
-                                    Icons.volunteer_activism_rounded,
-                                    size: 48,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    "Kontribusi",
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "mettā · karuṇā · muditā · upekkhā",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                      fontStyle: FontStyle.italic,
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Content
-                            Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Aplikasi ini dikembangkan secara terbuka dengan semangat berbagi kebajikan.",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      height: 1.5,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.8),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 20),
-
-                                  // Cara kontribusi dengan icon
-                                  _buildContribItem(
-                                    ctx,
-                                    Icons.feedback_rounded,
-                                    "Memberi masukan & saran",
-                                  ),
-                                  _buildContribItem(
-                                    ctx,
-                                    Icons.description_rounded,
-                                    "Membantu dokumentasi",
-                                  ),
-                                  _buildContribItem(
-                                    ctx,
-                                    Icons.code_rounded,
-                                    "Menyumbang kode program",
-                                  ),
-                                  _buildContribItem(
-                                    ctx,
-                                    Icons.share_rounded,
-                                    "Menyebarkan ke sesama",
-                                  ),
-
-                                  const SizedBox(height: 20),
-                                  Center(
-                                    child: Text(
-                                      "Terima kasih atas dukungan Anda 🙏",
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: const Color(0xFFF57F17),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Action buttons
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              child: Column(
-                                children: [
-                                  // Email button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(ctx).pop();
-                                        final uri = Uri(
-                                          scheme: 'mailto',
-                                          path: 'aluskaindonesia@gmail.com',
-                                          query: Uri.encodeFull(
-                                            'subject=Saran Aplikasi Tripitaka Indonesia'
-                                            '&body=--- tulis saran Anda di bawah ---',
-                                          ),
-                                        );
-                                        launchUrl(
-                                          uri,
-                                          mode: LaunchMode.externalApplication,
-                                        );
-                                      },
-                                      icon: const Icon(
-                                        Icons.email_rounded,
-                                        size: 20,
-                                      ),
-                                      label: const Text("Kirim Email"),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFFF57F17,
-                                        ),
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        elevation: 0,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-
-                                  // GitHub button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(ctx).pop();
-                                        launchUrl(
-                                          Uri.parse(
-                                            "https://github.com/renaldoaluska/tipitaka",
-                                          ),
-                                          mode: LaunchMode.externalApplication,
-                                        );
-                                      },
-                                      icon: const Icon(
-                                        Icons.code_rounded,
-                                        size: 20,
-                                      ),
-                                      label: const Text("Buka GitHub"),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: const Color(
-                                          0xFFF57F17,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        side: const BorderSide(
-                                          color: Color(0xFFF57F17),
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-
-                                  // Close button
-                                  TextButton(
-                                    onPressed: () => Navigator.of(ctx).pop(),
-                                    child: Text(
-                                      "Tutup",
-                                      style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.6),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                onTap: () => _showContributionDialog(context),
               ),
             ],
           ),
@@ -1737,31 +1496,335 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildContribItem(BuildContext context, IconData icon, String text) {
+  void _showContributionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: EdgeInsets.zero,
+        content: Container(
+          width: MediaQuery.of(context).size.width * 0.85,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Theme.of(context).cardColor,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header compact
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFF57F17),
+                      const Color(0xFFF57F17).withValues(alpha: 0.85),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.volunteer_activism_rounded,
+                      size: 36,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Kontribusi",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "mettā · karuṇā · muditā",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontStyle: FontStyle.italic,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content compact
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Text(
+                      "Aplikasi ini dikembangkan secara terbuka dengan semangat berbagi kebajikan.",
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.75),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Cara kontribusi - lebih compact
+                    _buildCompactItem(
+                      ctx,
+                      Icons.feedback_rounded,
+                      "Memberi masukan",
+                    ),
+                    _buildCompactItem(
+                      ctx,
+                      Icons.code_rounded,
+                      "Menyumbang kode",
+                    ),
+                    _buildCompactItem(
+                      ctx,
+                      Icons.share_rounded,
+                      "Sebarkan ke sesama",
+                    ),
+
+                    const SizedBox(height: 16),
+                    Text(
+                      "Terima kasih atas dukungan Anda 🙏",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFFF57F17),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Action buttons compact
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  children: [
+                    // Email & GitHub dalam satu row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              final uri = Uri(
+                                scheme: 'mailto',
+                                path: 'aluskaindonesia@gmail.com',
+                                query:
+                                    'subject=Saran Aplikasi Tripitaka Indonesia',
+                              );
+                              launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                            icon: const Icon(Icons.email_rounded, size: 16),
+                            label: const Text(
+                              "Email",
+                              style: TextStyle(fontSize: 13),
+                            ),
+
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFF57F17),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              side: const BorderSide(
+                                color: Color(0xFFF57F17),
+                                width: 1.5,
+                              ),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              launchUrl(
+                                Uri.parse(
+                                  "https://github.com/renaldoaluska/tipitaka",
+                                ),
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                            icon: const Icon(Icons.code_rounded, size: 16),
+                            label: const Text(
+                              "GitHub",
+                              style: TextStyle(fontSize: 13),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFF57F17),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              side: const BorderSide(
+                                color: Color(0xFFF57F17),
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Tutup button sendiri
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        child: Text(
+                          "Tutup",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactItem(BuildContext context, IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: const Color(0xFFF57F17).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(icon, size: 18, color: const Color(0xFFF57F17)),
+            child: Icon(icon, size: 14, color: const Color(0xFFF57F17)),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
               style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface,
-                height: 1.4,
+                fontSize: 13,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.8),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class CompactCardBuilder extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const CompactCardBuilder({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: isDarkMode
+          ? Colors.grey[850]?.withValues(alpha: 0.4)
+          : Colors.grey[100],
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDarkMode ? Colors.grey[800]! : Colors.grey[300]!,
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              // Icon dengan ukuran lebih kecil
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: color),
+              ),
+              const SizedBox(width: 12),
+              // Text content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                        height: 1.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        height: 1.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
