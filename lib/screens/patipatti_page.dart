@@ -23,7 +23,20 @@ class PatipattiPage extends StatefulWidget {
   State<PatipattiPage> createState() => _PatipattiPageState();
 }
 
-class _PatipattiPageState extends State<PatipattiPage> {
+class _PatipattiPageState extends State<PatipattiPage>
+    with AutomaticKeepAliveClientMixin {
+  // Variabel buat nyatet waktu terakhir refresh Uposatha
+  DateTime? _lastUposathaRefreshTime;
+  // Tambah key baru buat simpan waktu
+  static const String _keyLastFetchTime = 'last_fetch_timestamp';
+  static const String _keyLastCampaignFetch = 'last_campaign_fetch_time';
+  static const String _keyLastCampaignData = 'last_campaign_data_string'; //
+  String? _lastCampaignFetchTimeStr;
+  // Variabel buat nyimpen waktu terakhir pencet refresh Derma
+  DateTime? _lastDermaClickTime;
+  // Tambah variabel state buat nampung teksnya
+  String? _lastFetchTimeStr;
+  bool _isCampaignError = false; // Tambah ini di deklarasi variabel
   bool _showViewAllButton = false;
   String _selectedCategory = 'Semua';
   List<Campaign> _campaigns = [];
@@ -353,12 +366,16 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
   static const String _keyParitta = 'selected_paritta_tradition';
 
+  // Ini mantra biar halaman gak dimatiin pas pindah tab
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   void initState() {
     super.initState();
     _loadPreferences();
     _loadUposathaData(); // ← GANTI INI
-    _setupRealtimeListener();
+    //_setupRealtimeListener();
     _loadCampaigns();
 
     if (widget.highlightSection != null) {
@@ -381,7 +398,48 @@ class _PatipattiPageState extends State<PatipattiPage> {
     }
   }
 
-  // ðŸ"¥ TAMBAH METHOD INI
+  // ✅ METHOD SATPAM BUAT UPOSATHA
+  void _handleUposathaRefresh() {
+    final now = DateTime.now();
+
+    // 1. CEK SATPAM: Apakah user pernah pencet sebelumnya?
+    if (_lastUposathaRefreshTime != null) {
+      final difference = now.difference(_lastUposathaRefreshTime!);
+
+      // LOGIC: Kalau selisihnya kurang dari 5 detik, TOLAK!
+      if (difference.inSeconds < 11) {
+        // Bersihin antrian snackbar lama
+        ScaffoldMessenger.of(context).clearSnackBars();
+
+        // Munculin peringatan
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Tunggu sebentar sebelum refresh lagi",
+              style: TextStyle(
+                // fontWeight: FontWeight.bold,
+                color: (Theme.of(context).colorScheme.surface),
+                fontSize: 12,
+              ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return; // ⛔ STOP DISINI! Jangan lanjut.
+      }
+    }
+
+    // 2. KALAU LOLOS:
+    _lastUposathaRefreshTime = now; // Catat waktu sekarang
+    _loadUposathaFromFirebase(); // 🔥 Panggil fungsi fetch aslinya (Bypass TTL)
+  }
+
   bool _isTabletLandscape(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final orientation = MediaQuery.of(context).orientation;
@@ -392,17 +450,47 @@ class _PatipattiPageState extends State<PatipattiPage> {
     return isTablet && isLandscape;
   }
 
+  // Timpa method _loadUposathaData yang lama dengan ini:
+
   Future<void> _loadUposathaData() async {
     // 1. Load dari cache dulu
     final hasCache = await _loadFromCache();
 
-    // 2. Kalau ada cache, set loading selesai & tampilkan
+    // 2. KALAU ADA CACHE, CEK UMURNYA (LOGIKA HEMAT KUOTA)
     if (hasCache && mounted) {
       setState(() => _isLoadingUposatha = false);
       _calculateDisplayData();
+
+      // Coba baca kapan terakhir update
+      if (_lastFetchTimeStr != null) {
+        try {
+          // Parse string waktu "yyyy-MM-dd HH:mm:ss" ke DateTime
+          // Kita ganti spasi jadi "T" biar formatnya ISO-8601 friendly buat diparse
+          final lastFetch = DateTime.tryParse(
+            _lastFetchTimeStr!.replaceAll(" ", "T"),
+          );
+
+          if (lastFetch != null) {
+            final difference = DateTime.now().difference(lastFetch);
+
+            // ATURAN HEMAT: Kalau umur cache kurang dari 7 HARI, STOP!
+            // Gak usah connect internet, gak usah fetch firebase.
+            if (difference.inDays < 7) {
+              debugPrint(
+                "✋ Data Uposatha masih segar (${difference.inDays} hari). Skip fetch server.",
+              );
+              return; // ⛔ STOP DISINI, KUOTA AMAN.
+            }
+          }
+        } catch (e) {
+          debugPrint("⚠️ Gagal parse tanggal cache, lanjut fetch aja.");
+        }
+      }
     }
 
-    // 3. Fetch dari Firebase (background)
+    // 3. Fetch dari Firebase CUMA KALAU:
+    // - Gak punya cache (install baru)
+    // - Atau cache udah basi (> 7 hari)
     await _loadUposathaFromFirebase();
   }
 
@@ -410,6 +498,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedJson = prefs.getString(_keyUposathaData);
+
+      // Load waktu terakhir
+      final cachedTime = prefs.getString(_keyLastFetchTime);
 
       if (cachedJson != null) {
         debugPrint('📦 Loading Uposatha from cache...');
@@ -425,7 +516,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
         setState(() {
           _uposathaData = tempData;
           _availableVersions = _uposathaData.keys.toList();
-
+          _lastFetchTimeStr = cachedTime;
           if (!_availableVersions.contains(_selectedUposathaVersion) &&
               _availableVersions.isNotEmpty) {
             _selectedUposathaVersion = _availableVersions.first;
@@ -447,12 +538,36 @@ class _PatipattiPageState extends State<PatipattiPage> {
   Future<void> _saveToCache(Map<String, List<dynamic>> data) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+
+      // 1. Simpan Data JSON
       final jsonString = json.encode(data);
       await prefs.setString(_keyUposathaData, jsonString);
-      debugPrint('💾 Uposatha data saved to cache');
+
+      // 2. Simpan Waktu Sekarang (Format yyyy-MM-dd HH:mm:ss)
+      final now = DateTime.now();
+      // Bikin format manual biar ga perlu import intl
+      final timeString =
+          "${now.year}-${_twoDigits(now.month)}-${_twoDigits(now.day)} ${_twoDigits(now.hour)}:${_twoDigits(now.minute)}:${_twoDigits(now.second)}";
+
+      await prefs.setString(_keyLastFetchTime, timeString);
+
+      // Update UI langsung
+      if (mounted) {
+        setState(() {
+          _lastFetchTimeStr = timeString;
+        });
+      }
+
+      debugPrint('💾 Uposatha data & time saved to cache');
     } catch (e) {
       debugPrint('❌ Error saving to cache: $e');
     }
+  }
+
+  // Helper kecil buat nambahin angka 0 di depan (misal bulan 1 jadi 01)
+  String _twoDigits(int n) {
+    if (n >= 10) return "$n";
+    return "0$n";
   }
 
   Future<void> _loadUposathaFromFirebase() async {
@@ -497,7 +612,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
   }
 
   // ✅ UPDATE: Setup listener dengan error handling
-  void _setupRealtimeListener() {
+  /* void _setupRealtimeListener() {
     _databaseRef
         .child('uposatha')
         .onValue
@@ -521,37 +636,57 @@ class _PatipattiPageState extends State<PatipattiPage> {
           },
         );
   }
-
+*/
   // 4️⃣ PROSES DATA DARI FIREBASE
   void _processFirebaseData(dynamic data) {
     if (data is! Map) return;
 
-    setState(() {
-      _uposathaData = {};
+    // 1. Proses data di variabel lokal (JANGAN panggil setState dulu)
+    Map<String, List<dynamic>> tempUposathaData = {};
+    List<String> tempVersions = [];
 
-      // Convert Firebase data
-      data.forEach((key, value) {
-        if (value is List) {
-          _uposathaData[key.toString()] = value;
-        }
-      });
-
-      _availableVersions = _uposathaData.keys.toList();
-
-      // Validasi selected version
-      if (!_availableVersions.contains(_selectedUposathaVersion) &&
-          _availableVersions.isNotEmpty) {
-        _selectedUposathaVersion = _availableVersions.first;
+    data.forEach((key, value) {
+      if (value is List) {
+        tempUposathaData[key.toString()] = value;
       }
-
-      _calculateDisplayData();
     });
+
+    tempVersions = tempUposathaData.keys.toList();
+
+    // Cek versi terpilih valid atau nggak
+    String currentVersion = _selectedUposathaVersion;
+    if (!tempVersions.contains(currentVersion) && tempVersions.isNotEmpty) {
+      currentVersion = tempVersions.first;
+    }
+
+    // 2. Hitung logika tampilan (Sama, jangan setState dulu)
+    // Kita panggil versi modifikasi dari calculateDisplayData yang me-return hasil
+    final displayResult = _calculateDisplayDataInternal(
+      tempUposathaData[currentVersion],
+    );
+
+    // 3. BARU Update UI sekali gus (Cepat & Ringan)
+    if (mounted) {
+      setState(() {
+        _uposathaData = tempUposathaData;
+        _availableVersions = tempVersions;
+        _selectedUposathaVersion = currentVersion;
+
+        // Update hasil hitungan tampilan
+        _nextUposathaLabel = displayResult['label'] as String;
+        _displayPhases = displayResult['phases'] as List<Map<String, String>>;
+
+        // Tandai loading selesai
+        _isLoadingUposatha = false;
+      });
+    }
   }
 
-  // 5️⃣ HITUNG DATA UNTUK DITAMPILKAN
-  void _calculateDisplayData() {
-    final events = _uposathaData[_selectedUposathaVersion];
-    if (events == null || events.isEmpty) return;
+  // Return tipe Map biar bisa bawa 2 data sekaligus (label & phases)
+  Map<String, dynamic> _calculateDisplayDataInternal(List<dynamic>? events) {
+    if (events == null || events.isEmpty) {
+      return {"label": "-", "phases": <Map<String, String>>[]};
+    }
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -569,22 +704,24 @@ class _PatipattiPageState extends State<PatipattiPage> {
       }
     }
 
+    String label = "-";
+    List<Map<String, String>> phases = [];
+
     if (nextIndex != -1) {
       final nextEventDate = DateTime.parse(
         events[nextIndex]['date'].toString(),
       );
       final diff = nextEventDate.difference(today).inDays;
 
-      String label;
+      // Logic label yang baru (H-#)
       if (diff == 0) {
         label = "HARI INI";
       } else if (diff == 1) {
         label = "BESOK";
       } else {
-        label = "$diff HARI LAGI";
+        label = "H-$diff";
       }
 
-      List<Map<String, String>> phases = [];
       for (int i = 0; i < 4; i++) {
         if (nextIndex + i < events.length) {
           final evt = events[nextIndex + i];
@@ -596,15 +733,23 @@ class _PatipattiPageState extends State<PatipattiPage> {
           });
         }
       }
+    }
 
+    return {"label": label, "phases": phases};
+  }
+
+  // 5️⃣ HITUNG DATA UNTUK DITAMPILKAN
+  void _calculateDisplayData() {
+    final events = _uposathaData[_selectedUposathaVersion];
+
+    // Panggil fungsi internal tadi
+    final result = _calculateDisplayDataInternal(events);
+
+    // Update UI
+    if (mounted) {
       setState(() {
-        _nextUposathaLabel = label;
-        _displayPhases = phases;
-      });
-    } else {
-      setState(() {
-        _nextUposathaLabel = "-";
-        _displayPhases = [];
+        _nextUposathaLabel = result['label'];
+        _displayPhases = result['phases'];
       });
     }
   }
@@ -630,6 +775,12 @@ class _PatipattiPageState extends State<PatipattiPage> {
         if (mounted) {
           setState(() => _isLoadingUposatha = false);
         }
+      }
+
+      // 2. TAMBAHAN: Cek Timestamp biar sinkron sama Kalender
+      final savedTime = prefs.getString(_keyLastFetchTime);
+      if (savedTime != null && savedTime != _lastFetchTimeStr) {
+        setState(() => _lastFetchTimeStr = savedTime);
       }
     } catch (e) {
       debugPrint('❌ Error reloading preference: $e');
@@ -793,30 +944,119 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  Future<void> _loadCampaigns({String? categoryId}) async {
-    setState(() => _isLoadingCampaigns = true);
-    if (_campaignScrollController.hasClients) {
-      _campaignScrollController.jumpTo(0);
+  void _handleDermaRefresh() {
+    final now = DateTime.now();
+
+    // Cek: Apakah user pernah pencet sebelumnya?
+    if (_lastDermaClickTime != null) {
+      final difference = now.difference(_lastDermaClickTime!);
+
+      // LOGIC: Kalau selisihnya kurang dari 5 detik, tolak!
+      if (difference.inSeconds < 11) {
+        // 1. Hapus antrian snackbar lama biar gak numpuk
+        ScaffoldMessenger.of(context).clearSnackBars();
+
+        // 2. Munculin peringatan
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Tunggu sebentar sebelum refresh lagi",
+              style: TextStyle(
+                // fontWeight: FontWeight.bold,
+                color: (Theme.of(context).colorScheme.surface),
+                fontSize: 12,
+              ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            behavior: SnackBarBehavior.floating, // Biar ngambang (keren dikit)
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 2), // Muncul sebentar aja
+          ),
+        );
+        return; // ⛔ BERHENTI DI SINI, jangan load data
+      }
     }
 
+    // Kalau lolos (udah lebih dari 5 detik atau baru pertama kali):
+    _lastDermaClickTime = now; // Catat waktu sekarang
+    _loadCampaigns(); // Panggil fungsi aslinya
+  }
+
+  // Timpa method _loadCampaigns dengan yang ini:
+  // Update Logic _loadCampaigns biar JUJUR
+  Future<void> _loadCampaigns({String? categoryId}) async {
+    setState(() {
+      _isLoadingCampaigns = true;
+      _isCampaignError = false; // Reset error dulu pas mulai loading
+    });
+
     try {
-      List<Campaign> campaigns;
+      // A. FETCH DATA
+      List<Campaign> newCampaigns;
       if (categoryId != null) {
-        campaigns = await _danaService.fetchCampaigns(categoryId);
+        newCampaigns = await _danaService.fetchCampaigns(categoryId);
       } else {
-        campaigns = await _danaService.fetchTopCampaigns();
+        newCampaigns = await _danaService.fetchTopCampaigns();
       }
 
       if (mounted) {
+        // 👇 LOGIC JUJUR: Cek dulu, ada isinya gak?
+        if (newCampaigns.isNotEmpty) {
+          // --- KASUS SUKSES & ADA DATA ---
+          final prefs = await SharedPreferences.getInstance();
+          final now = DateTime.now();
+          final timeToDisplay =
+              "${now.year}-${_twoDigits(now.month)}-${_twoDigits(now.day)} ${_twoDigits(now.hour)}:${_twoDigits(now.minute)}:${_twoDigits(now.second)}";
+
+          // 1. Simpan Waktu (Hanya kalau sukses dapet data)
+          await prefs.setString(_keyLastCampaignFetch, timeToDisplay);
+
+          // 2. Simpan Data Cache
+          String newCampaignSignature = newCampaigns
+              .map((c) => "${c.name}-${c.percent}-${c.formattedCollected}")
+              .join("|");
+          await prefs.setString(_keyLastCampaignData, newCampaignSignature);
+
+          // 3. Update Jam di UI
+          setState(() {
+            _lastCampaignFetchTimeStr = timeToDisplay; // ✅ JAM BARU
+            _isCampaignError = false;
+          });
+
+          debugPrint('✅ Data Campaign loaded. Jam diupdate: $timeToDisplay');
+        } else {
+          // --- KASUS KOSONG / OFFLINE ---
+          // JANGAN update jam! Biarin pake jam terakhir yg sukses.
+          debugPrint('⚠️ Data Kosong (Offline?). Jam TIDAK diupdate.');
+
+          setState(() {
+            _isCampaignError = true; // Tandai error biar muncul icon Wifi Off
+          });
+        }
+
+        // C. UPDATE LIST DATA (Tetap update listnya)
         setState(() {
-          _campaigns = campaigns;
+          _campaigns = newCampaigns;
           _isLoadingCampaigns = false;
           _showViewAllButton = false;
         });
       }
     } catch (e) {
+      debugPrint("❌ Gagal load campaign: $e");
       if (mounted) {
-        setState(() => _isLoadingCampaigns = false);
+        setState(() {
+          _isLoadingCampaigns = false;
+          _isCampaignError = true; // Tandai error
+          // Jam JANGAN diubah
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Gagal memuat data. Cek koneksi internet."),
+          ),
+        );
       }
     }
   }
@@ -831,10 +1071,16 @@ class _PatipattiPageState extends State<PatipattiPage> {
       setState(() => _selectedUposathaVersion = savedUposathaVersion);
     }
 
-    // ✅ TAMBAH: Load Paritta tradition
+    //  TAMBAH: Load Paritta tradition
     final savedParittaTradition = prefs.getString(_keyParitta);
     if (savedParittaTradition != null) {
       setState(() => _selectedParittaTradition = savedParittaTradition);
+    }
+
+    //  TAMBAH INI: Load waktu update Campaign
+    final savedCampaignTime = prefs.getString(_keyLastCampaignFetch);
+    if (savedCampaignTime != null) {
+      setState(() => _lastCampaignFetchTimeStr = savedCampaignTime);
     }
   }
 
@@ -845,8 +1091,13 @@ class _PatipattiPageState extends State<PatipattiPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
-    final isTabletLandscape = _isTabletLandscape(context);
+    // final isTabletLandscape = _isTabletLandscape(context);
+
+    // Kita ubah jadi isLandscape aja, tanpa cek ukuran tablet
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -854,7 +1105,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
         slivers: [
           _buildAppBar(),
           // 📱 TABLET LANDSCAPE: Derma + Uposatha side-by-side
-          if (isTabletLandscape)
+          if (isLandscape)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -882,6 +1133,13 @@ class _PatipattiPageState extends State<PatipattiPage> {
   }
 
   Widget _buildAppBar() {
+    // 1️⃣ Deteksi Landscape
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    // 2️⃣ Tentukan tinggi: 60 kalau miring, 80 kalau berdiri
+    final double toolbarHeight = isLandscape ? 60.0 : 80.0;
+
     final transparentColor = Theme.of(
       context,
     ).scaffoldBackgroundColor.withValues(alpha: 0.85);
@@ -891,15 +1149,22 @@ class _PatipattiPageState extends State<PatipattiPage> {
       backgroundColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      automaticallyImplyLeading: false,
-      toolbarHeight: 80,
+      automaticallyImplyLeading: false, // 3️⃣ Pasang tinggi dinamis
+      toolbarHeight: toolbarHeight,
       flexibleSpace: ClipRRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
           child: Container(color: transparentColor),
         ),
       ),
-      title: const HeaderDepan(title: "Paṭipatti", subtitle: "Praktik Dhamma"),
+      // 4️⃣ Geser teks ke atas (-8) saat landscape
+      title: Transform.translate(
+        offset: Offset(0, isLandscape ? -8 : 0),
+        child: const HeaderDepan(
+          title: "Paṭipatti",
+          subtitle: "Praktik Dhamma",
+        ),
+      ),
       centerTitle: true,
       titleSpacing: 0,
     );
@@ -951,8 +1216,10 @@ class _PatipattiPageState extends State<PatipattiPage> {
         ? const Color(0xFF2D6A64)
         : const Color(0xFFB2DFDB);
 
-    final isTabletLandscape = _isTabletLandscape(context);
-    final cardMargin = isTabletLandscape ? 8.0 : 16.0;
+    //final isTabletLandscape = _isTabletLandscape(context);
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final cardMargin = isLandscape ? 8.0 : 16.0;
 
     return _buildHighlightWrapper(
       sectionKey: 'derma',
@@ -999,25 +1266,27 @@ class _PatipattiPageState extends State<PatipattiPage> {
                         letterSpacing: 1.2,
                       ),
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          "Didukung oleh ",
+                    // BAGIAN KANAN (Ganti Total)
+                    // Hapus Row yang isinya "Didukung oleh...", ganti jadi ini:
+                    if (_lastCampaignFetchTimeStr != null)
+                      RichText(
+                        text: TextSpan(
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 10.5,
                             color: subtextColor.withValues(alpha: 0.6),
                           ),
+                          children: [
+                            const TextSpan(text: "Terakhir update: "),
+                            TextSpan(
+                              text: _lastCampaignFetchTimeStr,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: accentColor,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          "Yayasan Dana Everyday",
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: accentColor,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
@@ -1046,7 +1315,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Derma",
+                                "Dana",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -1069,9 +1338,10 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             color: accentColor,
                             size: 20,
                           ),
+                          // Panggil fungsi satpam tadi
                           onPressed: _isLoadingCampaigns
                               ? null
-                              : _loadCampaigns,
+                              : _handleDermaRefresh,
                           tooltip: 'Refresh',
                         ),
                       ],
@@ -1113,7 +1383,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
                     _isLoadingCampaigns
                         ? _buildLoadingShimmer(lightBg, borderColor)
                         : _campaigns.isEmpty
-                        ? _buildEmptyState(subtextColor)
+                        // 👇 Kirim parameter isError
+                        ? _buildEmptyState(
+                            subtextColor,
+                            isError: _isCampaignError,
+                          )
                         : SizedBox(
                             height: 185,
                             child: Stack(
@@ -1268,10 +1542,24 @@ class _PatipattiPageState extends State<PatipattiPage> {
                             height: 80,
                             width: double.infinity,
                             fit: BoxFit.cover,
+                            // 👇 GANTI BAGIAN INI
                             errorBuilder: (_, _, _) =>
-                                _buildImagePlaceholder(accentColor, 80),
+                                _buildOfflineImagePlaceholder(
+                                  accentColor,
+                                  80,
+                                  isImageError: true,
+                                ),
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return _buildImagePlaceholder(accentColor, 80);
+                            },
                           )
-                        : _buildImagePlaceholder(accentColor, 80),
+                        // 👇 DAN BAGIAN INI (jika URL kosong dari awal)
+                        : _buildOfflineImagePlaceholder(
+                            accentColor,
+                            80,
+                            isImageError: false,
+                          ),
                   ),
                   Positioned(
                     top: 6,
@@ -1409,6 +1697,39 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
+  Widget _buildOfflineImagePlaceholder(
+    Color color,
+    double height, {
+    bool isImageError = true,
+  }) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      color: color.withValues(alpha: 0.1),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isImageError
+                ? Icons.cloud_off_rounded
+                : Icons.image_not_supported_rounded,
+            size: 20,
+            color: color.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isImageError ? "Mode Offline" : "Tidak ada gambar",
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: color.withValues(alpha: 0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLoadingShimmer(Color lightBg, Color borderColor) {
     return SizedBox(
       height: 185,
@@ -1434,7 +1755,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
     );
   }
 
-  Widget _buildEmptyState(Color subtextColor) {
+  Widget _buildEmptyState(Color subtextColor, {bool isError = false}) {
     return Container(
       height: 185,
       alignment: Alignment.center,
@@ -1442,15 +1763,34 @@ class _PatipattiPageState extends State<PatipattiPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.error_outline,
+            isError
+                ? Icons.wifi_off_rounded
+                : Icons.campaign_rounded, // Icon beda
             size: 40,
             color: subtextColor.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 8),
           Text(
-            'Tidak ada campaign tersedia',
+            isError
+                ? 'Gagal memuat data.\nCek koneksi internet.'
+                : 'Belum ada campaign tersedia',
+            textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: subtextColor),
           ),
+          if (isError) ...[
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: _loadCampaigns,
+              child: Text(
+                "Coba Lagi",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1472,12 +1812,15 @@ class _PatipattiPageState extends State<PatipattiPage> {
         : const Color(0xFFFFE082);
 
     final isTabletLandscape = _isTabletLandscape(context);
+    // Kita ubah jadi isLandscape aja, tanpa cek ukuran tablet
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     //tinggi kotak bulan
-    final phaseBoxHeight = isTabletLandscape ? 172.0 : 85.0; // ✅ 130 aja cukup
+    final phaseBoxHeight = isLandscape ? 172.0 : 85.0; // ✅ 130 aja cukup
     // final phaseBoxHeight = isTabletLandscape ? 185.0 : 85.0;
 
-    final cardMargin = isTabletLandscape ? 8.0 : 16.0;
+    //final cardMargin = isTabletLandscape ? 8.0 : 16.0;
 
     return _buildHighlightWrapper(
       sectionKey: 'uposatha',
@@ -1485,7 +1828,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
       child: Container(
         // margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
         // margin: EdgeInsets.fromLTRB(cardMargin, 4, cardMargin, 8), // ✅ Dynamic
-        margin: isTabletLandscape
+        margin: isLandscape
             ? const EdgeInsets.fromLTRB(0, 4, 8, 8) // Tablet: kiri 0, kanan 8
             : const EdgeInsets.fromLTRB(16, 4, 16, 8), // Mobile: kiri kanan 16
         child: Card(
@@ -1497,50 +1840,67 @@ class _PatipattiPageState extends State<PatipattiPage> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              _buildHeaderStrip("Sīla"),
-
-              // ✅ OFFLINE INDICATOR (muncul kalau tidak ada koneksi)
-              if (!_isOnline)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  color: Colors.orange.withValues(alpha: 0.2),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.cloud_off,
-                        color: Colors.orange,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Mode Offline - Data tersimpan',
-                          style: TextStyle(
-                            color: Colors.orange[700],
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.refresh,
-                          color: Colors.orange,
-                          size: 16,
-                        ),
-                        onPressed: () => _loadUposathaData(),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ],
+              //  _buildHeaderStrip("Sīla"),
+              // 1. Header Custom (Sīla + Mode Offline)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.grey.withValues(alpha: 0.08),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(
+                        context,
+                      ).dividerColor.withValues(alpha: 0.05),
+                      width: 1,
+                    ),
                   ),
                 ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // TULISAN "SĪLA" (Kiri - Tetap)
+                    Text(
+                      "SĪLA",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: subtextColor,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+
+                    // INDIKATOR UPDATE (Kanan - Ganti Baru)
+                    if (_lastFetchTimeStr != null)
+                      RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: subtextColor.withValues(
+                              alpha: 0.6,
+                            ), // Warna teks biasa
+                          ),
+                          children: [
+                            const TextSpan(text: "Terakhir update: "),
+                            TextSpan(
+                              text: _lastFetchTimeStr,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    accentColor, // <--- Warna Highlight (Bisa ganti Orange/Accent)
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
 
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -1575,7 +1935,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                 ),
                               ),
                               Text(
-                                "Pengamalan Puasa",
+                                "Jadwal Puasa",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: subtextColor,
@@ -1583,6 +1943,25 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               ),
                             ],
                           ),
+                        ),
+
+                        // --- TAMBAHAN BARU: Tombol Refresh ---
+                        // Munculkan tombol refresh (bisa dikondisikan kalau mau tampil pas offline aja,
+                        // atau selalu tampil biar user bisa paksa update).
+                        // Di sini saya buat selalu tampil tapi disable kalau lagi loading.
+                        IconButton(
+                          icon: Icon(
+                            Icons.refresh_rounded,
+                            color: accentColor,
+                            size: 20,
+                          ), // Kalau dipencet user, PAKSA ambil dari firebase (bypass cek umur)
+                          // Panggil satpamnya, bukan fungsi fetch langsung
+                          onPressed: _isLoadingUposatha
+                              ? null
+                              : _handleUposathaRefresh,
+                          tooltip: 'Cek Update',
+                          constraints: const BoxConstraints(),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
                         // LABEL NEXT EVENT (DINAMIS)
                         AnimatedOpacity(
@@ -1757,7 +2136,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                     Text(
                                       icon,
                                       style: TextStyle(
-                                        fontSize: isTabletLandscape
+                                        fontSize: isLandscape
                                             ? 32
                                             : 22, // ✅ 32 di tablet
                                       ),
@@ -1768,7 +2147,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                       style: TextStyle(
                                         fontSize: isTabletLandscape
                                             ? 13
-                                            : 10, // ✅ 13 di tablet
+                                            : (isLandscape ? 11 : 10),
                                         color: textColor,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1797,6 +2176,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                                 MaterialPageRoute(
                                   builder: (context) => UposathaKalenderPage(
                                     initialVersion: _selectedUposathaVersion,
+                                    initialData: _uposathaData,
                                   ),
                                 ),
                               );
@@ -2178,14 +2558,16 @@ class _PatipattiPageState extends State<PatipattiPage> {
     Color borderColor,
   ) {
     final isTabletLandscape = _isTabletLandscape(context);
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
-    if (isTabletLandscape) {
+    if (isLandscape) {
       // 📱 MODE GRID - Tetap urutan asli
       return MasonryGridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverSimpleGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
+        gridDelegate: SliverSimpleGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: (isTabletLandscape ? 3 : 2),
         ),
         mainAxisSpacing: 12,
         crossAxisSpacing: 10,
@@ -2299,9 +2681,11 @@ class _PatipattiPageState extends State<PatipattiPage> {
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
 
     final isTabletLandscape = _isTabletLandscape(context);
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     // 📱 TABLET LANDSCAPE: Buka bottom sheet dengan grid
-    if (isTabletLandscape) {
+    if (isTabletLandscape || isLandscape) {
       return Material(
         color: lightBg,
         borderRadius: BorderRadius.circular(14),
@@ -2311,7 +2695,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
               context: context,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
-              builder: (_) => FractionallySizedBox(
+              builder: (modalContext) => FractionallySizedBox(
                 heightFactor: 0.85,
                 child: Container(
                   decoration: BoxDecoration(
@@ -2329,7 +2713,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           children: [
                             IconButton(
                               icon: Icon(Icons.close, color: textColor),
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () => Navigator.pop(modalContext),
                             ),
                             const SizedBox(width: 8),
                             Container(
@@ -2375,7 +2759,7 @@ class _PatipattiPageState extends State<PatipattiPage> {
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 10,
                           itemCount: items.length,
-                          itemBuilder: (context, index) {
+                          itemBuilder: (_, index) {
                             final item = items[index];
                             return _buildMenuButton(
                               label: item['label'],
@@ -2385,7 +2769,9 @@ class _PatipattiPageState extends State<PatipattiPage> {
                               borderColor: borderColor,
                               isHorizontal: true,
                               onTap: () {
-                                Navigator.pop(context); // Tutup bottom sheet
+                                Navigator.pop(
+                                  modalContext,
+                                ); // Tutup bottom sheet
                                 _openHtmlBook(
                                   context,
                                   item['label'],

@@ -17,11 +17,11 @@ import 'screens/suttaplex.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
-Future<void> main() async {
+void main() {
+  // Hapus await Firebase di sini biar app langsung jalan
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
+  // Langsung jalanin App tanpa nunggu Firebase
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeManager(),
@@ -40,10 +40,9 @@ class TripitakaApp extends StatelessWidget {
         return MaterialApp(
           title: 'myDhamma',
           theme: themeManager.lightTheme,
-
           darkTheme: themeManager.darkTheme,
           themeMode: themeManager.themeMode,
-
+          // SplashGate yang akan ngurus inisialisasi
           home: const _SplashGate(),
         );
       },
@@ -51,7 +50,6 @@ class TripitakaApp extends StatelessWidget {
   }
 }
 
-// Splash gate sederhana
 class _SplashGate extends StatefulWidget {
   const _SplashGate();
   @override
@@ -62,12 +60,27 @@ class _SplashGateState extends State<_SplashGate> {
   @override
   void initState() {
     super.initState();
-    _boot();
+    _initializeApp();
   }
 
-  Future<void> _boot() async {
-    await Future.delayed(const Duration(milliseconds: 400));
+  Future<void> _initializeApp() async {
+    // 1. Mulai inisialisasi Firebase (jalan di background)
+    final firebaseInit = Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // 2. Minimum waktu tampil splash (opsional, biar gak kedip doang kalau hp dewa)
+    final minimumDelay = Future.delayed(const Duration(milliseconds: 800));
+
+    // 3. Pre-cache gambar/SVG berat di sini jika perlu (opsional)
+    // await Future.wait([precacheImage(...), ...]);
+
+    // 4. Tunggu KEDUANYA selesai (Firebase ready DAN durasi minimum tercapai)
+    await Future.wait([firebaseInit, minimumDelay]);
+
     if (!mounted) return;
+
+    // 5. Pindah halaman
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => const RootPage()));
@@ -77,15 +90,17 @@ class _SplashGateState extends State<_SplashGate> {
   Widget build(BuildContext context) {
     final bg = Theme.of(context).scaffoldBackgroundColor;
     final onBg = Theme.of(context).colorScheme.onSurfaceVariant;
+
     return Scaffold(
       backgroundColor: bg,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
+            const SizedBox(
               width: 28,
               height: 28,
+              // Kasih const biar gak rebuild
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
                 color: Colors.deepOrange,
@@ -119,6 +134,8 @@ class _RootPageState extends State<RootPage>
 
   String? _patipattiHighlight;
 
+  // --- OPTIMASI: Cache Pages biar gak dibikin ulang tiap set state ---
+  // late List<Widget> _pages;
   @override
   void initState() {
     super.initState();
@@ -186,15 +203,17 @@ class _RootPageState extends State<RootPage>
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
 
+    // List ini aman ditaruh di build ASALKAN child-nya const (kayak PariyattiContent)
+    // Home & PatipattiPage gak bisa const karena ada parameter dinamis, itu wajar.
     final pages = [
       Home(
         onNavigate: (int index, {String? highlightSection}) {
           _navigateToPage(index, highlightSection: highlightSection);
         },
       ),
-      const PariyattiContent(tab: 0),
-      const PariyattiContent(tab: 1),
-      const PariyattiContent(tab: 2),
+      const PariyattiContent(tab: 0), // Udah const, aman
+      const PariyattiContent(tab: 1), // Udah const, aman
+      const PariyattiContent(tab: 2), // Udah const, aman
       PatipattiPage(highlightSection: _patipattiHighlight),
     ];
 
@@ -376,6 +395,13 @@ class _RootPageState extends State<RootPage>
       context,
     ).scaffoldBackgroundColor.withValues(alpha: 0.85);
 
+    // 1️⃣ Tambahkan deteksi landscape
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    // Tentukan tinggi: kalau landscape 60, kalau portrait 80
+    final double toolbarHeight = isLandscape ? 60.0 : 80.0;
+
     return Positioned(
       top: 0,
       left: 0,
@@ -391,7 +417,7 @@ class _RootPageState extends State<RootPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    height: 80,
+                    height: toolbarHeight,
                     child: AppBar(
                       primary: false,
                       backgroundColor: Colors.transparent,
@@ -400,10 +426,14 @@ class _RootPageState extends State<RootPage>
                       automaticallyImplyLeading: false,
                       centerTitle: true,
                       titleSpacing: 0,
-                      toolbarHeight: 80,
-                      title: const HeaderDepan(
-                        title: "Pariyatti",
-                        subtitle: "Studi Dhamma",
+                      toolbarHeight:
+                          toolbarHeight, // 4️⃣ Terapkan Transform.translate biar teks naik pas landscape
+                      title: Transform.translate(
+                        offset: Offset(0, isLandscape ? -8 : 0),
+                        child: const HeaderDepan(
+                          title: "Pariyatti",
+                          subtitle: "Studi Dhamma",
+                        ),
                       ),
                     ),
                   ),

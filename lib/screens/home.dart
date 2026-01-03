@@ -218,6 +218,9 @@ class _HomeState extends State<Home> {
       context,
     ).scaffoldBackgroundColor.withValues(alpha: 0.85);
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     return SliverAppBar(
       pinned: true, // Wajib true biar melayang
       floating: true,
@@ -230,7 +233,8 @@ class _HomeState extends State<Home> {
       scrolledUnderElevation: 0,
 
       automaticallyImplyLeading: false,
-      toolbarHeight: 80,
+
+      toolbarHeight: isLandscape ? 60 : 80,
 
       // ✅ INI RAHASIANYA: Efek Kaca Buram (Frosted Glass)
       flexibleSpace: ClipRRect(
@@ -243,21 +247,24 @@ class _HomeState extends State<Home> {
         ),
       ),
 
-      title: HeaderDepan(
-        title: "myDhamma",
-        subtitle: "Namo Buddhāya", // Subtitle utama
-        subtitlesList: const [
-          // List tambahannya
-          "Sotthi Hotu",
-          "Suvatthi Hotu",
-          "Sukhī Hotu",
-          "Sukhitā Hontu Ñātayo",
-          "Sabbe Sattā Bhavantu Sukhitattā",
-          "Nibbānassa Paccayo Hotu",
-          "Buddhasāsanaṁ Ciraṁ Tiṭṭhatu",
-          "Sādhu Sādhu Sādhu",
-        ],
-        enableAnimation: true,
+      title: Transform.translate(
+        offset: Offset(0, (isLandscape ? -8 : 0)),
+        child: const HeaderDepan(
+          title: "myDhamma",
+          subtitle: "Namo Buddhāya", // Subtitle utama
+          subtitlesList: [
+            // List tambahannya
+            "Sotthi Hotu",
+            "Suvatthi Hotu",
+            "Sukhī Hotu",
+            "Sukhitā Hontu Ñātayo",
+            "Sabbe Sattā Bhavantu Sukhitattā",
+            "Nibbānassa Paccayo Hotu",
+            "Buddhasāsanaṁ Ciraṁ Tiṭṭhatu",
+            "Sādhu Sādhu Sādhu",
+          ],
+          enableAnimation: true,
+        ),
       ),
       centerTitle: true,
       titleSpacing: 0,
@@ -1587,6 +1594,7 @@ class _HomeState extends State<Home> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         contentPadding: EdgeInsets.zero,
         content: Container(

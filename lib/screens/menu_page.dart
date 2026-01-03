@@ -279,7 +279,6 @@ class _MenuPageState extends State<MenuPage> {
     final isLong = previewBlurb.length > 60;
 
     final isTabletLandscape = _isTabletLandscape(context); // ðŸ"¥ TAMBAH INI
-
     return Scaffold(
       appBar: null,
       backgroundColor: bgColor,

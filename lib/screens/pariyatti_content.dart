@@ -388,6 +388,9 @@ class _PariyattiContentState extends State<PariyattiContent> {
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
     final isTabletLandscape = _isTabletLandscape(context);
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     const contentPadding = EdgeInsets.only(
       top: 230,
       left: 18,
@@ -403,6 +406,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
     // Jika Abhidhamma atau Vinaya
     return _buildRegularLayout(
       kitabs,
+      isLandscape,
       isTabletLandscape,
       contentPadding,
       bgColor,
@@ -441,14 +445,17 @@ class _PariyattiContentState extends State<PariyattiContent> {
         .where((k) => !knSet.contains(k["acronym"]))
         .toList();
 
-    if (isTabletLandscape) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    if (isLandscape) {
       // ðŸ"¥ GA PAKAI flatList, langsung loop parents aja
       return Container(
         color: bgColor,
         child: MasonryGridView.builder(
           padding: padding,
-          gridDelegate: const SliverSimpleGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3, // 2 kolom
+          gridDelegate: SliverSimpleGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isTabletLandscape ? 3 : 2, // 2 kolom
           ),
           mainAxisSpacing: 4,
           crossAxisSpacing: 12,
@@ -463,7 +470,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
             }
 
             // DN, MN, SN, AN pakai card biasa
-            return _buildKitabCard(kitab, acronym);
+            return _buildKitabCard(kitab, acronym, context);
           },
         ),
       );
@@ -480,7 +487,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
           if (kitab["acronym"] == "KN") {
             return _buildKNExpansionCard(kitab, acronym);
           }
-          return _buildKitabCard(kitab, acronym);
+          return _buildKitabCard(kitab, acronym, context);
         }).toList(),
       ),
     );
@@ -488,9 +495,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
 
   Widget _buildKNGridCard(Map<String, String> kitab, String acronym) {
     final cardColor = Theme.of(context).colorScheme.surface;
-    final bgColor = Theme.of(
-      context,
-    ).scaffoldBackgroundColor; // ðŸ"¥ Tambah ini
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
@@ -528,12 +533,11 @@ class _PariyattiContentState extends State<PariyattiContent> {
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            builder: (_) => FractionallySizedBox(
+            builder: (sheetContext) => FractionallySizedBox(
               heightFactor: 0.85,
               child: Container(
                 decoration: BoxDecoration(
-                  color:
-                      bgColor, // ðŸ"¥ GANTI jadi bgColor (scaffoldBackgroundColor)
+                  color: bgColor,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(16),
                   ),
@@ -547,7 +551,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
                         children: [
                           IconButton(
                             icon: Icon(Icons.close, color: textColor),
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () => Navigator.pop(sheetContext),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -572,32 +576,44 @@ class _PariyattiContentState extends State<PariyattiContent> {
                       ),
                     ),
 
-                    // ðŸ"¥ DIVIDER - Abu-abu subtle banget
                     Divider(
                       height: 1,
                       thickness: 1,
-                      color: Colors.grey.withValues(
-                        alpha: 0.2,
-                      ), // ðŸ"¥ Abu-abu halus
+                      color: Colors.grey.withValues(alpha: 0.2),
                     ),
 
-                    // Grid 2 Kolom
+                    // 🔥 PERBAIKAN DI SINI (Pakai LayoutBuilder)
                     Expanded(
-                      child: MasonryGridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate:
-                            const SliverSimpleGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2, // 2 kolom
-                            ),
-                        mainAxisSpacing: 4,
-                        crossAxisSpacing: 12,
-                        itemCount: khuddakaChildren.length,
-                        itemBuilder: (context, index) {
-                          final child = khuddakaChildren[index];
-                          final childAcronym = normalizeNikayaAcronym(
-                            child["acronym"]!,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Logika kolom berdasarkan LEBAR AKTUAL container
+                          // > 500px anggap landscape/tablet -> 2 kolom
+                          // < 500px anggap portrait HP -> 1 kolom
+                          final int crossAxisCount = constraints.maxWidth > 500
+                              ? 2
+                              : 1;
+
+                          return MasonryGridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate:
+                                SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                ),
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: 12,
+                            itemCount: khuddakaChildren.length,
+                            itemBuilder: (context, index) {
+                              final child = khuddakaChildren[index];
+                              final childAcronym = normalizeNikayaAcronym(
+                                child["acronym"]!,
+                              );
+                              return _buildKitabCard(
+                                child,
+                                childAcronym,
+                                context,
+                              );
+                            },
                           );
-                          return _buildKitabCard(child, childAcronym);
                         },
                       ),
                     ),
@@ -655,7 +671,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
             initiallyExpanded: false,
             children: khuddakaChildren.map((child) {
               final childAcronym = normalizeNikayaAcronym(child["acronym"]!);
-              return _buildKitabTile(child, childAcronym);
+              return _buildKitabTile(child, childAcronym, context);
             }).toList(),
           ),
         ),
@@ -666,18 +682,19 @@ class _PariyattiContentState extends State<PariyattiContent> {
   // ðŸ"¥ 5. Layout untuk Abhidhamma & Vinaya (lebih simple, gak ada expansion)
   Widget _buildRegularLayout(
     List<Map<String, String>> kitabs,
+    bool isLandscape,
     bool isTabletLandscape,
     EdgeInsets padding,
     Color bgColor,
   ) {
-    if (isTabletLandscape) {
-      // ðŸ"¥ MODE GRID (2 kolom)
+    if (isLandscape) {
+      // ðŸ"¥ GA PAKAI flatList, langsung loop parents aja
       return Container(
         color: bgColor,
         child: MasonryGridView.builder(
           padding: padding,
-          gridDelegate: const SliverSimpleGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3, // 2 kolom
+          gridDelegate: SliverSimpleGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isTabletLandscape ? 3 : 2, // 2 kolom
           ),
           mainAxisSpacing: 4,
           crossAxisSpacing: 12,
@@ -685,7 +702,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
           itemBuilder: (context, index) {
             final kitab = kitabs[index];
             final acronym = normalizeNikayaAcronym(kitab["acronym"]!);
-            return _buildKitabCard(kitab, acronym);
+            return _buildKitabCard(kitab, acronym, context);
           },
         ),
       );
@@ -700,25 +717,37 @@ class _PariyattiContentState extends State<PariyattiContent> {
         itemBuilder: (context, index) {
           final kitab = kitabs[index];
           final acronym = normalizeNikayaAcronym(kitab["acronym"]!);
-          return _buildKitabCard(kitab, acronym);
+          return _buildKitabCard(kitab, acronym, context);
         },
       ),
     );
   }
 
-  Widget _buildKitabCard(Map<String, String> kitab, String acronym) {
+  // Tambahin parameter context di sini
+  Widget _buildKitabCard(
+    Map<String, String> kitab,
+    String acronym,
+    BuildContext context,
+  ) {
+    // Sekarang Theme.of(context) bakal pake context yang dikirim (yang masih hidup), bukan yang lama
     final cardColor = Theme.of(context).colorScheme.surface;
 
     return Card(
-      color: cardColor, // ✅ Dinamis
+      color: cardColor,
       elevation: 1,
       margin: const EdgeInsets.symmetric(vertical: 5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: _buildKitabTile(kitab, acronym),
+      // Oper context lagi ke bawah
+      child: _buildKitabTile(kitab, acronym, context),
     );
   }
 
-  Widget _buildKitabTile(Map<String, String> kitab, String acronym) {
+  Widget _buildKitabTile(
+    Map<String, String> kitab,
+    String acronym,
+    BuildContext context,
+  ) {
+    // Pake context parameter
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final cardColor = Theme.of(context).colorScheme.surface;
@@ -729,6 +758,8 @@ class _PariyattiContentState extends State<PariyattiContent> {
       leading: buildNikayaAvatar(acronym),
       title: Text(
         kitab["name"]!,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 14,
@@ -737,6 +768,8 @@ class _PariyattiContentState extends State<PariyattiContent> {
       ),
       subtitle: Text(
         kitab["desc"]!,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(color: subtextColor, fontSize: 12), // ✅ Dinamis
       ),
       trailing: Text(

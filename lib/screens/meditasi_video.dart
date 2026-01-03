@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,10 +47,18 @@ class _VideoPageState extends State<VideoPage> {
   // Scroll State untuk AppBar Effect
   bool _isScrolled = false;
 
+  // Keys buat Simpan Cache
+  static const String _keyVideoData = 'cached_video_data';
+  static const String _keyLastFetch = 'video_last_fetch_time';
+  // 👇 TAMBAH VARIABEL INI BUAT SATPAM
+  DateTime? _lastRefreshTime;
+
   @override
   void initState() {
     super.initState();
-    _dataFuture = _fetchAndProcessData();
+    // _dataFuture = _fetchAndProcessData();
+    // Ganti jadi _loadData (Smart Load)
+    _dataFuture = _loadData();
     _loadHistory();
     _checkConnectivity();
     Connectivity().onConnectivityChanged.listen((results) {
@@ -62,13 +71,113 @@ class _VideoPageState extends State<VideoPage> {
     });
   }
 
-  Future<ProcessedData> _fetchAndProcessData() async {
+  Future<void> _refreshData() async {
+    final now = DateTime.now();
+
+    // 1. SATPAM SPAM (5 Detik)
+    if (_lastRefreshTime != null) {
+      final difference = now.difference(_lastRefreshTime!);
+      if (difference.inSeconds < 5) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Tunggu sebentar sebelum refresh lagi",
+                style: TextStyle(
+                  // fontWeight: FontWeight.bold,
+                  color: (Theme.of(context).colorScheme.surface),
+                  fontSize: 12,
+                ),
+              ),
+              backgroundColor: kPrimaryColor,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        return; // ⛔ STOP
+      }
+    }
+
+    _lastRefreshTime = now;
+
+    // 2. PAKSA UPDATE (Bypass cache 7 hari)
+    setState(() {
+      _dataFuture = _loadData(forceRefresh: true); // 👈 Pake forceRefresh: true
+    });
+  }
+
+  // ✅ METHOD UTAMA: CEK CACHE DULU
+  Future<ProcessedData> _loadData({bool forceRefresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // 1. JIKA TIDAK DIPAKSA REFRESH, CEK CACHE DULU
+    if (!forceRefresh) {
+      final cachedJson = prefs.getString(_keyVideoData);
+      final lastFetchStr = prefs.getString(_keyLastFetch);
+
+      if (cachedJson != null && lastFetchStr != null) {
+        final lastFetch = DateTime.tryParse(lastFetchStr);
+
+        if (lastFetch != null) {
+          final difference = DateTime.now().difference(lastFetch);
+
+          // 🛑 SATPAM HEMAT: Kalau belum 7 hari, pakai Cache aja!
+          if (difference.inDays < 7) {
+            debugPrint(
+              "✋ Data Video masih segar (${difference.inDays} hari). Pakai Cache.",
+            );
+            try {
+              final decodedMap =
+                  json.decode(cachedJson) as Map<String, dynamic>;
+              return _processRawData(decodedMap);
+            } catch (e) {
+              debugPrint("⚠️ Gagal parse cache, lanjut fetch server.");
+            }
+          }
+        }
+      }
+    }
+
+    // 2. KALAU CACHE BASI / KOSONG / DIPAKSA -> FETCH FIREBASE
+    return _fetchFromFirebase(prefs);
+  }
+
+  // ✅ FETCH DARI SERVER & SIMPAN KE CACHE
+  Future<ProcessedData> _fetchFromFirebase(SharedPreferences prefs) async {
+    debugPrint("🌐 Fetching Video from Firebase...");
+
     final snapshot = await _dbRef.get();
     if (!snapshot.exists) {
       return ProcessedData([], {}, {});
     }
 
-    final rawData = snapshot.value as Map<dynamic, dynamic>;
+    // Ambil value
+    final rawData = snapshot.value;
+
+    // Simpan ke Cache (Encode ke JSON String)
+    if (rawData != null) {
+      try {
+        await prefs.setString(_keyVideoData, json.encode(rawData));
+        await prefs.setString(_keyLastFetch, DateTime.now().toIso8601String());
+        debugPrint("💾 Video data saved to cache.");
+      } catch (e) {
+        debugPrint("❌ Gagal simpan cache: $e");
+      }
+    }
+
+    // Proses datanya biar siap tampil
+    // Kita perlu casting karena snapshot.value itu Object? (biasanya Map<dynamic, dynamic>)
+    // json.encode biasanya butuh Map<String, dynamic> atau List, jadi amanin dulu.
+    final Map<dynamic, dynamic> mapData =
+        (rawData as Map<dynamic, dynamic>?) ?? {};
+
+    return _processRawData(mapData);
+  }
+
+  // Helper pisahan buat ngolah Map jadi ProcessedData (biar codingan rapi)
+  ProcessedData _processRawData(Map<dynamic, dynamic> rawData) {
     final keys = rawData.keys.map((e) => e.toString()).toList()..sort();
 
     Set<String> authors = {};
@@ -83,12 +192,6 @@ class _VideoPageState extends State<VideoPage> {
     }
 
     return ProcessedData(keys, authors, rawData);
-  }
-
-  Future<void> _refreshData() async {
-    setState(() {
-      _dataFuture = _fetchAndProcessData();
-    });
   }
 
   Future<void> _loadHistory() async {
@@ -747,6 +850,7 @@ class _VideoPageState extends State<VideoPage> {
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
+                                              // 1. JUDUL KATEGORI
                                               Expanded(
                                                 child: Text(
                                                   _capitalize(key),
@@ -759,38 +863,52 @@ class _VideoPageState extends State<VideoPage> {
                                                   ),
                                                 ),
                                               ),
-                                              InkWell(
-                                                onTap: () {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          SeeAllPage(
-                                                            categoryTitle:
-                                                                _capitalize(
-                                                                  key,
-                                                                ),
-                                                            videos:
-                                                                filteredVideos,
-                                                          ),
-                                                    ),
-                                                  ).then(
-                                                    (_) => _loadHistory(),
-                                                  ); // Reload history pas balik
-                                                },
-                                                child: const Padding(
-                                                  padding: EdgeInsets.all(4.0),
-                                                  child: Text(
-                                                    'Lihat Semua',
-                                                    style: TextStyle(
-                                                      color: kPrimaryColor,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 13,
+
+                                              // 2. TOMBOL LIHAT SEMUA (DIBUNGKUS IF)
+                                              // Cuma muncul kalau videonya lebih dari 5
+                                              if (filteredVideos.length > 5)
+                                                InkWell(
+                                                  onTap: () {
+                                                    // Logic Judul + Filter yang tadi
+                                                    String judulHalaman =
+                                                        _capitalize(key);
+                                                    if (_selectedAuthor !=
+                                                        'Semua') {
+                                                      judulHalaman +=
+                                                          ' (Filter: $_selectedAuthor)';
+                                                    }
+
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            SeeAllPage(
+                                                              categoryTitle:
+                                                                  judulHalaman,
+                                                              videos:
+                                                                  filteredVideos,
+                                                            ),
+                                                      ),
+                                                    ).then(
+                                                      (_) => _loadHistory(),
+                                                    );
+                                                  },
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          4.0,
+                                                        ),
+                                                    child: Text(
+                                                      'Lihat Semua (${filteredVideos.length})',
+                                                      style: const TextStyle(
+                                                        color: kPrimaryColor,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        fontSize: 13,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
-                                              ),
                                             ],
                                           ),
                                         ),
@@ -926,12 +1044,16 @@ class SeeAllPage extends StatefulWidget {
 class _SeeAllPageState extends State<SeeAllPage> {
   bool _isScrolled = false;
 
-  // ✅ Header Tematik Style untuk See All
+  // Header Tematik (Tetap sama)
   Widget _buildTematikStyleHeader() {
-    final isDark = _isDarkMode(context);
-    final bgColor = isDark ? Colors.grey[900] : Colors.white;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark
+        ? Theme.of(context).colorScheme.surface
+        : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final iconBgColor = isDark ? Colors.grey[800] : Colors.white;
+    final iconBgColor = isDark
+        ? Theme.of(context).colorScheme.surface
+        : Colors.white;
     final shadowColor = isDark
         ? Colors.black26
         : Colors.black.withValues(alpha: 0.1);
@@ -961,7 +1083,7 @@ class _SeeAllPageState extends State<SeeAllPage> {
                 sigmaY: _isScrolled ? 10.0 : 0.0,
               ),
               child: Container(
-                color: bgColor?.withValues(alpha: _isScrolled ? 0.85 : 1.0),
+                color: bgColor.withValues(alpha: _isScrolled ? 0.85 : 1.0),
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
@@ -1024,8 +1146,8 @@ class _SeeAllPageState extends State<SeeAllPage> {
         children: [
           Column(
             children: [
-              // Spacer untuk Header
-              SizedBox(height: MediaQuery.of(context).padding.top + 80),
+              // Spacer
+              SizedBox(height: MediaQuery.of(context).padding.top + 95),
               Expanded(
                 child: NotificationListener<ScrollNotification>(
                   onNotification: (scrollInfo) {
@@ -1038,13 +1160,16 @@ class _SeeAllPageState extends State<SeeAllPage> {
                   },
                   child: GridView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.94,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 300,
+                      // ✅ UPDATED: Ganti angka ini buat ngatur tinggi
+                      // 1.0 = Persegi
+                      // 0.93 = Agak tinggi dikit (mirip layout asli 280x270)
+                      // Makin KECIL angkanya, makin TINGGI kotaknya.
+                      childAspectRatio: 0.93,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                    ),
                     itemCount: widget.videos.length,
                     itemBuilder: (context, index) {
                       final video = Map<String, dynamic>.from(
@@ -1063,14 +1188,18 @@ class _SeeAllPageState extends State<SeeAllPage> {
     );
   }
 
+  // ✅ CARD STYLE: SAMA PERSIS HALAMAN DEPAN
   Widget _buildGridCard(
     BuildContext context,
     Map<String, dynamic> video,
     bool isDark,
   ) {
     final cardBg = isDark ? const Color(0xFF303030) : Colors.white;
-    final titleColor = isDark ? Colors.white : Colors.black;
+    final titleColor = isDark ? Colors.white : const Color(0xFF212121);
     final subtitleColor = isDark ? Colors.grey[400] : const Color(0xFF757575);
+    final shadowColor = isDark
+        ? Colors.transparent
+        : Colors.black.withValues(alpha: 0.05);
 
     return Container(
       decoration: BoxDecoration(
@@ -1078,97 +1207,138 @@ class _SeeAllPageState extends State<SeeAllPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: isDark
-                ? Colors.transparent
-                : Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
+            color: shadowColor,
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PlayerScreen(
-                videoId: video['id'],
-                videoTitle: video['title'] ?? 'Video Meditasi',
-                // Di SeeAll kita tidak handle history update langsung di list ini
-                // tapi di PlayerScreen logic
-                onPositionChanged: (pos, dur) {
-                  // Kita perlu trigger save history dari sini agak tricky
-                  // Tapi di main page sudah ada logicnya.
-                  // Untuk SeeAll kita biarkan PlayerScreen menghandle via callback
-                  // Namun karena SeeAllPage Stateless (awalnya),
-                  // kita biarkan logic save ada di PlayerScreen atau di parent.
-                  // Solusi: Kita buat saveHistory global atau static?
-                  // Tidak perlu, cukup trigger simpan via shared prefs di PlayerScreen kalau mau simple
-                  // TAPI, agar konsisten, kita oper callback kosong saja di sini,
-                  // atau kita instance SharedPreferences di sini.
-                  // BIAR AMAN: Kita panggil fungsi save manual disini.
-                  _saveHistoryDirectly(
-                    video['id'],
-                    video['title'],
-                    video['author'],
-                    pos,
-                    dur,
-                  );
-                },
-              ),
-            ),
-          );
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: CachedNetworkImage(
-                  imageUrl:
-                      'https://img.youtube.com/vi/${video['id']}/mqdefault.jpg',
-                  fit: BoxFit.cover,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PlayerScreen(
+                  videoId: video['id'],
+                  videoTitle: video['title'] ?? 'Video Meditasi',
+                  onPositionChanged: (pos, dur) {
+                    _saveHistoryDirectly(
+                      video['id'],
+                      video['title'],
+                      video['author'],
+                      pos,
+                      dur,
+                    );
+                  },
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. GAMBAR + TOMBOL PLAY
+              Stack(
+                alignment: Alignment.center,
                 children: [
-                  Text(
-                    video['title'] ?? '',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      height: 1.2,
-                      color: titleColor,
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: CachedNetworkImage(
+                        imageUrl:
+                            'https://img.youtube.com/vi/${video['id']}/mqdefault.jpg',
+                        fit: BoxFit.cover,
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    video['author'] ?? 'Unknown',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: subtitleColor),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: kPrimaryColor.withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: kPrimaryColor.withValues(alpha: 0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+
+              // 2. TEXT AREA (Expanded biar ngisi sisa tinggi)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        video['title'] ?? 'Tanpa Judul',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          height: 1.3,
+                          color: titleColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.mic_none_rounded,
+                            size: 14,
+                            color: kPrimaryColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              video['author'] ?? 'Unknown',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: subtitleColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Duplikasi logic save history untuk SeeAllPage agar tetap tersimpan
+  // Logic Simpan History
   Future<void> _saveHistoryDirectly(
     String id,
     String? title,
@@ -1179,10 +1349,8 @@ class _SeeAllPageState extends State<SeeAllPage> {
     final prefs = await SharedPreferences.getInstance();
     List<String> historyJson = prefs.getStringList('video_history') ?? [];
     historyJson.removeWhere((entry) => entry.startsWith('$id|'));
-
     bool isFinished = false;
     if (dur > 0 && pos >= (dur * 0.95)) isFinished = true;
-
     if (!isFinished) {
       final safeTitle = (title ?? '').replaceAll('|', '-');
       final safeAuthor = (author ?? '').replaceAll('|', '-');
@@ -1264,7 +1432,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     _controller.removeListener(_listener);
     _controller.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    // SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     super.dispose();
   }
 
@@ -1276,15 +1449,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
           DeviceOrientation.landscapeLeft,
           DeviceOrientation.landscapeRight,
         ]);
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       },
       onExitFullScreen: () {
+        // ✅ 1. Paksa Portrait saat keluar fullscreen
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
         SystemChrome.setEnabledSystemUIMode(
           SystemUiMode.edgeToEdge,
-          overlays: SystemUiOverlay.values, // Munculkan semua overlay
+          overlays: SystemUiOverlay.values,
         );
       },
+      // ✅ 2. Player langsung YoutubePlayer (Jangan dibungkus Stack disini)
       player: YoutubePlayer(
         controller: _controller,
         showVideoProgressIndicator: true,
@@ -1293,8 +1467,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
           playedColor: kPrimaryColor,
           handleColor: kPrimaryColor,
         ),
+        // ✅ 3. MASUKKAN TOMBOL BACK DISINI (topActions)
+        // Ini akan muncul di atas video (pojok kiri atas) saat control ditekan
+        topActions: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 25),
+            onPressed: () {
+              // Logika Keluar: Paksa tegak dulu, baru tutup
+              SystemChrome.setPreferredOrientations([
+                DeviceOrientation.portraitUp,
+              ]);
+              Navigator.pop(context);
+            },
+          ),
+          const Spacer(), // Biar tombol back tetap di kiri sendirian
+        ],
         bottomActions: [
-          // ✅ Tombol Skip -10s
           IconButton(
             icon: const Icon(Icons.replay_10, color: Colors.white),
             onPressed: () => _seek(-10),
@@ -1308,7 +1496,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ),
           ),
           RemainingDuration(),
-          // ✅ Tombol Skip +10s
           IconButton(
             icon: const Icon(Icons.forward_10, color: Colors.white),
             onPressed: () => _seek(10),
@@ -1323,16 +1510,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           body: Stack(
             children: [
               Center(child: player),
+              // Header Back Button untuk Mode Portrait
               Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
                 child: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
+                    padding: const EdgeInsets.all(8),
                     child: Row(
                       children: [
                         IconButton(
@@ -1340,7 +1525,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             Icons.arrow_back_ios_new_rounded,
                             color: Colors.white,
                           ),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            SystemChrome.setPreferredOrientations([
+                              DeviceOrientation.portraitUp,
+                            ]);
+                            Navigator.pop(context);
+                          },
                         ),
                         Expanded(
                           child: Text(

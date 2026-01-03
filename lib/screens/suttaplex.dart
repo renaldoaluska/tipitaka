@@ -63,15 +63,20 @@ class _SuttaplexState extends State<Suttaplex> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: const Text("Tambah Penanda"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text("Tambahkan catatan (opsional, max 100 karakter):"),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             TextField(
               controller: controller,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                Navigator.pop(ctx, controller.text.trim());
+              },
               maxLength: 100, // 🔥 MAX 100 KARAKTER
               maxLines: 3,
               decoration: const InputDecoration(
