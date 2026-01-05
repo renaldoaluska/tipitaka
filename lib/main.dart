@@ -19,7 +19,11 @@ import 'firebase_options.dart';
 
 void main() {
   // Hapus await Firebase di sini biar app langsung jalan
+
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Set global edge-to-edge tapi gak immersive
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   // Langsung jalanin App tanpa nunggu Firebase
   runApp(

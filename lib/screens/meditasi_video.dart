@@ -52,6 +52,8 @@ class _VideoPageState extends State<VideoPage> {
   static const String _keyLastFetch = 'video_last_fetch_time';
   // 👇 TAMBAH VARIABEL INI BUAT SATPAM
   DateTime? _lastRefreshTime;
+  // late YoutubePlayerController _controller;
+  // bool _hasSeeked = false;
 
   @override
   void initState() {
@@ -1399,8 +1401,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void initState() {
     super.initState();
 
-    // Reset System UI dulu pas buka player
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Lock portrait
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
     _controller = YoutubePlayerController(
       initialVideoId: widget.videoId,
       flags: const YoutubePlayerFlags(
@@ -1420,7 +1423,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _controller.seekTo(Duration(seconds: widget.initialPosition.toInt()));
     }
     if (_controller.value.isPlaying) {
-      // Pass posisi dan total durasi (detik)
       final pos = _controller.value.position.inSeconds.toDouble();
       final dur = _controller.metadata.duration.inSeconds.toDouble();
       widget.onPositionChanged(pos, dur);
@@ -1444,12 +1446,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _controller.removeListener(_listener);
     _controller.dispose();
 
-    // Reset ke portrait dan system UI normal
+    // ✅ RESET CUMA DI DISPOSE (1x aja)
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.manual,
-      overlays: SystemUiOverlay.values,
-    );
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     super.dispose();
   }
@@ -1462,16 +1461,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           DeviceOrientation.landscapeLeft,
           DeviceOrientation.landscapeRight,
         ]);
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       },
       onExitFullScreen: () {
-        // ✅ 1. Paksa Portrait saat keluar fullscreen
+        // ✅ RESET ORIENTATION + UI MODE
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-        // SystemChrome.setEnabledSystemUIMode(
-        //  SystemUiMode.edgeToEdge,
-        // overlays: SystemUiOverlay.values,
-        //);
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
       },
-      // ✅ 2. Player langsung YoutubePlayer (Jangan dibungkus Stack disini)
       player: YoutubePlayer(
         controller: _controller,
         showVideoProgressIndicator: true,
@@ -1480,20 +1476,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
           playedColor: kPrimaryColor,
           handleColor: kPrimaryColor,
         ),
-        // ✅ 3. MASUKKAN TOMBOL BACK DISINI (topActions)
-        // Ini akan muncul di atas video (pojok kiri atas) saat control ditekan
         topActions: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white, size: 25),
             onPressed: () {
-              // Logika Keluar: Paksa tegak dulu, baru tutup
-              SystemChrome.setPreferredOrientations([
-                DeviceOrientation.portraitUp,
-              ]);
+              // ✅ GAK USAH SET ORIENTATION (udah di onExitFullScreen)
               Navigator.pop(context);
             },
           ),
-          const Spacer(), // Biar tombol back tetap di kiri sendirian
+          const Spacer(),
         ],
         bottomActions: [
           IconButton(
@@ -1539,9 +1530,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             color: Colors.white,
                           ),
                           onPressed: () {
-                            SystemChrome.setPreferredOrientations([
-                              DeviceOrientation.portraitUp,
-                            ]);
+                            // ✅ GAK USAH SET ORIENTATION (udah di dispose)
                             Navigator.pop(context);
                           },
                         ),
