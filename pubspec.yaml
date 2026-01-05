@@ -3,7 +3,7 @@ description: "Aplikasi myDhamma: Tipitaka Indonesia digital, referensi lengkap p
 publish_to: 'none' 
 
 # Versi Production
-version: 4.0.2+66
+version: 4.0.3+67
 
 environment:
   sdk: ^3.10.4
