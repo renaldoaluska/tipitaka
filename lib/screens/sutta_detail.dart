@@ -288,32 +288,40 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   void _performSearch(String query) {
+    if (!mounted) return; // ✅ Safety check
+
     _allMatches.clear();
     _currentMatchIndex = 0;
 
-    if (query.trim().isEmpty || query.trim().length < 2) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty || trimmed.length < 2) {
       _cachedSearchRegex = null;
-      setState(() {});
+      if (mounted) setState(() {});
       return;
     }
 
-    final lowerQuery = query.toLowerCase();
+    final lowerQuery = trimmed.toLowerCase();
     _cachedSearchRegex = RegExp(
       RegExp.escape(lowerQuery),
       caseSensitive: false,
     );
 
-    final bool isSegmented = widget.textData!["segmented"] == true;
+    final bool isSegmented = widget.textData?["segmented"] == true;
 
     if (isSegmented) {
-      final translationSegs = (widget.textData!["translation_text"] is Map)
-          ? (widget.textData!["translation_text"] as Map)
-          : {};
-      final rootSegs = (widget.textData!["root_text"] is Map)
-          ? (widget.textData!["root_text"] as Map)
-          : {};
+      // ✅ Snapshot data dulu sebelum loop
+      final translationSegs = widget.textData?["translation_text"];
+      final rootSegs = widget.textData?["root_text"];
 
-      final keysOrder = widget.textData!["keys_order"] is List
+      if (translationSegs is! Map && rootSegs is! Map) {
+        if (mounted) setState(() {});
+        return;
+      }
+
+      final transMap = translationSegs is Map ? translationSegs : {};
+      final rootMap = rootSegs is Map ? rootSegs : {};
+
+      final keysOrder = widget.textData?["keys_order"] is List
           ? List<String>.from(widget.textData!["keys_order"])
           : [];
 
@@ -333,9 +341,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
           .toList();
 
       for (int i = 0; i < filteredKeys.length; i++) {
+        if (!mounted) return; // ✅ Check mounted di loop
+
         final key = filteredKeys[i];
 
-        final rootText = (rootSegs[key] ?? "").toString();
+        final rootText = (rootMap[key] ?? "").toString();
         final cleanRoot = rootText.replaceAll(RegExp(r'<[^>]*>'), '');
         final rootMatches = _cachedSearchRegex!
             .allMatches(cleanRoot.toLowerCase())
@@ -345,7 +355,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
           _allMatches.add(SearchMatch(i, m));
         }
 
-        final transText = (translationSegs[key] ?? "").toString();
+        final transText = (transMap[key] ?? "").toString();
         final cleanTrans = transText.replaceAll(RegExp(r'<[^>]*>'), '');
         final transMatches = _cachedSearchRegex!
             .allMatches(cleanTrans.toLowerCase())
@@ -357,6 +367,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
       }
     } else if (_htmlSegments.isNotEmpty) {
       for (int i = 0; i < _htmlSegments.length; i++) {
+        if (!mounted) return; // ✅ Check mounted di loop
+
         final cleanText = _htmlSegments[i].replaceAll(RegExp(r'<[^>]*>'), '');
         final matches = _cachedSearchRegex!
             .allMatches(cleanText.toLowerCase())
@@ -367,38 +379,43 @@ class _SuttaDetailState extends State<SuttaDetail> {
       }
     }
 
-    if (_allMatches.isNotEmpty) {
+    // ✅ Final safety check sebelum jump
+    if (mounted && _allMatches.isNotEmpty) {
       _jumpToResult(0);
     }
-    setState(() {});
+
+    if (mounted) setState(() {});
   }
 
   void _jumpToResult(int index) {
-    if (_allMatches.isEmpty) return;
-    final maxIndex = _allMatches.length - 1;
-    if (index < 0) {
-      index = maxIndex;
-    } else if (index > maxIndex) {
-      index = 0;
+    // ✅ Early return kalau kondisi gak aman
+    if (!mounted || _allMatches.isEmpty) return;
+
+    // ✅ Clamp index biar gak pernah out of bounds
+    final safeIndex = index.clamp(0, _allMatches.length - 1);
+    _currentMatchIndex = safeIndex;
+
+    // ✅ Double-check list masih valid
+    if (_currentMatchIndex >= _allMatches.length) return;
+
+    final targetRow = _allMatches[_currentMatchIndex].listIndex;
+
+    // ✅ Check controller attached DAN mounted
+    if (mounted && _itemScrollController.isAttached) {
+      try {
+        _itemScrollController.scrollTo(
+          index: targetRow,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          alignment: 0.1,
+        );
+      } catch (e) {
+        debugPrint('❌ Scroll error: $e');
+        // Gak crash, cuma log aja
+      }
     }
 
-    if (index >= 0 && index < _allMatches.length) {
-      _currentMatchIndex = index;
-      final targetRow = _allMatches[_currentMatchIndex].listIndex;
-      try {
-        if (_itemScrollController.isAttached) {
-          _itemScrollController.scrollTo(
-            index: targetRow,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            alignment: 0.1,
-          );
-        }
-      } catch (e) {
-        debugPrint('Error scrolling: $e');
-      }
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
   final List<String> _htmlSegments = [];
@@ -489,24 +506,34 @@ class _SuttaDetailState extends State<SuttaDetail> {
     int listIndex,
     int startMatchCount,
   ) {
-    if (_searchController.text.length < 2 || _cachedSearchRegex == null) {
-      return content;
-    }
+    if (_searchController.text.length < 2) return content;
 
-    int localMatchCounter = 0;
-    return content.replaceAllMapped(_cachedSearchRegex!, (match) {
-      bool isActive = false;
-      int globalMatchIndex = startMatchCount + localMatchCounter;
-      if (_allMatches.isNotEmpty && _currentMatchIndex < _allMatches.length) {
-        final activeMatch = _allMatches[_currentMatchIndex];
-        isActive =
-            (activeMatch.listIndex == listIndex &&
-            activeMatch.matchIndexInSeg == globalMatchIndex);
-      }
-      localMatchCounter++;
-      String bgColor = isActive ? "orange" : "yellow";
-      return "<span style='background-color: $bgColor; color: black; font-weight: bold'>${match.group(0)}</span>";
-    });
+    // ✅ Snapshot DAN null-safety check
+    final regex = _cachedSearchRegex;
+    if (regex == null) return content;
+
+    try {
+      // ✅ ADD try-catch
+      int localMatchCounter = 0;
+      return content.replaceAllMapped(regex, (match) {
+        bool isActive = false;
+        int globalMatchIndex = startMatchCount + localMatchCounter;
+
+        if (_allMatches.isNotEmpty && _currentMatchIndex < _allMatches.length) {
+          final activeMatch = _allMatches[_currentMatchIndex];
+          isActive =
+              (activeMatch.listIndex == listIndex &&
+              activeMatch.matchIndexInSeg == globalMatchIndex);
+        }
+
+        localMatchCounter++;
+        String bgColor = isActive ? "orange" : "yellow";
+        return "<span style='background-color: $bgColor; color: black; font-weight: bold'>${match.group(0)}</span>";
+      });
+    } catch (e) {
+      debugPrint('⚠️ Search highlight error: $e');
+      return content; // ✅ Fallback
+    }
   }
 
   void _parseHtmlIfNeeded() {
@@ -684,7 +711,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
       context: context,
       barrierDismissible: true,
       builder: (ctx) {
-        final colorScheme = Theme.of(context).colorScheme;
+        // ✅ Use 'ctx' NOT 'context'
+        final colorScheme = Theme.of(ctx).colorScheme; // ✅ FIXED
 
         return AlertDialog(
           backgroundColor: colorScheme.surface,
@@ -1153,7 +1181,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Future<void> _navigateToSutta({required bool isPrevious}) async {
-    // ✅ Set flag di awal fungsi
     setState(() {
       _hasNavigatedBetweenSuttas = true;
     });
@@ -1197,18 +1224,19 @@ class _SuttaDetailState extends State<SuttaDetail> {
       }
     }
 
-    if (authorUid == null) {
-      return;
-    }
+    if (authorUid == null) return;
 
     final targetLang = segmented
         ? widget.lang
         : navTarget["lang"]?.toString() ?? widget.lang;
 
+    if (!mounted) return; // ✅ Check sebelum setState
+
     setState(() {
       _isLoading = true;
-      _connectionError = false; // Reset error
+      _connectionError = false;
     });
+
     try {
       final data = await SuttaService.fetchFullSutta(
         uid: targetUid,
@@ -1218,9 +1246,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
         siteLanguage: "id",
       );
 
+      if (!mounted) return; // ✅ CRITICAL: Check after async
+
       final hasTranslation = segmented
           ? (data["translation_text"] != null || data["root_text"] != null)
           : (data["translation"] != null || data["root_text"] != null);
+
       if (!hasTranslation) {
         _showSuttaSnackBar(
           SuttaSnackType.translatorFallback,
@@ -1237,9 +1268,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
         "suttaplex": data["suttaplex"] ?? widget.textData?["suttaplex"],
       };
 
+      // _navigateToSutta() - Line ~1048
       await _processVaggaTracking(mergedData, targetUid);
 
-      if (!mounted) return;
+      if (!mounted) return; // ✅ ADD THIS
+      if (!context.mounted) return; // ✅ ADD THIS
 
       Navigator.pushReplacement(
         context,
@@ -1251,8 +1284,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
             textData: mergedData,
             openedFromSuttaDetail: true,
             originalSuttaUid: null,
-            entryPoint: widget.entryPoint, // ✅ Forward entry point
-            isNavigated: true, // Biar Sutta B tau kalau dia bukan Sutta pertama
+            entryPoint: widget.entryPoint,
+            isNavigated: true,
           ),
           transitionsBuilder: (_, animation, _, child) {
             final offsetBegin = isPrevious
@@ -1272,6 +1305,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       if (targetLang == "en") _showEnFallbackBanner();
     } catch (e) {
+      if (!mounted) return; // ✅ Check sebelum show error
+
       if (e is SocketException || e.toString().contains("SocketException")) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -2197,12 +2232,27 @@ class _SuttaDetailState extends State<SuttaDetail> {
             const SizedBox(height: 32),
             FilledButton.icon(
               onPressed: () {
-                // Retry logic: Refresh halaman
-                setState(() => _isLoading = true);
+                // ✅ Validate data dulu
+                final authorUid = widget.textData?["author_uid"]?.toString();
+                if (authorUid == null || authorUid.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Data tidak lengkap untuk mencoba lagi"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                setState(() {
+                  _isLoading = true;
+                  _connectionError = false;
+                });
+
                 _replaceToSutta(
                   widget.uid,
                   widget.lang,
-                  authorUid: widget.textData?["author_uid"] ?? "",
+                  authorUid: authorUid,
                   segmented: widget.textData?["segmented"] == true,
                 );
               },
@@ -2217,6 +2267,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.textData == null) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: const Center(child: Text("Data tidak tersedia")),
+      );
+    }
+
     // 1. Ambil palet warna dari tema baca saat ini
     final colors = _themeColors;
 
@@ -2320,6 +2377,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
           ),
           itemCount: keysOrder.length,
           itemBuilder: (context, index) {
+            // ✅ Bounds check
+            if (index >= keysOrder.length) {
+              return const SizedBox.shrink();
+            }
+
             return _buildSegmentedItem(
               context,
               index,
@@ -2496,9 +2558,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) {
-          if (widget.textData != null) {
-            widget.textData!.remove("initial_vagga_uid");
-          }
+          //MUTATE
+          //if (widget.textData != null) {
+          // widget.textData!.remove("initial_vagga_uid");
+          // }
           return;
         }
 
@@ -2513,9 +2576,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
         final navigator = Navigator.of(context);
         final allow = await _handleBackReplace();
 
-        if (allow && widget.textData != null) {
-          widget.textData!.remove("initial_vagga_uid");
-        }
+        //if (allow && widget.textData != null) {
+        //widget.textData!.remove("initial_vagga_uid");
+        // }
         if (allow && mounted) {
           navigator.pop(result);
         }
@@ -2570,12 +2633,36 @@ class _SuttaDetailState extends State<SuttaDetail> {
                             ),
                             onTap: () {
                               Navigator.pop(context);
-                              if (_itemScrollController.isAttached) {
+
+                              // ✅ ADD safety checks
+                              if (!mounted) return;
+                              final targetIndex = item['index'] as int;
+
+                              // ✅ Revalidate bounds
+                              int maxIndex;
+                              if (isSegmented && keysOrder.isNotEmpty) {
+                                maxIndex = keysOrder.length - 1;
+                              } else if (_htmlSegments.isNotEmpty) {
+                                maxIndex = _htmlSegments.length - 1;
+                              } else {
+                                return;
+                              }
+
+                              if (targetIndex < 0 || targetIndex > maxIndex)
+                                return;
+
+                              // ✅ Triple check before scroll
+                              if (!mounted || !_itemScrollController.isAttached)
+                                return;
+
+                              try {
                                 _itemScrollController.scrollTo(
-                                  index: item['index'],
+                                  index: targetIndex,
                                   duration: const Duration(milliseconds: 250),
                                   curve: Curves.easeOutCubic,
                                 );
+                              } catch (e) {
+                                debugPrint('❌ TOC scroll error: $e');
                               }
                             },
                           );
