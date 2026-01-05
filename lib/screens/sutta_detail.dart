@@ -2648,12 +2648,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                 return;
                               }
 
-                              if (targetIndex < 0 || targetIndex > maxIndex)
+                              if (targetIndex < 0 || targetIndex > maxIndex) {
                                 return;
+                              }
 
                               // ✅ Triple check before scroll
-                              if (!mounted || !_itemScrollController.isAttached)
+                              if (!mounted || !_itemScrollController.isAttached) {
                                 return;
+                              }
 
                               try {
                                 _itemScrollController.scrollTo(
