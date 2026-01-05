@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import '../core/utils/system_ui_helper.dart';
 import '../services/sutta.dart';
 import '../models/menu.dart';
 import 'suttaplex.dart';
@@ -290,365 +292,370 @@ class _MenuPageState extends State<MenuPage> {
         MediaQuery.orientationOf(context) == Orientation.landscape;
 
     final isTabletLandscape = _isTabletLandscape(context); // ðŸ"¥ TAMBAH INI
-    return Scaffold(
-      appBar: null,
-      backgroundColor: bgColor,
-      extendBodyBehindAppBar: true,
-      body: SafeArea(
-        bottom: false,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _items.isEmpty
-            ? Stack(
-                children: [
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        top: 80,
-                        left: 24,
-                        right: 24,
-                        bottom: 24,
-                      ), // ✅ UBAH padding
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            _errorType == "network"
-                                ? Icons.wifi_off_rounded
-                                : _errorType == "server_error"
-                                ? Icons.dns_rounded
-                                : Icons.folder_off_rounded,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _errorType == "network"
-                                ? "Tidak Ada Koneksi"
-                                : _errorType == "server_error"
-                                ? "Gangguan Teknis"
-                                : "Data Tidak Tersedia",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          // ✅ PAKAI RichText
-                          RichText(
-                            textAlign: TextAlign.center,
-                            text: TextSpan(
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: subTextColor,
-                                height: 1.5,
-                              ),
-                              children: _errorType == "network"
-                                  ? [
-                                      const TextSpan(
-                                        text:
-                                            "Mohon periksa koneksi internet Anda\n\n",
-                                      ),
-                                      const TextSpan(
-                                        text:
-                                            "Untuk menghemat ruang penyimpanan, data Tipiṭaka (1 GB+) tidak tersimpan secara offline.\n\n",
-                                      ),
-                                      TextSpan(
-                                        text: "Fitur offline tersedia:\n",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: textColor.withValues(
-                                            alpha: 0.9,
-                                          ),
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text:
-                                            "Paritta • Pendahuluan Tematik • Panduan Uposatha\nAbhidhammattha-Saṅgaha • Timer Meditasi",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: subTextColor.withValues(
-                                            alpha: 0.8,
-                                          ),
-                                        ),
-                                      ),
-                                    ]
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // 🔥 WRAP
+      value: SystemUIHelper.getStyle(context),
+      child: Scaffold(
+        appBar: null,
+        backgroundColor: bgColor,
+        extendBodyBehindAppBar: true,
+        body: SafeArea(
+          bottom: true,
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _items.isEmpty
+              ? Stack(
+                  children: [
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          top: 80,
+                          left: 24,
+                          right: 24,
+                          bottom: 24,
+                        ), // ✅ UBAH padding
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _errorType == "network"
+                                  ? Icons.wifi_off_rounded
                                   : _errorType == "server_error"
-                                  ? [
-                                      const TextSpan(
-                                        text:
-                                            "Terjadi kesalahan saat menghubungi server SuttaCentral.\n",
-                                      ),
-                                      const TextSpan(
-                                        text:
-                                            "Silakan coba lagi beberapa saat lagi.",
-                                      ),
-                                    ]
-                                  : [
-                                      const TextSpan(
-                                        text:
-                                            "Menu ini tidak memiliki konten atau belum tersedia",
-                                      ),
-                                    ],
+                                  ? Icons.dns_rounded
+                                  : Icons.folder_off_rounded,
+                              size: 64,
+                              color: Colors.grey[400],
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          if (_errorType == "network" ||
-                              _errorType == "server_error")
-                            FilledButton.icon(
-                              onPressed: () {
-                                setState(() => _loading = true);
-                                _fetchMenu();
-                              },
-                              icon: const Icon(Icons.refresh),
-                              label: const Text("Coba Lagi"),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.deepOrange,
+                            const SizedBox(height: 16),
+                            Text(
+                              _errorType == "network"
+                                  ? "Tidak Ada Koneksi"
+                                  : _errorType == "server_error"
+                                  ? "Gangguan Teknis"
+                                  : "Data Tidak Tersedia",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            // ✅ PAKAI RichText
+                            RichText(
+                              textAlign: TextAlign.center,
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: subTextColor,
+                                  height: 1.5,
+                                ),
+                                children: _errorType == "network"
+                                    ? [
+                                        const TextSpan(
+                                          text:
+                                              "Mohon periksa koneksi internet Anda\n\n",
+                                        ),
+                                        const TextSpan(
+                                          text:
+                                              "Untuk menghemat ruang penyimpanan, data Tipiṭaka (1 GB+) tidak tersimpan secara offline.\n\n",
+                                        ),
+                                        TextSpan(
+                                          text: "Fitur offline tersedia:\n",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: textColor.withValues(
+                                              alpha: 0.9,
+                                            ),
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text:
+                                              "Paritta • Pendahuluan Tematik • Panduan Uposatha\nAbhidhammattha-Saṅgaha • Timer Meditasi",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: subTextColor.withValues(
+                                              alpha: 0.8,
+                                            ),
+                                          ),
+                                        ),
+                                      ]
+                                    : _errorType == "server_error"
+                                    ? [
+                                        const TextSpan(
+                                          text:
+                                              "Terjadi kesalahan saat menghubungi server SuttaCentral.\n",
+                                        ),
+                                        const TextSpan(
+                                          text:
+                                              "Silakan coba lagi beberapa saat lagi.",
+                                        ),
+                                      ]
+                                    : [
+                                        const TextSpan(
+                                          text:
+                                              "Menu ini tidak memiliki konten atau belum tersedia",
+                                        ),
+                                      ],
                               ),
                             ),
-                        ],
+                            const SizedBox(height: 24),
+                            if (_errorType == "network" ||
+                                _errorType == "server_error")
+                              FilledButton.icon(
+                                onPressed: () {
+                                  setState(() => _loading = true);
+                                  _fetchMenu();
+                                },
+                                icon: const Icon(Icons.refresh),
+                                label: const Text("Coba Lagi"),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.deepOrange,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
-                  // ✅ TAMBAHIN HEADER (copy dari bawah tapi simplified)
-                  _buildErrorHeader(cardColor, iconColor, textColor),
-                ],
-              )
-            : Stack(
-                children: [
-                  // LIST CONTENT
-                  CustomScrollView(
-                    slivers: [
-                      // Spacing untuk header
-                      SliverToBoxAdapter(
-                        child: SizedBox(
-                          height: hasBlurb
-                              ? isLandscape
-                                    ? isTabletLandscape
-                                          ? 114
-                                          : 102
-                                    : 120
-                              : isTabletLandscape
-                              ? 88
-                              : 78,
-                        ),
-                      ),
-
-                      // ðŸ"¥ CONDITIONAL: Grid atau List
-                      isTabletLandscape
-                          ? SliverMasonryGrid.count(
-                              crossAxisCount: 3,
-                              mainAxisSpacing: 16,
-                              crossAxisSpacing: 0,
-                              childCount: _items.length,
-                              itemBuilder: (context, index) {
-                                return buildMenuItem(_items[index]);
-                              },
-                            )
-                          : SliverList(
-                              delegate: SliverChildBuilderDelegate((
-                                context,
-                                index,
-                              ) {
-                                return buildMenuItem(_items[index]);
-                              }, childCount: _items.length),
-                            ),
-                    ],
-                  ),
-
-                  // FLOATING HEADER (ga diubah)
-                  if (_root != null)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 0,
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 3,
-                                spreadRadius: 0,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
+                    // ✅ TAMBAHIN HEADER (copy dari bawah tapi simplified)
+                    _buildErrorHeader(cardColor, iconColor, textColor),
+                  ],
+                )
+              : Stack(
+                  children: [
+                    // LIST CONTENT
+                    CustomScrollView(
+                      slivers: [
+                        // Spacing untuk header
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: hasBlurb
+                                ? isLandscape
+                                      ? isTabletLandscape
+                                            ? 114
+                                            : 102
+                                      : 120
+                                : isTabletLandscape
+                                ? 88
+                                : 78,
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(
-                                sigmaX: 10.0,
-                                sigmaY: 10.0,
+                        ),
+
+                        // ðŸ"¥ CONDITIONAL: Grid atau List
+                        isTabletLandscape
+                            ? SliverMasonryGrid.count(
+                                crossAxisCount: 3,
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 0,
+                                childCount: _items.length,
+                                itemBuilder: (context, index) {
+                                  return buildMenuItem(_items[index]);
+                                },
+                              )
+                            : SliverList(
+                                delegate: SliverChildBuilderDelegate((
+                                  context,
+                                  index,
+                                ) {
+                                  return buildMenuItem(_items[index]);
+                                }, childCount: _items.length),
                               ),
-                              child: Container(
-                                color: cardColor.withValues(alpha: 0.85),
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // ROW HEADER
-                                    Row(
-                                      children: [
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: cardColor,
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(
-                                                  alpha: 0.1,
+                      ],
+                    ),
+
+                    // FLOATING HEADER (ga diubah)
+                    if (_root != null)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 0,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 3,
+                                  spreadRadius: 0,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(
+                                  sigmaX: 10.0,
+                                  sigmaY: 10.0,
+                                ),
+                                child: Container(
+                                  color: cardColor.withValues(alpha: 0.85),
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // ROW HEADER
+                                      Row(
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              color: cardColor,
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.1),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
                                                 ),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
+                                              ],
+                                            ),
+                                            child: IconButton(
+                                              icon: Icon(
+                                                Icons.arrow_back,
+                                                color: iconColor,
                                               ),
-                                            ],
-                                          ),
-                                          child: IconButton(
-                                            icon: Icon(
-                                              Icons.arrow_back,
-                                              color: iconColor,
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
                                             ),
-                                            onPressed: () =>
-                                                Navigator.pop(context),
                                           ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            _root?["root_name"] ?? "",
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                              color: textColor,
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              _root?["root_name"] ?? "",
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: textColor,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
-                                        if (_rootAcronym.isNotEmpty &&
-                                            _rootAcronym.trim().toUpperCase() !=
-                                                (_root?["root_name"] ?? "")
-                                                    .trim()
-                                                    .toUpperCase() &&
-                                            (_root?["child_range"] ?? "")
-                                                .isEmpty)
-                                          Text(
-                                            _rootAcronym,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: getNikayaColor(
-                                                normalizeNikayaAcronym(
+                                          if (_rootAcronym.isNotEmpty &&
+                                              _rootAcronym
+                                                      .trim()
+                                                      .toUpperCase() !=
+                                                  (_root?["root_name"] ?? "")
+                                                      .trim()
+                                                      .toUpperCase() &&
+                                              (_root?["child_range"] ?? "")
+                                                  .isEmpty)
+                                            Text(
+                                              _rootAcronym,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: getNikayaColor(
+                                                  normalizeNikayaAcronym(
+                                                    _rootAcronym,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          if ((_root?["child_range"] ?? "")
+                                              .isNotEmpty)
+                                            Text(
+                                              _root?["child_range"] ?? "",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: getNikayaColor(
                                                   _rootAcronym,
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                        if ((_root?["child_range"] ?? "")
-                                            .isNotEmpty)
-                                          Text(
-                                            _root?["child_range"] ?? "",
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: getNikayaColor(
-                                                _rootAcronym,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
+                                        ],
+                                      ),
 
-                                    // DESKRIPSI
-                                    if (hasBlurb) ...[
-                                      const SizedBox(height: 8),
-                                      RichText(
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            height: 1.4,
-                                            color: subTextColor,
-                                          ),
-                                          children: [
-                                            TextSpan(
-                                              text: isLong
-                                                  ? "${previewBlurb.substring(0, 80)}... " //  Karena isLong udah jamin > 80
-                                                  : previewBlurb,
+                                      // DESKRIPSI
+                                      if (hasBlurb) ...[
+                                        const SizedBox(height: 8),
+                                        RichText(
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          text: TextSpan(
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              height: 1.4,
+                                              color: subTextColor,
                                             ),
-                                            if (isLong)
+                                            children: [
                                               TextSpan(
-                                                text: "Baca Selengkapnya",
-                                                style: const TextStyle(
-                                                  color: Colors.blue,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                                recognizer: TapGestureRecognizer()
-                                                  ..onTap = () {
-                                                    showDialog(
-                                                      context: context,
-                                                      builder: (_) => AlertDialog(
-                                                        backgroundColor:
-                                                            cardColor,
-                                                        title: Text(
-                                                          _root?["root_name"] ??
-                                                              "",
-                                                          style: TextStyle(
-                                                            color: textColor,
+                                                text: isLong
+                                                    ? "${previewBlurb.substring(0, 80)}... " //  Karena isLong udah jamin > 80
+                                                    : previewBlurb,
+                                              ),
+                                              if (isLong)
+                                                TextSpan(
+                                                  text: "Baca Selengkapnya",
+                                                  style: const TextStyle(
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  recognizer: TapGestureRecognizer()
+                                                    ..onTap = () {
+                                                      showDialog(
+                                                        context: context,
+                                                        builder: (_) => AlertDialog(
+                                                          backgroundColor:
+                                                              cardColor,
+                                                          title: Text(
+                                                            _root?["root_name"] ??
+                                                                "",
+                                                            style: TextStyle(
+                                                              color: textColor,
+                                                            ),
                                                           ),
-                                                        ),
-                                                        content:
-                                                            SingleChildScrollView(
-                                                              child: Html(
-                                                                data: rawBlurb,
-                                                                style: {
-                                                                  "body": Style(
-                                                                    color:
-                                                                        textColor,
+                                                          content: SingleChildScrollView(
+                                                            child: Html(
+                                                              data: rawBlurb,
+                                                              style: {
+                                                                "body": Style(
+                                                                  color:
+                                                                      textColor,
+                                                                ),
+                                                              },
+                                                            ),
+                                                          ),
+                                                          actions: [
+                                                            TextButton(
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                    context,
                                                                   ),
-                                                                },
+                                                              child: const Text(
+                                                                "Tutup",
                                                               ),
                                                             ),
-                                                        actions: [
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                  context,
-                                                                ),
-                                                            child: const Text(
-                                                              "Tutup",
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    );
-                                                  },
-                                              ),
-                                          ],
+                                                          ],
+                                                        ),
+                                                      );
+                                                    },
+                                                ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                ),
+        ),
       ),
     );
   }

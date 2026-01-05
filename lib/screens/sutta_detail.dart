@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:html_unescape/html_unescape.dart';
@@ -8,6 +9,7 @@ import 'package:tipitaka/screens/suttaplex.dart';
 import 'package:tipitaka/services/sutta.dart';
 import 'package:tipitaka/styles/nikaya_style.dart';
 import '../core/theme/theme_manager.dart';
+import '../core/utils/system_ui_helper.dart';
 import '../models/sutta_text.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'dart:async';
@@ -2268,9 +2270,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
   @override
   Widget build(BuildContext context) {
     if (widget.textData == null) {
-      return Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        body: const Center(child: Text("Data tidak tersedia")),
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        // 🔥 WRAP
+        value: SystemUIHelper.getStyle(context),
+        child: Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          body: const Center(child: Text("Data tidak tersedia")),
+        ),
       );
     }
 
@@ -2583,337 +2589,359 @@ class _SuttaDetailState extends State<SuttaDetail> {
           navigator.pop(result);
         }
       },
-      child: Scaffold(
-        key: _scaffoldKey,
-        // ... sisa kode Scaffold ke bawah gak usah diubah ...
-        appBar: null,
-        backgroundColor: bgColor,
-        // INI WARNA BODY
-        //backgroundColor: Theme.of(context).brightness == Brightness.dark
-        //  ? Colors.grey[800]
-        //: Colors.grey[100],
-        endDrawer: _tocList.isNotEmpty
-            ? Drawer(
-                // Drawer background otomatis ngikut tema App (bukan Sepia)
-                child: Column(
-                  children: [
-                    DrawerHeader(
-                      child: Center(
-                        child: Text(
-                          "Daftar Isi",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            // ✅ GANTI INI: Biar ngikut tema HP (Hitam/Putih), bukan Sepia
-                            color: Theme.of(context).colorScheme.onSurface,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        // 🔥 WRAP
+        value: SystemUIHelper.getStyle(context),
+        child: Scaffold(
+          key: _scaffoldKey,
+          // ... sisa kode Scaffold ke bawah gak usah diubah ...
+          appBar: null,
+          backgroundColor: bgColor,
+          // INI WARNA BODY
+          //backgroundColor: Theme.of(context).brightness == Brightness.dark
+          //  ? Colors.grey[800]
+          //: Colors.grey[100],
+          endDrawer: _tocList.isNotEmpty
+              ? Drawer(
+                  // Drawer background otomatis ngikut tema App (bukan Sepia)
+                  child: Column(
+                    children: [
+                      DrawerHeader(
+                        child: Center(
+                          child: Text(
+                            "Daftar Isi",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              // ✅ GANTI INI: Biar ngikut tema HP (Hitam/Putih), bukan Sepia
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _tocList.length,
-                        itemBuilder: (context, index) {
-                          final item = _tocList[index];
-                          final level = item['type'] as int;
-                          return ListTile(
-                            contentPadding: EdgeInsets.only(
-                              left: level == 1 ? 16 : (level == 2 ? 32 : 48),
-                              right: 16,
-                            ),
-                            title: Text(
-                              item['title'],
-                              style: TextStyle(
-                                fontWeight: level == 1
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                // ✅ GANTI INI JUGA:
-                                color: Theme.of(context).colorScheme.onSurface,
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _tocList.length,
+                          itemBuilder: (context, index) {
+                            final item = _tocList[index];
+                            final level = item['type'] as int;
+                            return ListTile(
+                              contentPadding: EdgeInsets.only(
+                                left: level == 1 ? 16 : (level == 2 ? 32 : 48),
+                                right: 16,
                               ),
-                            ),
-                            onTap: () {
-                              Navigator.pop(context);
+                              title: Text(
+                                item['title'],
+                                style: TextStyle(
+                                  fontWeight: level == 1
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  // ✅ GANTI INI JUGA:
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
 
-                              // ✅ ADD safety checks
-                              if (!mounted) return;
-                              final targetIndex = item['index'] as int;
+                                // ✅ ADD safety checks
+                                if (!mounted) return;
+                                final targetIndex = item['index'] as int;
 
-                              // ✅ Revalidate bounds
-                              int maxIndex;
-                              if (isSegmented && keysOrder.isNotEmpty) {
-                                maxIndex = keysOrder.length - 1;
-                              } else if (_htmlSegments.isNotEmpty) {
-                                maxIndex = _htmlSegments.length - 1;
-                              } else {
-                                return;
-                              }
+                                // ✅ Revalidate bounds
+                                int maxIndex;
+                                if (isSegmented && keysOrder.isNotEmpty) {
+                                  maxIndex = keysOrder.length - 1;
+                                } else if (_htmlSegments.isNotEmpty) {
+                                  maxIndex = _htmlSegments.length - 1;
+                                } else {
+                                  return;
+                                }
 
-                              if (targetIndex < 0 || targetIndex > maxIndex) {
-                                return;
-                              }
+                                if (targetIndex < 0 || targetIndex > maxIndex) {
+                                  return;
+                                }
 
-                              // ✅ Triple check before scroll
-                              if (!mounted ||
-                                  !_itemScrollController.isAttached) {
-                                return;
-                              }
+                                // ✅ Triple check before scroll
+                                if (!mounted ||
+                                    !_itemScrollController.isAttached) {
+                                  return;
+                                }
 
-                              try {
-                                _itemScrollController.scrollTo(
-                                  index: targetIndex,
-                                  duration: const Duration(milliseconds: 250),
-                                  curve: Curves.easeOutCubic,
-                                );
-                              } catch (e) {
-                                debugPrint('❌ TOC scroll error: $e');
-                              }
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : null,
-
-        body: Stack(
-          children: [
-            Column(
-              children: [
-                SizedBox(
-                  height: MediaQuery.of(context).padding.top + 70,
-                ), // Spacing untuk header
-                Expanded(
-                  child: body,
-                  // ✅ Langsung body tanpa Padding wrapper
-                ),
-              ],
-            ),
-
-            // TRANSPARENT HEADER dengan shadow konsisten
-            Positioned(
-              top: MediaQuery.of(context).padding.top,
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Container(
-                  decoration: BoxDecoration(
-                    // ✅ FIX 1: Warna langsung ditaruh di sini (SOLID), tanpa transparansi
-                    color: Theme.of(context).colorScheme.surface,
-
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: 0.1,
-                        ), // lebih pekat
-                        blurRadius: 4, // lebih besar biar soft
-                        offset: const Offset(0, 2), // geser biar keliatan
+                                try {
+                                  _itemScrollController.scrollTo(
+                                    index: targetIndex,
+                                    duration: const Duration(milliseconds: 250),
+                                    curve: Curves.easeOutCubic,
+                                  );
+                                } catch (e) {
+                                  debugPrint('❌ TOC scroll error: $e');
+                                }
+                              },
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                      child: Container(
-                        color: cardColor.withValues(alpha: 0.85),
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            // Tombol back dengan shadow kecil
-                            Container(
-                              decoration: BoxDecoration(
-                                color: cardColor,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: IconButton(
-                                icon: Icon(Icons.arrow_back, color: iconColor),
-                                onPressed: _isLoading
-                                    ? null
-                                    : () async {
-                                        final navigator = Navigator.of(context);
-                                        final allow =
-                                            await _handleBackReplace();
-                                        if (allow && mounted) {
-                                          navigator.pop();
-                                        }
-                                      },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                widget.textData?["suttaplex"]?["original_title"] ??
-                                    suttaTitle,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight
-                                      .bold, // ✅ FIX 2: Pastikan warna teks kontras
-                                  color: iconColor,
-                                  //color: textColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.info_outline,
-                                color: Colors.blue,
-                                size: 20,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    backgroundColor: cardColor,
-                                    title: Text(
-                                      widget.textData?["suttaplex"]?["original_title"] ??
-                                          suttaTitle,
-                                      style: TextStyle(color: iconColor),
+                )
+              : null,
+
+          body: Stack(
+            children: [
+              Column(
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).padding.top + 70,
+                  ), // Spacing untuk header
+                  Expanded(
+                    child: body,
+                    // ✅ Langsung body tanpa Padding wrapper
+                  ),
+                ],
+              ),
+
+              // TRANSPARENT HEADER dengan shadow konsisten
+              Positioned(
+                top: MediaQuery.of(context).padding.top,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      // ✅ FIX 1: Warna langsung ditaruh di sini (SOLID), tanpa transparansi
+                      color: Theme.of(context).colorScheme.surface,
+
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: 0.1,
+                          ), // lebih pekat
+                          blurRadius: 4, // lebih besar biar soft
+                          offset: const Offset(0, 2), // geser biar keliatan
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                        child: Container(
+                          color: cardColor.withValues(alpha: 0.85),
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              // Tombol back dengan shadow kecil
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
                                     ),
-                                    content: SingleChildScrollView(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (shouldShowBlurb &&
-                                              rawBlurb.isNotEmpty) ...[
-                                            Html(
-                                              data: rawBlurb,
-                                              style: {
-                                                "body": Style(color: iconColor),
-                                              },
-                                            ),
-                                            const SizedBox(height: 16),
-                                            const Divider(),
-                                            const SizedBox(height: 12),
-                                          ],
-                                          Text(
-                                            "Tentang",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 15,
-                                              color: iconColor,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          if (metadata["author"]
-                                              .toString()
-                                              .isNotEmpty) ...[
-                                            _buildInfoRow(
-                                              Icons.person_outline,
-                                              "Author",
-                                              metadata["author"],
-                                            ),
-                                            const SizedBox(height: 10),
-                                          ],
-                                          _buildInfoRow(
-                                            Icons.language,
-                                            "Bahasa",
-                                            metadata["langName"],
-                                          ),
-                                          const SizedBox(height: 10),
-                                          if (metadata["pubDate"] != null &&
-                                              metadata["pubDate"]
-                                                  .toString()
-                                                  .isNotEmpty) ...[
-                                            _buildInfoRow(
-                                              Icons.calendar_today_outlined,
-                                              "Tahun Terbit",
-                                              metadata["pubDate"],
-                                            ),
-                                            const SizedBox(height: 10),
-                                          ],
-                                          _buildInfoRow(
-                                            metadata["isSegmented"]
-                                                ? Icons.format_align_left
-                                                : Icons.archive_outlined,
-                                            "Format",
-                                            metadata["isSegmented"]
-                                                ? "Aligned (Segmented JSON)"
-                                                : "Legacy (HTML)",
-                                          ),
-                                          if (_footerInfo.isNotEmpty) ...[
-                                            const SizedBox(height: 16),
-                                            const Divider(),
-                                            const SizedBox(height: 12),
+                                  ],
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.arrow_back,
+                                    color: iconColor,
+                                  ),
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () async {
+                                          final navigator = Navigator.of(
+                                            context,
+                                          );
+                                          final allow =
+                                              await _handleBackReplace();
+                                          if (allow && mounted) {
+                                            navigator.pop();
+                                          }
+                                        },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  widget.textData?["suttaplex"]?["original_title"] ??
+                                      suttaTitle,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight
+                                        .bold, // ✅ FIX 2: Pastikan warna teks kontras
+                                    color: iconColor,
+                                    //color: textColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.info_outline,
+                                  color: Colors.blue,
+                                  size: 20,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      backgroundColor: cardColor,
+                                      title: Text(
+                                        widget.textData?["suttaplex"]?["original_title"] ??
+                                            suttaTitle,
+                                        style: TextStyle(color: iconColor),
+                                      ),
+                                      content: SingleChildScrollView(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (shouldShowBlurb &&
+                                                rawBlurb.isNotEmpty) ...[
+                                              Html(
+                                                data: rawBlurb,
+                                                style: {
+                                                  "body": Style(
+                                                    color: iconColor,
+                                                  ),
+                                                },
+                                              ),
+                                              const SizedBox(height: 16),
+                                              const Divider(),
+                                              const SizedBox(height: 12),
+                                            ],
                                             Text(
-                                              "Informasi",
+                                              "Tentang",
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 15,
                                                 color: iconColor,
                                               ),
                                             ),
-                                            const SizedBox(height: 8),
-                                            Html(
-                                              data: _footerInfo,
-                                              style: {
-                                                "body": Style(color: iconColor),
-                                              },
+                                            const SizedBox(height: 12),
+                                            if (metadata["author"]
+                                                .toString()
+                                                .isNotEmpty) ...[
+                                              _buildInfoRow(
+                                                Icons.person_outline,
+                                                "Author",
+                                                metadata["author"],
+                                              ),
+                                              const SizedBox(height: 10),
+                                            ],
+                                            _buildInfoRow(
+                                              Icons.language,
+                                              "Bahasa",
+                                              metadata["langName"],
                                             ),
+                                            const SizedBox(height: 10),
+                                            if (metadata["pubDate"] != null &&
+                                                metadata["pubDate"]
+                                                    .toString()
+                                                    .isNotEmpty) ...[
+                                              _buildInfoRow(
+                                                Icons.calendar_today_outlined,
+                                                "Tahun Terbit",
+                                                metadata["pubDate"],
+                                              ),
+                                              const SizedBox(height: 10),
+                                            ],
+                                            _buildInfoRow(
+                                              metadata["isSegmented"]
+                                                  ? Icons.format_align_left
+                                                  : Icons.archive_outlined,
+                                              "Format",
+                                              metadata["isSegmented"]
+                                                  ? "Aligned (Segmented JSON)"
+                                                  : "Legacy (HTML)",
+                                            ),
+                                            if (_footerInfo.isNotEmpty) ...[
+                                              const SizedBox(height: 16),
+                                              const Divider(),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                "Informasi",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                  color: iconColor,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Html(
+                                                data: _footerInfo,
+                                                style: {
+                                                  "body": Style(
+                                                    color: iconColor,
+                                                  ),
+                                                },
+                                              ),
+                                            ],
                                           ],
-                                        ],
+                                        ),
                                       ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text("Tutup"),
+                                        ),
+                                      ],
                                     ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text("Tutup"),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                            if (acronym.isNotEmpty) ...[
-                              const SizedBox(width: 4),
-                              Text(
-                                rawAcronym,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: getNikayaColor(
-                                    normalizeNikayaAcronym(acronym),
+                                  );
+                                },
+                              ),
+                              if (acronym.isNotEmpty) ...[
+                                const SizedBox(width: 4),
+                                Text(
+                                  rawAcronym,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: getNikayaColor(
+                                      normalizeNikayaAcronym(acronym),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            if (_isLoading)
-              Container(
-                color: Colors.black54,
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-          ],
+              if (_isLoading)
+                Container(
+                  color: Colors.black54,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+            ],
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerFloat,
+          floatingActionButton: _connectionError || isError
+              ? null
+              : _buildFloatingActions(isSegmented),
         ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: _connectionError || isError
-            ? null
-            : _buildFloatingActions(isSegmented),
       ),
     );
   }

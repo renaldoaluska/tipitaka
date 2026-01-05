@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
+
+import '../core/utils/system_ui_helper.dart';
 
 class MeditationTimerPage extends StatefulWidget {
   const MeditationTimerPage({super.key});
@@ -916,21 +919,26 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           await _confirmExit();
         }
       },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            SafeArea(
-              bottom: false,
-              child: _isRunning
-                  ? (isLandscape
-                        ? _buildTimerViewLandscape(isDark, accentColor)
-                        : _buildTimerView(isDark, accentColor))
-                  : (isLandscape
-                        ? _buildSettingsViewLandscape(isDark, accentColor)
-                        : _buildSettingsView(isDark, accentColor)),
-            ),
-            _buildGlassAppBar(),
-          ],
+
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        // 🔥 WRAP
+        value: SystemUIHelper.getStyle(context),
+        child: Scaffold(
+          body: Stack(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: _isRunning
+                    ? (isLandscape
+                          ? _buildTimerViewLandscape(isDark, accentColor)
+                          : _buildTimerView(isDark, accentColor))
+                    : (isLandscape
+                          ? _buildSettingsViewLandscape(isDark, accentColor)
+                          : _buildSettingsView(isDark, accentColor)),
+              ),
+              _buildGlassAppBar(),
+            ],
+          ),
         ),
       ),
     );

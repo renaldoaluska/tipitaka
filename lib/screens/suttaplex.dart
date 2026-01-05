@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../core/utils/system_ui_helper.dart';
 import '../services/sutta.dart';
 import 'sutta_detail.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -625,258 +627,285 @@ class _SuttaplexState extends State<Suttaplex> {
     final blurb = _sutta?["blurb"] ?? "";
     final translations = _sutta?["filtered_translations"] ?? [];
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: cardColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.close, color: iconColor),
-          onPressed: _fetchingText ? null : () => Navigator.pop(context),
-        ),
-        title: null,
-        actions: [
-          if (_sutta != null)
-            StatefulBuilder(
-              builder: (context, setBookmarkState) {
-                return FutureBuilder<bool>(
-                  future: HistoryService.isBookmarked(widget.uid),
-                  builder: (context, snapshot) {
-                    final isBookmarked = snapshot.data ?? false;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // 🔥 WRAP
+      value: SystemUIHelper.getStyle(context),
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: cardColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.close, color: iconColor),
+            onPressed: _fetchingText ? null : () => Navigator.pop(context),
+          ),
+          title: null,
+          actions: [
+            if (_sutta != null)
+              StatefulBuilder(
+                builder: (context, setBookmarkState) {
+                  return FutureBuilder<bool>(
+                    future: HistoryService.isBookmarked(widget.uid),
+                    builder: (context, snapshot) {
+                      final isBookmarked = snapshot.data ?? false;
 
-                    return TextButton.icon(
-                      icon: Icon(
-                        isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                        color: Theme.of(context).colorScheme.secondary,
-                        size: 20,
-                      ),
-                      label: Text(
-                        isBookmarked ? "Hapus Penanda" : "Tambah Penanda",
-                        style: TextStyle(
-                          fontSize: 13,
+                      return TextButton.icon(
+                        icon: Icon(
+                          isBookmarked ? Icons.bookmark : Icons.bookmark_border,
                           color: Theme.of(context).colorScheme.secondary,
+                          size: 20,
                         ),
-                      ),
-                      onPressed: _fetchingText
-                          ? null
-                          : () async {
-                              final scaffoldMessenger = ScaffoldMessenger.of(
-                                context,
-                              );
-
-                              if (isBookmarked) {
-                                await HistoryService.removeBookmark(widget.uid);
-                              } else {
-                                if (!context.mounted) return;
-                                final note = await _showBookmarkDialog(context);
-                                if (note == null) return;
-
-                                final bookmarkItem = {
-                                  'uid': widget.uid,
-                                  'title':
-                                      _sutta?["original_title"] ??
-                                      _sutta?["translated_title"] ??
-                                      widget.uid,
-                                  'acronym': _sutta?["acronym"] ?? "",
-                                  'note': note,
-                                };
-
-                                await HistoryService.toggleBookmark(
-                                  bookmarkItem,
+                        label: Text(
+                          isBookmarked ? "Hapus Penanda" : "Tambah Penanda",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                        ),
+                        onPressed: _fetchingText
+                            ? null
+                            : () async {
+                                final scaffoldMessenger = ScaffoldMessenger.of(
+                                  context,
                                 );
-                              }
 
-                              if (!mounted) return;
+                                if (isBookmarked) {
+                                  await HistoryService.removeBookmark(
+                                    widget.uid,
+                                  );
+                                } else {
+                                  if (!context.mounted) return;
+                                  final note = await _showBookmarkDialog(
+                                    context,
+                                  );
+                                  if (note == null) return;
 
-                              setBookmarkState(() {});
+                                  final bookmarkItem = {
+                                    'uid': widget.uid,
+                                    'title':
+                                        _sutta?["original_title"] ??
+                                        _sutta?["translated_title"] ??
+                                        widget.uid,
+                                    'acronym': _sutta?["acronym"] ?? "",
+                                    'note': note,
+                                  };
 
-                              scaffoldMessenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isBookmarked
-                                        ? 'Dihapus dari Penanda'
-                                        : 'Ditambahkan ke Penanda',
+                                  await HistoryService.toggleBookmark(
+                                    bookmarkItem,
+                                  );
+                                }
+
+                                if (!mounted) return;
+
+                                setBookmarkState(() {});
+
+                                scaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isBookmarked
+                                          ? 'Dihapus dari Penanda'
+                                          : 'Ditambahkan ke Penanda',
+                                    ),
+                                    duration: const Duration(seconds: 1),
                                   ),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
-                            },
-                    );
-                  },
-                );
-              },
-            ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Stack(
-        children: [
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _sutta == null
-              ? Center(child: _buildErrorContent()) // ✅ PANGGIL HELPER BARU
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        titleStr,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      if (paliTitle != null) ...[
-                        const SizedBox(height: 4),
-                        RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: "${_sutta?["acronym"] ?? ""} ",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: getNikayaColor(
-                                    normalizeNikayaAcronym(
-                                      _sutta?["acronym"] ?? "",
+                                );
+                              },
+                      );
+                    },
+                  );
+                },
+              ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: SafeArea(
+          // 🔥 TAMBAH INI
+          top: false, // AppBar udah handle top
+          child: Stack(
+            children: [
+              _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _sutta == null
+                  ? Center(child: _buildErrorContent()) // ✅ PANGGIL HELPER BARU
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            titleStr,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          if (paliTitle != null) ...[
+                            const SizedBox(height: 4),
+                            RichText(
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: "${_sutta?["acronym"] ?? ""} ",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: getNikayaColor(
+                                        normalizeNikayaAcronym(
+                                          _sutta?["acronym"] ?? "",
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              TextSpan(
-                                text: paliTitle,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: subTextColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (blurb.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Html(
-                          data: blurb,
-                          style: {
-                            "body": Style(
-                              fontSize: FontSize(14.0),
-                              margin: Margins.zero,
-                              color: textColor,
-                            ),
-                            "p": Style(
-                              fontSize: FontSize(14.0),
-                              margin: Margins.only(bottom: 8),
-                              color: textColor,
-                            ),
-                          },
-                        ),
-                      ],
-                      Opacity(
-                        opacity: 0.15,
-                        child: Divider(height: blurb.isNotEmpty ? 32 : 24),
-                      ),
-
-                      Text(
-                        "Akar (Mūla)",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      buildTranslationList(translations),
-
-                      if (_extraTranslations.isNotEmpty)
-                        TextButton.icon(
-                          onPressed: _fetchingText
-                              ? null
-                              : () => setState(
-                                  () => _showAllTranslations =
-                                      !_showAllTranslations,
-                                ),
-                          icon: Icon(
-                            _showAllTranslations
-                                ? Icons.expand_less
-                                : Icons.expand_more,
-                          ),
-                          label: Text(
-                            _showAllTranslations
-                                ? "Sembunyikan terjemahan lainnya"
-                                : "${_extraTranslations.length} terjemahan bahasa lainnya",
-                          ),
-                        ),
-
-                      if (_showAllTranslations)
-                        buildTranslationList(_extraTranslations),
-
-                      Opacity(opacity: 0.15, child: const Divider(height: 32)),
-                      lockedSectionGroup("Tafsiran (Aṭṭhakathā)", [
-                        "pli",
-                        "id",
-                      ]),
-                      Opacity(opacity: 0.15, child: const Divider(height: 32)),
-                      lockedSectionGroup("Subtafsiran (Ṭīkā)", ["pli", "id"]),
-
-                      const SizedBox(height: 4),
-                      Text.rich(
-                        TextSpan(
-                          style: const TextStyle(fontSize: 10, height: 1.2),
-                          children: [
-                            const TextSpan(
-                              text: 'Didukung oleh ',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            TextSpan(
-                              text: 'SuttaCentral',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const TextSpan(
-                              text: ' dan ',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            TextSpan(
-                              text: 'Tipitaka Pali Reader',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
+                                  TextSpan(
+                                    text: paliTitle,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: subTextColor,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
+                          if (blurb.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Html(
+                              data: blurb,
+                              style: {
+                                "body": Style(
+                                  fontSize: FontSize(14.0),
+                                  margin: Margins.zero,
+                                  color: textColor,
+                                ),
+                                "p": Style(
+                                  fontSize: FontSize(14.0),
+                                  margin: Margins.only(bottom: 8),
+                                  color: textColor,
+                                ),
+                              },
+                            ),
+                          ],
+                          Opacity(
+                            opacity: 0.15,
+                            child: Divider(height: blurb.isNotEmpty ? 32 : 24),
+                          ),
+
+                          Text(
+                            "Akar (Mūla)",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          buildTranslationList(translations),
+
+                          if (_extraTranslations.isNotEmpty)
+                            TextButton.icon(
+                              onPressed: _fetchingText
+                                  ? null
+                                  : () => setState(
+                                      () => _showAllTranslations =
+                                          !_showAllTranslations,
+                                    ),
+                              icon: Icon(
+                                _showAllTranslations
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                              ),
+                              label: Text(
+                                _showAllTranslations
+                                    ? "Sembunyikan terjemahan lainnya"
+                                    : "${_extraTranslations.length} terjemahan bahasa lainnya",
+                              ),
+                            ),
+
+                          if (_showAllTranslations)
+                            buildTranslationList(_extraTranslations),
+
+                          Opacity(
+                            opacity: 0.15,
+                            child: const Divider(height: 32),
+                          ),
+                          lockedSectionGroup("Tafsiran (Aṭṭhakathā)", [
+                            "pli",
+                            "id",
+                          ]),
+                          Opacity(
+                            opacity: 0.15,
+                            child: const Divider(height: 32),
+                          ),
+                          lockedSectionGroup("Subtafsiran (Ṭīkā)", [
+                            "pli",
+                            "id",
+                          ]),
+
+                          const SizedBox(height: 4),
+                          Text.rich(
+                            TextSpan(
+                              style: const TextStyle(fontSize: 10, height: 1.2),
+                              children: [
+                                const TextSpan(
+                                  text: 'Didukung oleh ',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                                TextSpan(
+                                  text: 'SuttaCentral',
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: ' dan ',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                                TextSpan(
+                                  text: 'Tipitaka Pali Reader',
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+              if (_fetchingText)
+                Container(
+                  color: Colors.black54,
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Memuat teks...",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-          if (_fetchingText)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      "Memuat teks...",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

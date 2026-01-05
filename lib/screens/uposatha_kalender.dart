@@ -3,7 +3,10 @@ import 'dart:ui';
 import 'dart:convert';
 import 'dart:async'; // untuk TimeoutException
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/utils/system_ui_helper.dart';
 
 class UposathaKalenderPage extends StatefulWidget {
   final String initialVersion;
@@ -674,97 +677,105 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: Stack(
-        children: [
-          // CONTENT
-          SafeArea(
-            bottom: false,
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator(color: _accentColor))
-                : _calendarData.isEmpty
-                ? _buildEmptyState()
-                : isLandscape
-                // --- LAYOUT LANDSCAPE (SCROLLABLE) ---
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 80), // Space header
-                        // Navigasi Bulan
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 64,
-                            vertical: 8,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // 🔥 WRAP
+      value: SystemUIHelper.getStyle(context),
+      child: Scaffold(
+        backgroundColor: bgColor,
+        body: Stack(
+          children: [
+            // CONTENT
+            SafeArea(
+              bottom: false,
+              child: _isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(color: _accentColor),
+                    )
+                  : _calendarData.isEmpty
+                  ? _buildEmptyState()
+                  : isLandscape
+                  // --- LAYOUT LANDSCAPE (SCROLLABLE) ---
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 80), // Space header
+                          // Navigasi Bulan
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 64,
+                              vertical: 8,
+                            ),
+                            child: _buildMonthNav(textColor, isDark),
                           ),
+
+                          // Card Scrollable
+                          Center(
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 600),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: buildCardContent(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  // --- LAYOUT PORTRAIT (FIXED / EXPANDED) ---
+                  : Column(
+                      children: [
+                        const SizedBox(
+                          height: 70,
+                        ), // Dikurangin dari 75 biar ga overflow
+                        // NAVIGASI BULAN
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
                           child: _buildMonthNav(textColor, isDark),
                         ),
 
-                        // Card Scrollable
-                        Center(
-                          child: Container(
-                            constraints: const BoxConstraints(maxWidth: 600),
-                            margin: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                        // MAIN CARD (Expanded)
+                        Expanded(
+                          child: Center(
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 800),
+                              margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: buildCardContent(),
                             ),
-                            clipBehavior: Clip.antiAlias,
-                            child: buildCardContent(),
                           ),
                         ),
                       ],
                     ),
-                  )
-                // --- LAYOUT PORTRAIT (FIXED / EXPANDED) ---
-                : Column(
-                    children: [
-                      const SizedBox(
-                        height: 70,
-                      ), // Dikurangin dari 75 biar ga overflow
-                      // NAVIGASI BULAN
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
-                        child: _buildMonthNav(textColor, isDark),
-                      ),
+            ),
 
-                      // MAIN CARD (Expanded)
-                      Expanded(
-                        child: Center(
-                          child: Container(
-                            constraints: const BoxConstraints(maxWidth: 800),
-                            margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: buildCardContent(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-
-          // HEADER FLOATING (Tetap di atas)
-          _buildHeader(context),
-        ],
+            // HEADER FLOATING (Tetap di atas)
+            _buildHeader(context),
+          ],
+        ),
       ),
     );
   }

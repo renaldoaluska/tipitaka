@@ -84,7 +84,12 @@ class _TematikPageState extends State<TematikPage> {
   // ListView untuk Portrait (original)
   Widget _buildListView() {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 24, // 🔥 TAMBAH INI
+      ),
       itemCount: TematikData.mainMenu.length,
       itemBuilder: (context, index) => _buildChapterCard(index),
     );

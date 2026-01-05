@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'core/utils/system_ui_helper.dart';
 import 'data/tematik_data.dart';
 import 'screens/tematik_page.dart';
 import 'data/html_data.dart';
@@ -18,14 +19,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 void main() {
-  // Hapus await Firebase di sini biar app langsung jalan
-
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Set global edge-to-edge tapi gak immersive
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // 🔥 HAPUS SEMUA SystemChrome di sini, helper yang handle
 
-  // Langsung jalanin App tanpa nunggu Firebase
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeManager(),
@@ -68,23 +65,38 @@ class _SplashGateState extends State<_SplashGate> {
   }
 
   Future<void> _initializeApp() async {
-    // 1. Mulai inisialisasi Firebase (jalan di background)
     final firebaseInit = Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // 2. Minimum waktu tampil splash (opsional, biar gak kedip doang kalau hp dewa)
     final minimumDelay = Future.delayed(const Duration(milliseconds: 800));
 
-    // 3. Pre-cache gambar/SVG berat di sini jika perlu (opsional)
-    // await Future.wait([precacheImage(...), ...]);
-
-    // 4. Tunggu KEDUANYA selesai (Firebase ready DAN durasi minimum tercapai)
     await Future.wait([firebaseInit, minimumDelay]);
 
     if (!mounted) return;
 
-    // 5. Pindah halaman
+    // 🔥 TRIGGER SYSTEM UI UPDATE DI SINI (SETELAH THEME MANAGER LOAD)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final themeManager = Provider.of<ThemeManager>(context, listen: false);
+      final isDark =
+          themeManager.themeMode == ThemeMode.dark ||
+          (themeManager.themeMode == ThemeMode.system &&
+              MediaQuery.of(context).platformBrightness == Brightness.dark);
+
+      SystemChrome.setSystemUIOverlayStyle(
+        SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarIconBrightness: isDark
+              ? Brightness.light
+              : Brightness.dark,
+          systemNavigationBarContrastEnforced: false,
+        ),
+      );
+    });
+
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => const RootPage()));
@@ -152,6 +164,36 @@ class _RootPageState extends State<RootPage>
       parent: _fabController,
       curve: Curves.easeOut,
     );
+
+    // Force update pas pertama kali load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateSystemUI();
+    });
+  }
+
+  // 🔥 TAMBAH INI - Detect theme changes
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Ini dipanggil tiap kali theme berubah
+    _updateSystemUI();
+  }
+
+  // 🔥 EXTRACT JADI FUNGSI BIAR GA DUPLIKAT
+  void _updateSystemUI() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+    );
   }
 
   @override
@@ -207,21 +249,18 @@ class _RootPageState extends State<RootPage>
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
 
-    // List ini aman ditaruh di build ASALKAN child-nya const (kayak PariyattiContent)
-    // Home & PatipattiPage gak bisa const karena ada parameter dinamis, itu wajar.
     final pages = [
       Home(
         onNavigate: (int index, {String? highlightSection}) {
           _navigateToPage(index, highlightSection: highlightSection);
         },
       ),
-      const PariyattiContent(tab: 0), // Udah const, aman
-      const PariyattiContent(tab: 1), // Udah const, aman
-      const PariyattiContent(tab: 2), // Udah const, aman
+      const PariyattiContent(tab: 0),
+      const PariyattiContent(tab: 1),
+      const PariyattiContent(tab: 2),
       PatipattiPage(highlightSection: _patipattiHighlight),
     ];
 
-    // Pastikan PageController sinkron dengan currentIndex setelah rebuild
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_pageController.hasClients &&
           _pageController.page?.round() != _currentIndex) {
@@ -237,14 +276,16 @@ class _RootPageState extends State<RootPage>
           _toggleFab();
         }
       },
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: isTablet
-            ? _buildTabletLayout(pages)
-            : _buildMobileLayout(pages), // ← UBAH BARIS INI
-        bottomNavigationBar: isTablet
-            ? null
-            : _buildBottomNav(), // ← UBAH BARIS INI
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        // 🔥 TETEP ADA INI
+        value: SystemUIHelper.getStyle(context), // 🔥 PAKAI HELPER!
+        child: Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: isTablet
+              ? _buildTabletLayout(pages)
+              : _buildMobileLayout(pages),
+          bottomNavigationBar: isTablet ? null : _buildBottomNav(),
+        ),
       ),
     );
   }

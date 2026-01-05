@@ -3,10 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ThemeManager extends ChangeNotifier {
-  // Ganti key biar gak bentrok sama settingan lama
   static const String _key = 'theme_mode_v2';
-
-  // Default System biar ngikut HP pas baru install
   ThemeMode _themeMode = ThemeMode.system;
 
   ThemeMode get themeMode => _themeMode;
@@ -26,31 +23,25 @@ class ThemeManager extends ChangeNotifier {
     } else {
       _themeMode = ThemeMode.system;
     }
+
+    // 🔥 HAPUS if-else kosong, langsung notifyListeners aja
     notifyListeners();
   }
 
-  // ✅ BAGIAN INI YANG BIKIN ERROR SEBELUMNYA
-  // Sekarang kita tambahin parameter (bool isCurrentlyDark) biar cocok sama HeaderDepan
   Future<void> toggleTheme(bool isCurrentlyDark) async {
-    // Kalau skrg gelap -> paksa jadi Light
-    // Kalau skrg terang -> paksa jadi Dark
     _themeMode = isCurrentlyDark ? ThemeMode.light : ThemeMode.dark;
 
     final prefs = await SharedPreferences.getInstance();
-    // Simpan string 'light'/'dark' biar jelas
     await prefs.setString(
       _key,
       _themeMode == ThemeMode.light ? 'light' : 'dark',
     );
 
+    // 🔥 HAPUS Future.delayed - ga perlu lagi!
     notifyListeners();
   }
 
-  // ==========================================================
-  // 👇 INI BAGIAN WARNA (GAK SAYA UBAH SAMA SEKALI) 👇
-  // ==========================================================
-
-  // ✅ Light theme
+  // Theme definitions tetap sama
   ThemeData get lightTheme => ThemeData(
     brightness: Brightness.light,
     primarySwatch: Colors.deepOrange,
@@ -62,12 +53,11 @@ class ThemeManager extends ChangeNotifier {
       onSurfaceVariant: const Color(0xFF757575),
       secondary: Colors.blueGrey,
     ),
-    textTheme: GoogleFonts.interTextTheme(), // ✅ TAMBAH INI
-    primaryTextTheme: GoogleFonts.interTextTheme(), // ✅ TAMBAH INI
+    textTheme: GoogleFonts.interTextTheme(),
+    primaryTextTheme: GoogleFonts.interTextTheme(),
     useMaterial3: true,
   );
 
-  // ✅ Dark theme
   ThemeData get darkTheme => ThemeData(
     brightness: Brightness.dark,
     primarySwatch: Colors.deepOrange,
@@ -79,12 +69,8 @@ class ThemeManager extends ChangeNotifier {
       onSurfaceVariant: const Color(0xFFBDBDBD),
       secondary: Colors.amber,
     ),
-    textTheme: GoogleFonts.interTextTheme(
-      // ✅ TAMBAH INI
-      ThemeData.dark().textTheme,
-    ),
+    textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
     primaryTextTheme: GoogleFonts.interTextTheme(
-      // ✅ TAMBAH INI
       ThemeData.dark().primaryTextTheme,
     ),
     useMaterial3: true,

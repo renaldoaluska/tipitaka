@@ -6,6 +6,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/theme_manager.dart';
+import '../core/utils/system_ui_helper.dart';
 import '../data/html_data.dart';
 import '../widgets/audio.dart';
 import '../widgets/tematik_chapter_list.dart';
@@ -1274,131 +1275,136 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         if (didPop) return;
         await _handleBackNavigation();
       },
-      child: Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: colors['bg'],
-        body: Stack(
-          children: [
-            // CONTENT
-            SafeArea(
-              bottom: false, // Biar konten bawah tembus ke navbar/FAB
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.deepOrange,
-                      ),
-                    )
-                  : AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 400),
-                      transitionBuilder: (child, animation) =>
-                          FadeTransition(opacity: animation, child: child),
-                      child: SingleChildScrollView(
-                        key: ValueKey<int>(_currentIndex),
-                        controller: _scrollController,
-                        padding: EdgeInsets.only(
-                          left:
-                              _horizontalPadding, // Padding Kiri dari settingan
-                          right:
-                              _horizontalPadding, // Padding Kanan dari settingan
-                          bottom: _isPlayerVisible
-                              ? 340
-                              : 120, // Padding Bawah (tetep logic player)
+
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        // 🔥 WRAP
+        value: SystemUIHelper.getStyle(context),
+        child: Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: colors['bg'],
+          body: Stack(
+            children: [
+              // CONTENT
+              SafeArea(
+                bottom: false, // Biar konten bawah tembus ke navbar/FAB
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.deepOrange,
                         ),
-                        child: Column(
-                          // 👈 Tambah Column biar bisa kasih Spacer
-                          children: [
-                            // 👇 SPACER WAJIB (Biar ga ketutupan Header)
-                            const SizedBox(height: 80),
+                      )
+                    : AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder: (child, animation) =>
+                            FadeTransition(opacity: animation, child: child),
+                        child: SingleChildScrollView(
+                          key: ValueKey<int>(_currentIndex),
+                          controller: _scrollController,
+                          padding: EdgeInsets.only(
+                            left:
+                                _horizontalPadding, // Padding Kiri dari settingan
+                            right:
+                                _horizontalPadding, // Padding Kanan dari settingan
+                            bottom: _isPlayerVisible
+                                ? 340
+                                : 120, // Padding Bawah (tetep logic player)
+                          ),
+                          child: Column(
+                            // 👈 Tambah Column biar bisa kasih Spacer
+                            children: [
+                              // 👇 SPACER WAJIB (Biar ga ketutupan Header)
+                              const SizedBox(height: 80),
 
-                            // KONTEN HTML (SelectionArea)
-                            SelectionArea(
-                              child: Html(
-                                data: _displayHtmlContent,
-                                style: _getHtmlStyles(),
+                              // KONTEN HTML (SelectionArea)
+                              SelectionArea(
+                                child: Html(
+                                  data: _displayHtmlContent,
+                                  style: _getHtmlStyles(),
 
-                                extensions: [
-                                  TagExtension(
-                                    tagsToExtend: {"mark-highlight"},
-                                    builder: (extensionContext) {
-                                      final indexStr =
-                                          extensionContext.attributes['index'];
-                                      if (indexStr != null) {
-                                        final int index =
-                                            int.tryParse(indexStr) ?? 0;
-                                        // final int index = int.parse(indexStr);
-                                        final key = GlobalKey();
-                                        _searchKeys[index] = key;
+                                  extensions: [
+                                    TagExtension(
+                                      tagsToExtend: {"mark-highlight"},
+                                      builder: (extensionContext) {
+                                        final indexStr = extensionContext
+                                            .attributes['index'];
+                                        if (indexStr != null) {
+                                          final int index =
+                                              int.tryParse(indexStr) ?? 0;
+                                          // final int index = int.parse(indexStr);
+                                          final key = GlobalKey();
+                                          _searchKeys[index] = key;
 
-                                        return Container(
-                                          key: key,
-                                          decoration: BoxDecoration(
-                                            color: Colors.yellow,
-                                            borderRadius: BorderRadius.circular(
-                                              4,
+                                          return Container(
+                                            key: key,
+                                            decoration: BoxDecoration(
+                                              color: Colors.yellow,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 2,
-                                          ),
-                                          child: Text(
-                                            extensionContext.element!.text,
-                                            style: const TextStyle(
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.bold,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 2,
                                             ),
-                                          ),
+                                            child: Text(
+                                              extensionContext.element!.text,
+                                              style: const TextStyle(
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        return Text(
+                                          extensionContext.element!.text,
                                         );
-                                      }
-                                      return Text(
-                                        extensionContext.element!.text,
-                                      );
-                                    },
-                                  ),
-                                ],
+                                      },
+                                    ),
+                                  ],
 
-                                onLinkTap: (url, attributes, element) {
-                                  if (url != null) _handleLinkTap(url);
-                                },
+                                  onLinkTap: (url, attributes, element) {
+                                    if (url != null) _handleLinkTap(url);
+                                  },
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-            ),
-            // =======================
-
-            // HEADER (Panggil fungsi yang baru diedit tadi)
-            _buildHeader(),
-          ],
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-
-        // Di dalam method build()
-        floatingActionButton: Column(
-          mainAxisSize: MainAxisSize.min, // Biar tingginya nyesuain isi
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            // 1. KOTAK PEMUTARAN (Muncul cuma kalau _isPlayerVisible == true)
-            if (_isPlayerVisible) ...[
-              Padding(
-                // Kasih padding biar gak mepet pinggir layar
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                child: AudioHandlerWidget(
-                  audioPath: _currentAudioUrl,
-                  onClose: () {
-                    // Logic kalau tombol X di player dipencet
-                    setState(() => _isPlayerVisible = false);
-                  },
-                ),
               ),
-              // Gak perlu SizedBox lagi karena di AudioHandlerWidget kamu
-              // udah ada margin bawah (margin: const EdgeInsets.fromLTRB(16, 0, 16, 24))
-            ],
+              // =======================
 
-            // 2. TOMBOL NAVIGASI (Ikon-ikon bawah)
-            _buildFloatingActions(isFirst, isLast),
-          ],
+              // HEADER (Panggil fungsi yang baru diedit tadi)
+              _buildHeader(),
+            ],
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerFloat,
+
+          // Di dalam method build()
+          floatingActionButton: Column(
+            mainAxisSize: MainAxisSize.min, // Biar tingginya nyesuain isi
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // 1. KOTAK PEMUTARAN (Muncul cuma kalau _isPlayerVisible == true)
+              if (_isPlayerVisible) ...[
+                Padding(
+                  // Kasih padding biar gak mepet pinggir layar
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: AudioHandlerWidget(
+                    audioPath: _currentAudioUrl,
+                    onClose: () {
+                      // Logic kalau tombol X di player dipencet
+                      setState(() => _isPlayerVisible = false);
+                    },
+                  ),
+                ),
+                // Gak perlu SizedBox lagi karena di AudioHandlerWidget kamu
+                // udah ada margin bawah (margin: const EdgeInsets.fromLTRB(16, 0, 16, 24))
+              ],
+
+              // 2. TOMBOL NAVIGASI (Ikon-ikon bawah)
+              _buildFloatingActions(isFirst, isLast),
+            ],
+          ),
         ),
       ),
     );
