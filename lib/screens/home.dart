@@ -135,12 +135,21 @@ class _HomeState extends State<Home> {
                     children: [
                       Expanded(
                         flex: 4,
-                        child: _buildQuoteCard(),
+                        // 🔥 KIRI: Margin kanan 0
+                        child: _buildQuoteCard(
+                          customMargin: const EdgeInsets.fromLTRB(16, 0, 0, 8),
+                        ),
                       ), // ← TAMBAH flex: 4
-                      const SizedBox(width: 16),
+                      // 🔥 JARAK TENGAH: Cuma ini yang ngasih jarak (24px)
+                      const SizedBox(width: 24),
                       Expanded(
-                        flex: 6,
-                        child: _buildQuickAccess(),
+                        flex: 6, // 🔥 KANAN: Padding kiri 0
+                        child: _buildQuickAccess(
+                          customPadding: const EdgeInsets.only(
+                            left: 0,
+                            right: 16,
+                          ),
+                        ),
                       ), // ← TAMBAH flex: 6
                     ],
                   ),
@@ -152,15 +161,35 @@ class _HomeState extends State<Home> {
                     children: [
                       // Kolom Kiri: Eksplor (makan tinggi penuh)
                       Expanded(
-                        flex: 4, // ← TAMBAH INI (40%)
-                        child: _buildExploreSection(),
+                        flex:
+                            4, // ← TAMBAH INI (40%)// 🔥 KIRI: Padding kanan 0
+                        child: _buildExploreSection(
+                          customPadding: const EdgeInsets.only(
+                            left: 16,
+                            right: 0,
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 24), // 🔥 Jarak Tengah
                       // Kolom Kanan: Terakhir Dilihat + Penanda (stack vertikal)
                       Expanded(
                         flex: 6, // ← TAMBAH INI (60%)
                         child: Column(
-                          children: [_buildRecentlyViewed(), _buildBookmarks()],
+                          children: [
+                            // 🔥 KANAN: Padding kiri 0
+                            _buildRecentlyViewed(
+                              customPadding: const EdgeInsets.only(
+                                left: 0,
+                                right: 16,
+                              ),
+                            ),
+                            _buildBookmarks(
+                              customPadding: const EdgeInsets.only(
+                                left: 0,
+                                right: 16,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -247,31 +276,33 @@ class _HomeState extends State<Home> {
         ),
       ),
 
-      title: Transform.translate(
-        offset: Offset(0, (isLandscape ? -8 : 0)),
-        child: const HeaderDepan(
-          title: "myDhamma",
-          subtitle: "Namo Buddhāya", // Subtitle utama
-          subtitlesList: [
-            // List tambahannya
-            "Sotthi Hotu",
-            "Suvatthi Hotu",
-            "Sukhī Hotu",
-            "Sukhitā Hontu Ñātayo",
-            "Sabbe Sattā Bhavantu Sukhitattā",
-            "Nibbānassa Paccayo Hotu",
-            "Buddhasāsanaṁ Ciraṁ Tiṭṭhatu",
-            "Sādhu Sādhu Sādhu",
-          ],
-          enableAnimation: true,
-        ),
-      ),
+      title:
+          //Transform.translate(
+          //  offset: Offset(0, (isLandscape ? 0 : 0)),
+          //child:
+          const HeaderDepan(
+            title: "myDhamma",
+            subtitle: "Namo Buddhāya", // Subtitle utama
+            subtitlesList: [
+              // List tambahannya
+              "Sotthi Hotu",
+              "Suvatthi Hotu",
+              "Sukhī Hotu",
+              "Sukhitā Hontu Ñātayo",
+              "Sabbe Sattā Bhavantu Sukhitattā",
+              "Nibbānassa Paccayo Hotu",
+              "Buddhasāsanaṁ Ciraṁ Tiṭṭhatu",
+              "Sādhu Sādhu Sādhu",
+            ],
+            enableAnimation: true,
+          ),
+      // ),
       centerTitle: true,
       titleSpacing: 0,
     );
   }
 
-  Widget _buildQuoteCard() {
+  Widget _buildQuoteCard({EdgeInsets? customMargin}) {
     if (_todayQuote == null) return const SizedBox.shrink();
 
     // ✅ Ambil warna dari Theme
@@ -279,7 +310,8 @@ class _HomeState extends State<Home> {
     final cardColor = Theme.of(context).colorScheme.surface;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      // 🔥 Pake customMargin kalau ada, kalau null pake default
+      margin: customMargin ?? const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Card(
         elevation: 1,
         color: cardColor,
@@ -341,14 +373,16 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildQuickAccess() {
+  Widget _buildQuickAccess({EdgeInsets? customPadding}) {
+    // 🔥 Pake customPadding kalau ada
+    final padding = customPadding ?? const EdgeInsets.symmetric(horizontal: 16);
+
     final features = [
       {
         "label": "Tipiṭaka",
         "icon": Icons.menu_book_rounded,
         "color": const Color(0xFF1565C0),
         "onTap": () {
-          // 👈 Navigasi ke tab Pariyatti (Sutta) - index 1
           widget.onNavigate?.call(1);
         },
       },
@@ -357,7 +391,6 @@ class _HomeState extends State<Home> {
         "icon": Icons.nightlight_round,
         "color": const Color(0xFFF9A825),
         "onTap": () {
-          // 👈 Navigasi ke Paṭipatti dengan highlight Uposatha
           widget.onNavigate?.call(4, highlightSection: 'uposatha');
         },
       },
@@ -366,7 +399,6 @@ class _HomeState extends State<Home> {
         "icon": Icons.self_improvement_rounded,
         "color": const Color(0xFFD32F2F),
         "onTap": () {
-          // 👈 Navigasi ke Paṭipatti dengan highlight Meditasi
           widget.onNavigate?.call(4, highlightSection: 'meditasi');
         },
       },
@@ -375,7 +407,6 @@ class _HomeState extends State<Home> {
         "icon": Icons.book_rounded,
         "color": const Color(0xFFF57C00),
         "onTap": () {
-          // 👈 Navigasi ke Paṭipatti dengan highlight Paritta
           widget.onNavigate?.call(4, highlightSection: 'paritta');
         },
       },
@@ -386,7 +417,7 @@ class _HomeState extends State<Home> {
       children: [
         const SizedBox(height: 16),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: padding, // 🔥 Gunakan padding variabel
           child: Text(
             "Akses Cepat",
             style: TextStyle(
@@ -398,7 +429,7 @@ class _HomeState extends State<Home> {
         ),
         const SizedBox(height: 18),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: padding, // 🔥 Gunakan padding variabel
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: features.map((f) {
@@ -420,7 +451,10 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildRecentlyViewed() {
+  Widget _buildRecentlyViewed({EdgeInsets? customPadding}) {
+    // 🔥 Pake customPadding kalau ada
+    final padding = customPadding ?? const EdgeInsets.symmetric(horizontal: 16);
+
     final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final cardColor = Theme.of(context).colorScheme.surface;
     final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -430,7 +464,7 @@ class _HomeState extends State<Home> {
       children: [
         const SizedBox(height: 24),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: padding, // 🔥 Gunakan padding variabel
           child: Text(
             "Terakhir Dilihat",
             style: TextStyle(
@@ -448,7 +482,7 @@ class _HomeState extends State<Home> {
           )
         else if (_recentlyViewed.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: padding, // 🔥 Gunakan padding variabel
             child: Card(
               color: cardColor,
               elevation: 0,
@@ -487,7 +521,7 @@ class _HomeState extends State<Home> {
           )
         else
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: padding, // 🔥 Gunakan padding variabel
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -500,13 +534,6 @@ class _HomeState extends State<Home> {
                   rv["uid"],
                   rv["acronym"],
                 );
-
-                // 🔥 FIX PERMANEN: Hapus angka DAN titik, lalu trim.
-                // Jadi "AN 1.1" beneran jadi "AN", gak nyampah "An ." lagi.
-                /*final String nikayaKey = displayAcronym
-                    .replaceAll(RegExp(r'\d'), '')
-                    .replaceAll('.', '')
-                    .trim();*/
                 final String nikayaKey = _getNikayaKey(displayAcronym);
 
                 return Card(
@@ -525,10 +552,7 @@ class _HomeState extends State<Home> {
                       horizontal: 16,
                       vertical: 0,
                     ),
-
-                    // Avatar pakai key yang sudah dibersihkan dari titik
                     leading: buildNikayaAvatar(nikayaKey),
-
                     title: Text(
                       rv["title"] ?? rv["uid"],
                       style: TextStyle(
@@ -562,7 +586,6 @@ class _HomeState extends State<Home> {
                         ),
                       ],
                     ),
-                    // Trailing tetap pakai displayAcronym utuh (misal: "AN 1.1")
                     trailing: Text(
                       displayAcronym,
                       style: TextStyle(
@@ -583,7 +606,10 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildBookmarks() {
+  Widget _buildBookmarks({EdgeInsets? customPadding}) {
+    // 🔥 Pake customPadding kalau ada
+    final padding = customPadding ?? const EdgeInsets.symmetric(horizontal: 16);
+
     final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final cardColor = Theme.of(context).colorScheme.surface;
 
@@ -592,7 +618,7 @@ class _HomeState extends State<Home> {
       children: [
         const SizedBox(height: 16),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: padding, // 🔥 Gunakan padding variabel
           child: Row(
             children: [
               Text(
@@ -636,7 +662,7 @@ class _HomeState extends State<Home> {
           )
         else if (_bookmarks.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: padding, // 🔥 Gunakan padding variabel
             child: SizedBox(
               height: 56,
               child: Card(
@@ -682,7 +708,8 @@ class _HomeState extends State<Home> {
           SizedBox(
             height: 135,
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding:
+                  padding, // 🔥 Gunakan padding variabel buat horizontal list
               scrollDirection: Axis.horizontal,
               itemCount: _bookmarks.length.clamp(0, 5),
               itemBuilder: (context, index) {
@@ -691,7 +718,6 @@ class _HomeState extends State<Home> {
                   b["uid"],
                   b["acronym"],
                 );
-                // 🔥 FIXED: Use the consistent helper for clean key (e.g., "AN" or "Bi Pj")
                 final nikayaKey = _getNikayaKey(displayAcronym);
                 return Container(
                   width: 220,
@@ -714,18 +740,14 @@ class _HomeState extends State<Home> {
                           children: [
                             Row(
                               children: [
-                                buildNikayaAvatar(
-                                  nikayaKey,
-                                ), // 🔥 FIXED: Use clean key
+                                buildNikayaAvatar(nikayaKey),
                                 const Spacer(),
                                 Text(
                                   displayAcronym,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: getNikayaColor(
-                                      nikayaKey,
-                                    ), // 🔥 FIXED: Use clean key
+                                    color: getNikayaColor(nikayaKey),
                                   ),
                                 ),
                               ],
@@ -1479,28 +1501,25 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildExploreSection() {
-    // ✅ Ambil warna dari Theme
-    //final textColor = Theme.of(context).colorScheme.onSurface;
+  Widget _buildExploreSection({EdgeInsets? customPadding}) {
+    // 🔥 Pake customPadding kalau ada
+    final padding = customPadding ?? const EdgeInsets.symmetric(horizontal: 16);
 
     final exploreItems = [
       {
         "title": "Tipiṭaka Web Apps",
-        // "subtitle": "Berbagai aplikasi web Tipiṭaka",
         "icon": Icons.apps_rounded,
         "color": Colors.orange.shade700,
         "index": 0,
       },
       {
         "title": "Kamus & Perpus",
-        //"subtitle": "Aplikasi web kamus dan perpus",
         "icon": Icons.library_books_rounded,
         "color": Colors.blue.shade700,
         "index": 1,
       },
       {
         "title": "Artikel & Berita",
-        // "subtitle": "Kumpulan artikel dan berita",
         "icon": Icons.newspaper_rounded,
         "color": Colors.red.shade600,
         "index": 2,
@@ -1547,7 +1566,8 @@ class _HomeState extends State<Home> {
         ),
         const SizedBox(height: 12),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: padding, // 🔥 Pakai variabel padding
+          //padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
               // Explore items dengan CompactCardBuilder

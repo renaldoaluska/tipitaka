@@ -37,6 +37,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // STATE VARIABLES
   // ============================================
   ReaderTheme _readerTheme = ReaderTheme.light;
+  double _horizontalPadding = 12.0; // Default awal
   double _textZoom = 100.0;
   bool _isLoading = true;
   late int _currentIndex;
@@ -80,7 +81,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   // ============================================
-  // THEME COLORS GETTER
+  // UPDATED THEME COLORS (WITH PALI)
   // ============================================
   Map<String, Color> get _themeColors {
     final systemScheme = Theme.of(context).colorScheme;
@@ -97,6 +98,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           'note': t.colorScheme.onSurfaceVariant,
           'card': uiCardColor,
           'icon': uiIconColor,
+          'pali': const Color(0xFF8B4513), // Coklat Tua
         };
       case ReaderTheme.light2:
         final t = tm.lightTheme;
@@ -106,6 +108,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           'note': const Color(0xFF9E9E9E),
           'card': uiCardColor,
           'icon': uiIconColor,
+          'pali': const Color(0xFFA1887F), // Coklat Soft
         };
       case ReaderTheme.sepia:
         return {
@@ -114,6 +117,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           'note': const Color(0xFF8D6E63),
           'card': uiCardColor,
           'icon': uiIconColor,
+          'pali': const Color(0xFF795548), // Coklat Tanah
         };
       case ReaderTheme.dark:
         final t = tm.darkTheme;
@@ -123,15 +127,20 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           'note': t.colorScheme.onSurfaceVariant,
           'card': uiCardColor,
           'icon': uiIconColor,
+          'pali': const Color(0xFFD4A574), // Emas Pudar
         };
       case ReaderTheme.dark2:
         final t = tm.darkTheme;
         return {
           'bg': t.scaffoldBackgroundColor,
-          'text': const Color(0xFFB0BEC5),
+          'text': const Color(0xFFB0BEC5), // Abu Kebiruan
           'note': const Color(0xFF757575),
           'card': uiCardColor,
           'icon': uiIconColor,
+          // ✅ WARNA BARU: Dusty Sand
+          // Tetap nuansa coklat, tapi kadar saturasi-nya diturunin biar "dingin"
+          // Mirip transisi Light1 -> Light2.
+          'pali': const Color(0xFFC5B6A6),
         };
     }
   }
@@ -146,8 +155,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _scrollController = ScrollController();
-
-    _loadZoomPreference();
+    _loadPreferences();
     _loadHtmlContent();
 
     // 🔧 SETUP CONNECTIVITY LISTENER
@@ -394,11 +402,21 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   // LOAD DATA METHODS
   // ============================================
-  Future<void> _loadZoomPreference() async {
+  Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
-      setState(() => _textZoom = prefs.getDouble('html_text_zoom') ?? 100.0);
+      setState(() {
+        _textZoom = prefs.getDouble('html_text_zoom') ?? 100.0;
+        // Load padding, default 12.0
+        _horizontalPadding = prefs.getDouble('html_horizontal_padding') ?? 12.0;
+      });
     }
+  }
+
+  // 3. TAMBAH FUNGSI SIMPAN PADDING
+  Future<void> _savePaddingPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('html_horizontal_padding', _horizontalPadding);
   }
 
   Future<void> _loadHtmlContent() async {
@@ -649,7 +667,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled:
+          true, // Wajib true biar keyboard gak nendang layout berantakan
+      useSafeArea:
+          true, // ✅ PENTING: Biar aman dari notch/status bar di landscape
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.4),
       isDismissible: true,
@@ -657,12 +678,16 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
+            // 1. Ambil tinggi keyboard
+            final double keyboardHeight = MediaQuery.of(
+              context,
+            ).viewInsets.bottom;
+
             return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
+              // Padding bawah ngikutin tinggi keyboard
+              padding: EdgeInsets.only(bottom: keyboardHeight),
               child: Container(
-                padding: const EdgeInsets.all(16),
+                width: double.infinity,
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: const [
@@ -672,132 +697,154 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                       spreadRadius: 2,
                     ),
                   ],
+                  // Radius atas doang biar manis
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(20),
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    Row(
+                child: SingleChildScrollView(
+                  // ✅ SCROLLABLE: Kunci anti-overflow di landscape!
+                  // Kalau layar kependekan, kontennya bisa digulung.
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize:
+                          MainAxisSize.min, // Bungkus konten seperlunya
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            autofocus: true,
-                            decoration: InputDecoration(
-                              hintText: "Cari kata (min. 2 huruf)...",
-                              prefixIcon: const Icon(Icons.search),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest
-                                  .withValues(alpha: 0.5),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                              suffixIcon: _searchController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear, size: 20),
-                                      onPressed: () {
-                                        _clearSearch();
-                                        if (mounted) setSheetState(() {});
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            onChanged: (val) {
-                              if (!mounted) return;
-
-                              _debounce?.cancel();
-
-                              if (val.isEmpty) {
-                                _clearSearch();
-                                if (mounted) setSheetState(() {});
-                                return;
-                              }
-
-                              _debounce = Timer(
-                                const Duration(milliseconds: 500),
-                                () {
-                                  if (!mounted) return;
-
-                                  if (val.trim().length >= 2) {
-                                    _performSearch(val);
-                                  }
-
-                                  if (mounted) setSheetState(() {});
-                                },
-                              );
-                            },
+                        // Handle Bar (Garis Abu di atas)
+                        Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: () {
-                            if (mounted) Navigator.of(context).pop();
-                          },
-                          child: const Text("Tutup"),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _allMatches.isEmpty
-                              ? "Belum ada hasil"
-                              : "${_currentMatchIndex + 1} dari ${_allMatches.length} hasil",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _allMatches.isEmpty
-                                ? Theme.of(context).colorScheme.secondary
-                                : Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
+
+                        // --- BARIS 1: INPUT SEARCH ---
                         Row(
                           children: [
-                            IconButton.filledTonal(
-                              icon: const Icon(Icons.keyboard_arrow_up),
-                              tooltip: "Sebelumnya",
-                              onPressed: _allMatches.isEmpty
-                                  ? null
-                                  : () {
-                                      _jumpToResult(_currentMatchIndex - 1);
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                autofocus:
+                                    true, // Langsung fokus biar keyboard naik
+                                decoration: InputDecoration(
+                                  hintText: "Cari kata (min. 2 huruf)...",
+                                  prefixIcon: const Icon(Icons.search),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.5),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  suffixIcon: _searchController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(
+                                            Icons.clear,
+                                            size: 20,
+                                          ),
+                                          onPressed: () {
+                                            _clearSearch();
+                                            if (mounted) setSheetState(() {});
+                                          },
+                                        )
+                                      : null,
+                                ),
+                                onChanged: (val) {
+                                  if (!mounted) return;
+                                  _debounce?.cancel();
+
+                                  if (val.isEmpty) {
+                                    _clearSearch();
+                                    if (mounted) setSheetState(() {});
+                                    return;
+                                  }
+
+                                  _debounce = Timer(
+                                    const Duration(milliseconds: 500),
+                                    () {
+                                      if (!mounted) return;
+                                      if (val.trim().length >= 2) {
+                                        _performSearch(val);
+                                      }
                                       if (mounted) setSheetState(() {});
                                     },
+                                  );
+                                },
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            IconButton.filledTonal(
-                              icon: const Icon(Icons.keyboard_arrow_down),
-                              tooltip: "Selanjutnya",
-                              onPressed: _allMatches.isEmpty
-                                  ? null
-                                  : () {
-                                      _jumpToResult(_currentMatchIndex + 1);
-                                      if (mounted) setSheetState(() {});
-                                    },
+                            // Tombol Tutup Text (Ganti jadi Icon X biar hemat tempat di landscape?)
+                            // Tapi Text "Tutup" juga gapapa asal ada SingleChildScrollView
+                            TextButton(
+                              onPressed: () {
+                                if (mounted) Navigator.of(context).pop();
+                              },
+                              child: const Text("Tutup"),
                             ),
                           ],
                         ),
+
+                        const SizedBox(height: 16),
+
+                        // --- BARIS 2: NAVIGASI HASIL ---
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _allMatches.isEmpty
+                                  ? "Belum ada hasil"
+                                  : "${_currentMatchIndex + 1} dari ${_allMatches.length} hasil",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: _allMatches.isEmpty
+                                    ? Theme.of(context).colorScheme.secondary
+                                    : Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.keyboard_arrow_up),
+                                  tooltip: "Sebelumnya",
+                                  onPressed: _allMatches.isEmpty
+                                      ? null
+                                      : () {
+                                          _jumpToResult(_currentMatchIndex - 1);
+                                          if (mounted) setSheetState(() {});
+                                        },
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.keyboard_arrow_down),
+                                  tooltip: "Selanjutnya",
+                                  onPressed: _allMatches.isEmpty
+                                      ? null
+                                      : () {
+                                          _jumpToResult(_currentMatchIndex + 1);
+                                          if (mounted) setSheetState(() {});
+                                        },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+
+                        // Spacer bawah biar gak mepet banget sama keyboard
+                        const SizedBox(height: 8),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             );
@@ -807,26 +854,27 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     ).whenComplete(() {
       Future.microtask(() {
         if (!mounted) return;
-
         setState(() => _isSearchModalOpen = false);
-
         _debounce?.cancel();
         _currentQuery = "";
         _allMatches.clear();
         _searchKeys.clear();
         _currentMatchIndex = -1;
         _displayHtmlContent = _rawHtmlContent;
-
         _searchController.clear();
       });
     });
   }
 
+  // ============================================
+  // SETTINGS MODAL (WITH SCROLLBAR)
+  // ============================================
   void _showSettingsModal() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -834,179 +882,299 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             final int displayZoom = _textZoom.toInt();
+            final String displayPadding = _horizontalPadding.toStringAsFixed(0);
 
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Pengaturan Tampilan",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
+            return Padding(
+              padding: const EdgeInsets.only(
+                left: 24,
+                right: 24,
+                bottom: 24,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // HEADER (Fixed)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Pengaturan Tampilan",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      "Tema Baca",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: Theme.of(context).colorScheme.primary,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.light,
-                            Colors.white,
-                            Colors.black,
-                            "Terang",
-                            () => setModalState(() {}),
-                          ),
-                          const SizedBox(width: 16),
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.light2,
-                            const Color(0xFFFAFAFA),
-                            const Color(0xFF424242),
-                            "Terang 2",
-                            () => setModalState(() {}),
-                          ),
-                          const SizedBox(width: 16),
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.sepia,
-                            const Color(0xFFF4ECD8),
-                            const Color(0xFF5D4037),
-                            "Sepia",
-                            () => setModalState(() {}),
-                          ),
-                          const SizedBox(width: 16),
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.dark,
-                            const Color(0xFF212121),
-                            Colors.white,
-                            "Gelap",
-                            () => setModalState(() {}),
-                          ),
-                          const SizedBox(width: 16),
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.dark2,
-                            const Color(0xFF212121),
-                            const Color(0xFFB0BEC5),
-                            "Gelap 2",
-                            () => setModalState(() {}),
-                          ),
-                        ],
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Ukuran Teks",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        TextButton(
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(50, 30),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          onPressed: () {
-                            setState(() => _textZoom = 100.0);
-                            _saveZoomPref();
-                            setModalState(() {});
-                          },
-                          child: const Text("Reset"),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                    // Zoom Controls
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.grey.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton.filledTonal(
-                            onPressed: () {
-                              setState(
-                                () => _textZoom = (_textZoom - 10).clamp(
-                                  50.0,
-                                  300.0,
-                                ),
-                              );
-                              _saveZoomPref();
-                              setModalState(() {});
-                            },
-                            icon: const Icon(Icons.remove),
-                          ),
-                          Text(
-                            "$displayZoom%",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                  // ISI (Scrollable + Visual Indicator)
+                  Flexible(
+                    fit: FlexFit.loose,
+                    // ✅ TAMBAH SCROLLBAR DI SINI
+                    child: Scrollbar(
+                      thumbVisibility: true,
+                      thickness: 6,
+                      radius: const Radius.circular(10),
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        // Kasih padding kanan dikit biar konten gak ketabrak scrollbar
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // --- A. TEMA BACA ---
+                            Text(
+                              "Tema Baca",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                             ),
-                          ),
-                          IconButton.filledTonal(
-                            onPressed: () {
-                              setState(
-                                () => _textZoom = (_textZoom + 10).clamp(
-                                  50.0,
-                                  300.0,
+                            const SizedBox(height: 12),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.light,
+                                    Colors.white,
+                                    Colors.black,
+                                    "Terang",
+                                    () => setModalState(() {}),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.light2,
+                                    const Color(0xFFFAFAFA),
+                                    const Color(0xFF424242),
+                                    "Terang 2",
+                                    () => setModalState(() {}),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.sepia,
+                                    const Color(0xFFF4ECD8),
+                                    const Color(0xFF5D4037),
+                                    "Sepia",
+                                    () => setModalState(() {}),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.dark,
+                                    const Color(0xFF212121),
+                                    Colors.white,
+                                    "Gelap",
+                                    () => setModalState(() {}),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.dark2,
+                                    const Color(0xFF212121),
+                                    const Color(0xFFB0BEC5),
+                                    "Gelap 2",
+                                    () => setModalState(() {}),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // --- B. UKURAN TEKS ---
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Ukuran Teks",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
                                 ),
-                              );
-                              _saveZoomPref();
-                              setModalState(() {});
-                            },
-                            icon: const Icon(Icons.add),
-                          ),
-                        ],
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(50, 30),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onPressed: () {
+                                    setState(() => _textZoom = 100.0);
+                                    _saveZoomPref();
+                                    setModalState(() {});
+                                  },
+                                  child: const Text("Reset"),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.grey.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  IconButton.filledTonal(
+                                    onPressed: () {
+                                      setState(
+                                        () => _textZoom = (_textZoom - 10)
+                                            .clamp(50.0, 300.0),
+                                      );
+                                      _saveZoomPref();
+                                      setModalState(() {});
+                                    },
+                                    icon: const Icon(Icons.remove),
+                                  ),
+                                  Text(
+                                    "$displayZoom%",
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  IconButton.filledTonal(
+                                    onPressed: () {
+                                      setState(
+                                        () => _textZoom = (_textZoom + 10)
+                                            .clamp(50.0, 300.0),
+                                      );
+                                      _saveZoomPref();
+                                      setModalState(() {});
+                                    },
+                                    icon: const Icon(Icons.add),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // --- C. JARAK SISI (PADDING) ---
+                            const SizedBox(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Jarak Sisi (Padding)",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(50, 30),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onPressed: () {
+                                    setState(() => _horizontalPadding = 12.0);
+                                    _savePaddingPref();
+                                    setModalState(() {});
+                                  },
+                                  child: const Text("Reset"),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.grey.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  IconButton.filledTonal(
+                                    onPressed: () {
+                                      setState(
+                                        () => _horizontalPadding =
+                                            (_horizontalPadding - 4).clamp(
+                                              0.0,
+                                              120.0,
+                                            ),
+                                      );
+                                      _savePaddingPref();
+                                      setModalState(() {});
+                                    },
+                                    icon: const Icon(Icons.remove),
+                                  ),
+                                  Text(
+                                    displayPadding,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  IconButton.filledTonal(
+                                    onPressed: () {
+                                      setState(
+                                        () => _horizontalPadding =
+                                            (_horizontalPadding + 4).clamp(
+                                              0.0,
+                                              120.0,
+                                            ),
+                                      );
+                                      _savePaddingPref();
+                                      setModalState(() {});
+                                    },
+                                    icon: const Icon(Icons.add),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -1115,8 +1283,13 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                         key: ValueKey<int>(_currentIndex),
                         controller: _scrollController,
                         padding: EdgeInsets.only(
-                          // 👇 Padding bawah tetep pake logic player
-                          bottom: _isPlayerVisible ? 340 : 120,
+                          left:
+                              _horizontalPadding, // Padding Kiri dari settingan
+                          right:
+                              _horizontalPadding, // Padding Kanan dari settingan
+                          bottom: _isPlayerVisible
+                              ? 340
+                              : 120, // Padding Bawah (tetep logic player)
                         ),
                         child: Column(
                           // 👈 Tambah Column biar bisa kasih Spacer
@@ -1217,13 +1390,17 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   // ============================================
-  // STYLING (CSS)
+  // UPDATED STYLES (USE THEME COLORS)
   // ============================================
   Map<String, Style> _getHtmlStyles() {
     final colors = _themeColors;
     final bgColor = colors['bg']!;
     final textColor = colors['text']!;
     final noteColor = colors['note']!;
+
+    // ✅ AMBIL WARNA PALI DARI MAP (Jangan logic if-else manual lagi)
+    final paliAccentColor = colors['pali']!;
+
     final fontSize = _textZoom / 100.0;
 
     final serifFont = GoogleFonts.varta().fontFamily!;
@@ -1231,9 +1408,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
     final isDarkVariant =
         _readerTheme == ReaderTheme.dark || _readerTheme == ReaderTheme.dark2;
-    final paliAccentColor = isDarkVariant
-        ? const Color(0xFFD4A574)
-        : const Color(0xFF8B4513);
 
     Color contentBoxColor;
     if (isDarkVariant) {
@@ -1251,7 +1425,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontFamily: sansFont,
         fontSize: FontSize(16 * fontSize),
         lineHeight: const LineHeight(1.6),
-        padding: HtmlPaddings.symmetric(horizontal: 12, vertical: 0),
+        padding: HtmlPaddings.zero,
         margin: Margins.zero,
       ),
 
@@ -1285,6 +1459,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontStyle: FontStyle.italic,
       ),
 
+      // ✅ Terapkan paliAccentColor di sini
       "p": Style(
         fontFamily: serifFont,
         fontWeight: FontWeight.w600,
@@ -1309,12 +1484,13 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         margin: Margins.only(bottom: 4),
       ),
 
+      // ✅ Dan di border kiri kotak isi
       "div.isi": Style(
         backgroundColor: contentBoxColor,
         padding: HtmlPaddings.all(12),
         margin: Margins.symmetric(vertical: 10),
         border: Border(
-          left: BorderSide(color: paliAccentColor, width: 4),
+          left: BorderSide(color: paliAccentColor, width: 4), // <-- SINI JUGA
           top: BorderSide(
             color: Colors.grey.withValues(alpha: 0.2),
             width: 0.5,
@@ -1328,14 +1504,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             width: 0.5,
           ),
         ),
-      ),
-
-      "div.nomor": Style(
-        fontFamily: sansFont,
-        fontSize: FontSize(14 * fontSize),
-        color: noteColor,
-        margin: Margins.only(bottom: 4, top: 4),
-        fontWeight: FontWeight.bold,
       ),
 
       "div.daftar": Style(
@@ -1410,7 +1578,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       right: 0,
       child: Padding(
         // 👇 2. Kasih margin biar ngambang (Floating Pill)
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -1503,6 +1671,9 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   // 🔧 FLOATING ACTIONS WITH AUDIO BUTTON
+  // ============================================
+  // MODIFIED FLOATING ACTIONS (AUTO COMPACT)
+  // ============================================
   Widget _buildFloatingActions(bool isPrevDisabled, bool isNextDisabled) {
     final systemScheme = Theme.of(context).colorScheme;
     final containerColor = systemScheme.surface;
@@ -1511,10 +1682,26 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final shadowColor = Colors.black.withValues(alpha: 0.15);
     final disabledClickableColor = Colors.grey.withValues(alpha: 0.5);
 
-    // 🔧 Audio button logic - AUTO DETECT dari file path
+    // 🔧 1. LOGIC DETEKSI HP LANDSCAPE
+    final size = MediaQuery.of(context).size;
+    final isLandscape = size.width > size.height;
+    // < 600 biasanya HP, >= 600 biasanya Tablet
+    final isTablet = size.shortestSide >= 600;
+
+    // Kalo HP dan Landscape, aktifkan mode Compact
+    final isPhoneLandscape = isLandscape && !isTablet;
+
+    // 🔧 2. SETTINGAN COMPACT VS NORMAL
+    // Kalau landscape HP: Margin dikitin, Padding dikitin, Icon dikecilin dikit
+    final double verticalMargin = isPhoneLandscape ? 4.0 : 20.0;
+    final double internalPaddingH = isPhoneLandscape ? 4.0 : 6.0;
+    final double internalPaddingV = isPhoneLandscape ? 2.0 : 4.0;
+    final double iconSize = isPhoneLandscape ? 20.0 : 24.0;
+    final double separatorHeight = isPhoneLandscape ? 16.0 : 24.0;
+
+    // Logic tombol audio
     final bool showAudioButton = _isParittaPage;
     final bool hasAudioForPage = _hasAudioForCurrentPage();
-
     final bool isAudioButtonEnabled =
         _isOnline && !_isLoadingAudio && hasAudioForPage && !_isPlayerVisible;
 
@@ -1542,30 +1729,39 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           borderRadius: BorderRadius.circular(12),
           splashColor: activeColor.withValues(alpha: 0.1),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            // Padding tombol individual juga disesuain
+            padding: EdgeInsets.all(isPhoneLandscape ? 8 : 12),
             decoration: isActive
                 ? BoxDecoration(
                     color: activeColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   )
                 : null,
-            child: Icon(icon, color: finalColor, size: 24),
+            child: Icon(icon, color: finalColor, size: iconSize),
           ),
         ),
       );
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      // Margin bawah dibuat dinamis
+      margin: EdgeInsets.symmetric(horizontal: 24, vertical: verticalMargin),
+      padding: EdgeInsets.symmetric(
+        horizontal: internalPaddingH,
+        vertical: internalPaddingV,
+      ),
       decoration: BoxDecoration(
-        color: containerColor,
+        color: containerColor.withValues(
+          alpha: isPhoneLandscape ? 0.9 : 1.0,
+        ), // Agak transparan dikit kalo landscape
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
             color: shadowColor,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            blurRadius: isPhoneLandscape
+                ? 10
+                : 20, // Shadow lebih tipis biar ga makan tempat
+            offset: Offset(0, isPhoneLandscape ? 4 : 8),
             spreadRadius: 2,
           ),
         ],
@@ -1592,25 +1788,21 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
           Container(
             width: 1,
-            height: 24,
+            height: separatorHeight, // Separator ngikutin tinggi
             color: Colors.grey.withValues(alpha: 0.2),
           ),
-          // 🔧 AUDIO BUTTON (conditional - paling kiri)
-          // 🔧 AUDIO BUTTON (conditional - paling kiri)
+
           if (showAudioButton) ...[
             AnimatedOpacity(
               opacity: isAudioButtonEnabled ? 1.0 : 0.4,
               duration: const Duration(milliseconds: 200),
               child: buildBtn(
                 icon: Icons.headphones_rounded,
-
-                //onTap: _handleAudioButtonPress,
-                //  onTap: isAudioButtonEnabled ? _handleAudioButtonPress : null,
                 onTap: _handleAudioButtonPress,
               ),
             ),
           ],
-          // TEMATIK LIST (conditional)
+
           if (widget.tematikChapterIndex != null)
             buildBtn(
               icon: Icons.library_books_outlined,
@@ -1632,7 +1824,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
           Container(
             width: 1,
-            height: 24,
+            height: separatorHeight,
             color: Colors.grey.withValues(alpha: 0.2),
           ),
 

@@ -89,7 +89,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           stayAwake: true,
           contentType: AndroidContentType.music,
           usageType: AndroidUsageType.media,
-          audioFocus: AndroidAudioFocus.gain,
+          audioFocus: AndroidAudioFocus.gainTransientMayDuck, // UBAH INI!
         ),
       ),
     );
@@ -105,7 +105,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           stayAwake: true,
           contentType: AndroidContentType.music,
           usageType: AndroidUsageType.media,
-          audioFocus: AndroidAudioFocus.gain,
+          audioFocus: AndroidAudioFocus.gainTransientMayDuck, // UBAH INI!
         ),
       ),
     );
@@ -121,7 +121,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
           stayAwake: true,
           contentType: AndroidContentType.music,
           usageType: AndroidUsageType.media,
-          audioFocus: AndroidAudioFocus.gain,
+          audioFocus: AndroidAudioFocus.gain, // Ambient tetep gain
         ),
       ),
     );
@@ -182,7 +182,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       left: 0,
       right: 0,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -335,6 +335,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               _remainingSeconds = 10;
             });
             _startTimer();
+            // Play ambient langsung sejak preparation
+            _playAmbient();
           }
         })
         .catchError((e) {
@@ -347,6 +349,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               _remainingSeconds = 10;
             });
             _startTimer();
+            // Play ambient langsung sejak preparation
+            _playAmbient();
           }
         });
   }
@@ -361,7 +365,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             if (_isPreparation) {
               _isPreparation = false;
               _remainingSeconds = (_hours * 3600) + (_minutes * 60) + _seconds;
-              _playStartBellThenAmbient();
+              // Bell bunyi pas preparation nyampe 00:00
+              _playStartBell();
             } else {
               _finishMeditation();
             }
@@ -371,44 +376,14 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     });
   }
 
-  Future<void> _playStartBellThenAmbient() async {
-    // Cancel subscription lama
-    await _bellCompleteSubscription?.cancel();
-
-    // Stop semua audio dulu
-    await _startBellPlayer.stop();
-    await _endBellPlayer.stop();
-    await _ambientPlayer.stop();
-
+  Future<void> _playStartBell() async {
     if (_startBell != 'Tanpa Bel') {
       try {
+        // Jangan stop ambient player di sini!
         await _startBellPlayer.setVolume(_startBellVolume * _deviceVolume);
         await _startBellPlayer.play(AssetSource('sounds/$_startBell'));
-
-        // Tunggu bell selesai
-        _bellCompleteSubscription = _startBellPlayer.onPlayerComplete.listen((
-          event,
-        ) {
-          if (mounted && _isRunning && !_isPaused && !_isPreparation) {
-            _playAmbient();
-          }
-          _bellCompleteSubscription?.cancel();
-        });
       } catch (e) {
         debugPrint('Error playing start bell: $e');
-        // Fallback: play ambient setelah delay
-        if (_ambient != 'Tanpa Latar') {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted && _isRunning && !_isPaused && !_isPreparation) {
-              _playAmbient();
-            }
-          });
-        }
-      }
-    } else {
-      // Tidak ada bell, langsung play ambient
-      if (_ambient != 'Tanpa Latar') {
-        _playAmbient();
       }
     }
   }
@@ -425,15 +400,33 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   }
 
   Future<void> _playAmbient() async {
-    // Double check state
-    if (!_isRunning || _isPreparation || _isPaused) return;
+    // Cek cuma running dan ga pause
+    if (!_isRunning || _isPaused) return;
 
     if (_ambient != 'Tanpa Latar') {
       try {
-        await _ambientPlayer.setVolume(_ambientVolume * _deviceVolume);
+        // Cek apakah ambient udah playing, kalau udah jangan play lagi
+        final state = _ambientPlayer.state;
+        if (state == PlayerState.playing) {
+          return; // Udah jalan, ga usah play lagi
+        }
+
+        // Start dari volume 0
+        await _ambientPlayer.setVolume(0);
         await _ambientPlayer.play(
           AssetSource('sounds/${_ambient.toLowerCase()}.mp3'),
         );
+
+        // Fade in dalam 2 detik
+        const steps = 20;
+        const duration = Duration(milliseconds: 100);
+
+        for (int i = 0; i <= steps; i++) {
+          if (!mounted || !_isRunning) break;
+          final volume = (_ambientVolume * _deviceVolume) * (i / steps);
+          await _ambientPlayer.setVolume(volume);
+          await Future.delayed(duration);
+        }
       } catch (e) {
         debugPrint('Error playing ambient: $e');
       }
@@ -447,7 +440,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     if (_isPaused) {
       if (_ambient != 'Tanpa Latar') _ambientPlayer.pause();
     } else {
-      if (!_isPreparation && _ambient != 'Tanpa Latar') _ambientPlayer.resume();
+      // Hapus pengecekan _isPreparation
+      if (_ambient != 'Tanpa Latar') _ambientPlayer.resume();
     }
   }
 
@@ -456,7 +450,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     _bellCompleteSubscription?.cancel();
 
     _startBellPlayer.stop();
-    _ambientPlayer.stop();
+    // Jangan stop ambient dulu, biar overlap sama bell
 
     setState(() {
       _isRunning = false;
@@ -464,13 +458,34 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       _isPaused = false;
     });
 
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 300), () async {
       if (mounted) {
-        // Tambah ini
-        _playEndBell();
-        _showCompletionDialog(); // Pindah ke dalam if
+        // Play bell akhir DAN langsung fade out ambient (paralel!)
+        _playEndBell(); // Ga pake await biar ga nunggu
+        _fadeOutAmbient(); // Langsung fade out bareng
+
+        _showCompletionDialog();
       }
     });
+  }
+
+  Future<void> _fadeOutAmbient() async {
+    // Fade out dalam 2 detik
+    const steps = 20;
+    const duration = Duration(milliseconds: 100); // 20 steps * 100ms = 2 detik
+
+    for (int i = steps; i >= 0; i--) {
+      if (!mounted) break;
+      final volume = (_ambientVolume * _deviceVolume) * (i / steps);
+      await _ambientPlayer.setVolume(volume);
+      await Future.delayed(duration);
+    }
+
+    if (mounted) {
+      await _ambientPlayer.stop();
+      // Reset volume untuk next session
+      await _ambientPlayer.setVolume(_ambientVolume * _deviceVolume);
+    }
   }
 
   Future<bool> _confirmExit() async {
@@ -518,7 +533,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       builder: (context) => AlertDialog(
         title: const Text('🙏 Meditasi Selesai'),
         content: const Text(
-          'Sabbe sattā bhavantu sukhitattā.\nNibbānaṁ paramaṁ sukhaṁ\nSādhu sādhu sādhu!',
+          'Sabbe sattā bhavantu sukhitattā.\nNibbānaṃ paramaṃ sukhaṃ\nSādhu sādhu sādhu!',
         ),
         actions: [
           TextButton(
@@ -627,6 +642,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text('Pilih ${type == 'start' ? 'Bel Mulai' : 'Bel Selesai'}'),
+          scrollable: true,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: _bellOptions.map((bell) {
@@ -890,6 +906,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = const Color(0xFFD32F2F);
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return PopScope(
       canPop: !_isRunning,
@@ -904,8 +922,12 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
             SafeArea(
               bottom: false,
               child: _isRunning
-                  ? _buildTimerView(isDark, accentColor)
-                  : _buildSettingsView(isDark, accentColor),
+                  ? (isLandscape
+                        ? _buildTimerViewLandscape(isDark, accentColor)
+                        : _buildTimerView(isDark, accentColor))
+                  : (isLandscape
+                        ? _buildSettingsViewLandscape(isDark, accentColor)
+                        : _buildSettingsView(isDark, accentColor)),
             ),
             _buildGlassAppBar(),
           ],
@@ -983,9 +1005,93 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     );
   }
 
+  Widget _buildTimerViewLandscape(bool isDark, Color accentColor) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    //  final screenWidth = MediaQuery.of(context).size.width;
+    final circleSize = screenHeight * 0.55;
+    double fontSize = _remainingSeconds >= 36000
+        ? circleSize * 0.18
+        : _remainingSeconds >= 3600
+        ? circleSize * 0.22
+        : circleSize * 0.28;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 48),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 80),
+                Text(
+                  _isPreparation ? 'Persiapan' : 'Meditasi',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w300,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: circleSize,
+                  height: circleSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.3),
+                      width: 3,
+                    ),
+                  ),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(
+                          _formatTime(_remainingSeconds),
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w200,
+                            color: _isPreparation ? Colors.orange : accentColor,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 40),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 80),
+              IconButton(
+                onPressed: _pauseResume,
+                icon: Icon(
+                  _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                ),
+                iconSize: 48,
+                style: IconButton.styleFrom(
+                  backgroundColor: accentColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSettingsView(bool isDark, Color accentColor) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1176,6 +1282,237 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     );
   }
 
+  Widget _buildSettingsViewLandscape(bool isDark, Color accentColor) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
+      child: Column(
+        children: [
+          const SizedBox(height: 80),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Kolom Kiri - Suara
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader(context, 'Suara'),
+                    _buildSettingItem(
+                      child: InkWell(
+                        onTap: () => _showBellPicker('start'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.grey.withValues(alpha: 0.3),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Bel Mulai'),
+                              Row(
+                                children: [
+                                  Text(
+                                    _getBellDisplayName(_startBell),
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black54,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildSettingItem(
+                      child: InkWell(
+                        onTap: () => _showBellPicker('end'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.grey.withValues(alpha: 0.3),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Bel Selesai'),
+                              Row(
+                                children: [
+                                  Text(
+                                    _getBellDisplayName(_endBell),
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black54,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildSettingItem(
+                      child: InkWell(
+                        onTap: _showAmbientPicker,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.grey.withValues(alpha: 0.3),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Suara Latar'),
+                              Row(
+                                children: [
+                                  Text(
+                                    _ambient,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black54,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 24),
+              // Kolom Kanan - Waktu & Tombol
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader(context, 'Waktu'),
+                    _buildSettingItem(
+                      child: InkWell(
+                        onTap: _showDurationPicker,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.grey.withValues(alpha: 0.3),
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Durasi',
+                                style: TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    _formatDuration(),
+                                    style: TextStyle(
+                                      color: accentColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: _showVolumeSettings,
+                          icon: const Icon(Icons.volume_up_rounded),
+                          iconSize: 26,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                            padding: const EdgeInsets.all(12),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: _startMeditation,
+                            icon: const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 26,
+                            ),
+                            label: const Text('Mulai'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: accentColor,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSettingItem({required Widget child}) {
     return Padding(padding: const EdgeInsets.only(bottom: 12), child: child);
   }
@@ -1188,11 +1525,9 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
 
 Widget _buildSectionHeader(BuildContext context, String title) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
   final dividerColor = isDarkMode
       ? const Color.fromARGB(77, 158, 158, 158)
       : const Color.fromARGB(102, 158, 158, 158);
-
   return Padding(
     padding: const EdgeInsets.only(top: 24, bottom: 8),
     child: Column(

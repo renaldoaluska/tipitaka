@@ -428,13 +428,14 @@ class _RootPageState extends State<RootPage>
                       titleSpacing: 0,
                       toolbarHeight:
                           toolbarHeight, // 4️⃣ Terapkan Transform.translate biar teks naik pas landscape
-                      title: Transform.translate(
-                        offset: Offset(0, isLandscape ? -8 : 0),
-                        child: const HeaderDepan(
-                          title: "Pariyatti",
-                          subtitle: "Studi Dhamma",
-                        ),
-                      ),
+                      title: // Transform.translate(
+                          // offset: Offset(0, isLandscape ? -8 : 0),
+                          // child:
+                          const HeaderDepan(
+                            title: "Pariyatti",
+                            subtitle: "Studi Dhamma",
+                            // ),
+                          ),
                     ),
                   ),
                   Padding(

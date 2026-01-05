@@ -277,6 +277,8 @@ class _MenuPageState extends State<MenuPage> {
     final previewBlurb = rawBlurb.replaceAll(RegExp(r'<[^>]*>'), '').trim();
     final hasBlurb = previewBlurb.isNotEmpty;
     final isLong = previewBlurb.length > 60;
+    final bool isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     final isTabletLandscape = _isTabletLandscape(context); // ðŸ"¥ TAMBAH INI
     return Scaffold(
@@ -397,7 +399,17 @@ class _MenuPageState extends State<MenuPage> {
                     slivers: [
                       // Spacing untuk header
                       SliverToBoxAdapter(
-                        child: SizedBox(height: hasBlurb ? 130 : 80),
+                        child: SizedBox(
+                          height: hasBlurb
+                              ? isLandscape
+                                    ? isTabletLandscape
+                                          ? 114
+                                          : 102
+                                    : 120
+                              : isTabletLandscape
+                              ? 88
+                              : 78,
+                        ),
                       ),
 
                       // ðŸ"¥ CONDITIONAL: Grid atau List
@@ -431,7 +443,7 @@ class _MenuPageState extends State<MenuPage> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
-                          vertical: 6,
+                          vertical: 0,
                         ),
                         child: Container(
                           decoration: BoxDecoration(

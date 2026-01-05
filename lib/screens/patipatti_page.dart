@@ -1236,13 +1236,15 @@ class _PatipattiPageState extends State<PatipattiPage>
         ),
       ),
       // 4️⃣ Geser teks ke atas (-8) saat landscape
-      title: Transform.translate(
-        offset: Offset(0, isLandscape ? -8 : 0),
-        child: const HeaderDepan(
-          title: "Paṭipatti",
-          subtitle: "Praktik Dhamma",
-        ),
-      ),
+      title:
+          //Transform.translate(
+          //  offset: Offset(0, isLandscape ? -8 : 0),
+          //child:
+          HeaderDepan(
+            title: "Paṭipatti",
+            subtitle: "Praktik Dhamma",
+            //),
+          ),
       centerTitle: true,
       titleSpacing: 0,
     );
@@ -1282,6 +1284,7 @@ class _PatipattiPageState extends State<PatipattiPage>
   // ═══════════════════════════════════════════════════════════
   // 💰 1. DERMA CARD (Dāna)
   // ═══════════════════════════════════════════════════════════
+
   Widget _buildDermaCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = Theme.of(context).colorScheme.surface;
@@ -1294,7 +1297,6 @@ class _PatipattiPageState extends State<PatipattiPage>
         ? const Color(0xFF2D6A64)
         : const Color(0xFFB2DFDB);
 
-    //final isTabletLandscape = _isTabletLandscape(context);
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     final cardMargin = isLandscape ? 8.0 : 16.0;
@@ -1303,7 +1305,7 @@ class _PatipattiPageState extends State<PatipattiPage>
       sectionKey: 'derma',
       globalKey: _dermaKey,
       child: Container(
-        margin: EdgeInsets.fromLTRB(cardMargin, 4, cardMargin, 8), // ✅ Dynamic
+        margin: EdgeInsets.fromLTRB(cardMargin, 4, cardMargin, 8),
         child: Card(
           color: cardColor,
           elevation: 0.5,
@@ -1313,6 +1315,9 @@ class _PatipattiPageState extends State<PatipattiPage>
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
+              // -----------------------------------------------------
+              // HEADER STRIP (Updated: Ada tombol refresh di kanan)
+              // -----------------------------------------------------
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -1346,26 +1351,58 @@ class _PatipattiPageState extends State<PatipattiPage>
                       ),
                     ),
 
-                    // ✅ BAGIAN KANAN (Ganti Total dengan Timestamp)
-                    if (_lastCampaignFetchTimeStr != null)
-                      RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: subtextColor.withValues(alpha: 0.6),
-                          ),
-                          children: [
-                            const TextSpan(text: "Terakhir update: "),
-                            TextSpan(
-                              text: _lastCampaignFetchTimeStr,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: accentColor,
+                    // BAGIAN KANAN (Timestamp + Refresh)
+                    Row(
+                      children: [
+                        if (_lastCampaignFetchTimeStr != null) ...[
+                          RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: subtextColor.withValues(alpha: 0.6),
                               ),
+                              children: [
+                                const TextSpan(text: "Terakhir update: "),
+                                TextSpan(
+                                  text: _lastCampaignFetchTimeStr,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: accentColor,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        // 🔥 TOMBOL REFRESH DI SINI
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            iconSize: 16,
+                            icon: _isLoadingCampaigns
+                                ? const SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: accentColor,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.refresh_rounded,
+                                    color: accentColor,
+                                  ),
+                            onPressed: _isLoadingCampaigns
+                                ? null
+                                : _handleDermaRefresh,
+                            tooltip: 'Refresh',
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -1411,19 +1448,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.refresh_rounded,
-                            color: accentColor,
-                            size: 20,
-                          ),
-
-                          // Panggil fungsi satpam tadi
-                          onPressed: _isLoadingCampaigns
-                              ? null
-                              : _handleDermaRefresh,
-                          tooltip: 'Refresh',
-                        ),
+                        // ❌ BUTTON LAMA DI SINI SUDAH DIHAPUS
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -1460,7 +1485,6 @@ class _PatipattiPageState extends State<PatipattiPage>
                     _isLoadingCampaigns
                         ? _buildLoadingShimmer(lightBg, borderColor)
                         : _campaigns.isEmpty
-                        // 👇 Kirim parameter isError
                         ? _buildEmptyState(
                             subtextColor,
                             isError: _isCampaignError,
@@ -1906,26 +1930,18 @@ class _PatipattiPageState extends State<PatipattiPage>
         ? const Color(0xFF6D621F)
         : const Color(0xFFFFE082);
 
-    final isTabletLandscape = _isTabletLandscape(context);
-    // Kita ubah jadi isLandscape aja, tanpa cek ukuran tablet
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
-    //tinggi kotak bulan
-    final phaseBoxHeight = isLandscape ? 169.0 : 85.0; // ✅ 130 aja cukup
-    // final phaseBoxHeight = isTabletLandscape ? 185.0 : 85.0;
-
-    //final cardMargin = isTabletLandscape ? 8.0 : 16.0;
+    final phaseBoxHeight = isLandscape ? 169.0 : 85.0;
 
     return _buildHighlightWrapper(
       sectionKey: 'uposatha',
       globalKey: _uposathaKey,
       child: Container(
-        // margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-        // margin: EdgeInsets.fromLTRB(cardMargin, 4, cardMargin, 8), // ✅ Dynamic
         margin: isLandscape
-            ? const EdgeInsets.fromLTRB(0, 4, 8, 8) // Tablet: kiri 0, kanan 8
-            : const EdgeInsets.fromLTRB(16, 4, 16, 8), // Mobile: kiri kanan 16
+            ? const EdgeInsets.fromLTRB(0, 4, 8, 8)
+            : const EdgeInsets.fromLTRB(16, 4, 16, 8),
         child: Card(
           color: cardColor,
           elevation: 0.5,
@@ -1935,8 +1951,9 @@ class _PatipattiPageState extends State<PatipattiPage>
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              //  _buildHeaderStrip("Sīla"),
-              // 1. Header Custom (Sīla + Mode Offline)
+              // -----------------------------------------------------
+              // HEADER STRIP (Updated: Ada tombol refresh di kanan)
+              // -----------------------------------------------------
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -1959,7 +1976,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // TULISAN "SĪLA" (Kiri - Tetap)
+                    // TULISAN "SĪLA" (Kiri)
                     Text(
                       "SĪLA",
                       style: TextStyle(
@@ -1970,29 +1987,58 @@ class _PatipattiPageState extends State<PatipattiPage>
                       ),
                     ),
 
-                    // INDIKATOR UPDATE (Kanan - Ganti Baru)
-                    if (_lastFetchTimeStr != null)
-                      RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: subtextColor.withValues(
-                              alpha: 0.6,
-                            ), // Warna teks biasa
-                          ),
-                          children: [
-                            const TextSpan(text: "Terakhir update: "),
-                            TextSpan(
-                              text: _lastFetchTimeStr,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    accentColor, // <--- Warna Highlight (Bisa ganti Orange/Accent)
+                    // KANAN (Timestamp + Refresh)
+                    Row(
+                      children: [
+                        if (_lastFetchTimeStr != null) ...[
+                          RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: subtextColor.withValues(alpha: 0.6),
                               ),
+                              children: [
+                                const TextSpan(text: "Terakhir update: "),
+                                TextSpan(
+                                  text: _lastFetchTimeStr,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: accentColor,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        // 🔥 TOMBOL REFRESH DI SINI
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            iconSize: 16,
+                            icon: _isLoadingUposatha
+                                ? const SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: accentColor,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.refresh_rounded,
+                                    color: accentColor,
+                                  ),
+                            onPressed: _isLoadingUposatha
+                                ? null
+                                : _handleUposathaRefresh,
+                            tooltip: 'Cek Update',
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -2040,25 +2086,8 @@ class _PatipattiPageState extends State<PatipattiPage>
                           ),
                         ),
 
-                        // --- TAMBAHAN BARU: Tombol Refresh ---
-                        // Munculkan tombol refresh (bisa dikondisikan kalau mau tampil pas offline aja,
-                        // atau selalu tampil biar user bisa paksa update).
-                        // Di sini saya buat selalu tampil tapi disable kalau lagi loading.
-                        IconButton(
-                          icon: Icon(
-                            Icons.refresh_rounded,
-                            color: accentColor,
-                            size: 20,
-                          ), // Kalau dipencet user, PAKSA ambil dari firebase (bypass cek umur)
-                          // Panggil satpamnya, bukan fungsi fetch langsung
-                          onPressed: _isLoadingUposatha
-                              ? null
-                              : _handleUposathaRefresh,
-                          tooltip: 'Cek Update',
-                          constraints: const BoxConstraints(),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                        // LABEL NEXT EVENT (DINAMIS)
+                        // ❌ BUTTON LAMA DIHAPUS (Icon Refresh dihapus)
+                        // Label Next Event tetap di sini
                         AnimatedOpacity(
                           duration: const Duration(milliseconds: 300),
                           opacity: _isLoadingUposatha ? 0.5 : 1.0,
@@ -2171,7 +2200,6 @@ class _PatipattiPageState extends State<PatipattiPage>
                         horizontal: 24,
                         vertical: 12,
                       ),
-                      //height: 85,
                       height: phaseBoxHeight,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
@@ -2231,18 +2259,14 @@ class _PatipattiPageState extends State<PatipattiPage>
                                     Text(
                                       icon,
                                       style: TextStyle(
-                                        fontSize: isLandscape
-                                            ? 32
-                                            : 22, // ✅ 32 di tablet
+                                        fontSize: isLandscape ? 32 : 22,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
                                       date,
                                       style: TextStyle(
-                                        fontSize: isTabletLandscape
-                                            ? 13
-                                            : (isLandscape ? 11 : 10),
+                                        fontSize: isLandscape ? 11 : 10,
                                         color: textColor,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -2275,7 +2299,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                                   ),
                                 ),
                               );
-                              // ✅ RELOAD PREFERENCE SETELAH KEMBALI
+                              // RELOAD PREFERENCE SETELAH KEMBALI
                               await _reloadUposathaPreference();
                             },
                           ),

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_custom_tabs/flutter_custom_tabs.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:tipitaka/widgets/tematik_chapter_list.dart';
 import '../data/html_data.dart';
 import '../data/tematik_data.dart';
@@ -44,6 +45,8 @@ class _TematikPageState extends State<TematikPage> {
   @override
   Widget build(BuildContext context) {
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -64,12 +67,9 @@ class _TematikPageState extends State<TematikPage> {
                   },
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: TematikData.mainMenu.length,
-                          itemBuilder: (context, index) =>
-                              _buildChapterCard(index),
-                        ),
+                      : isLandscape
+                      ? _buildMasonryGrid()
+                      : _buildListView(),
                 ),
               ),
             ],
@@ -78,6 +78,27 @@ class _TematikPageState extends State<TematikPage> {
           _buildHeader(),
         ],
       ),
+    );
+  }
+
+  // ListView untuk Portrait (original)
+  Widget _buildListView() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: TematikData.mainMenu.length,
+      itemBuilder: (context, index) => _buildChapterCard(index),
+    );
+  }
+
+  // MasonryGridView untuk Landscape (2 kolom, tinggi otomatis)
+  Widget _buildMasonryGrid() {
+    return MasonryGridView.count(
+      padding: const EdgeInsets.all(16),
+      crossAxisCount: 2,
+      mainAxisSpacing: 2,
+      crossAxisSpacing: 16,
+      itemCount: TematikData.mainMenu.length,
+      itemBuilder: (context, index) => _buildChapterCard(index),
     );
   }
 
@@ -172,9 +193,6 @@ class _TematikPageState extends State<TematikPage> {
     );
   }
 
-  // Cuma part yang perlu diupdate di tematik_page.dart
-
-  // REPLACE _buildChapterCard dengan ini:
   Widget _buildChapterCard(int chapterIndex) {
     final item = TematikData.mainMenu[chapterIndex];
     final detail = TematikData.getChapterDetail(chapterIndex);
@@ -208,8 +226,7 @@ class _TematikPageState extends State<TematikPage> {
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.center, // FIX alignment
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (romanNumeral.isNotEmpty) ...[
                       Container(
@@ -243,7 +260,7 @@ class _TematikPageState extends State<TematikPage> {
                           Text(
                             item["title"]!,
                             style: TextStyle(
-                              fontSize: 14, //3dst
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: textColor,
                             ),
@@ -287,7 +304,6 @@ class _TematikPageState extends State<TematikPage> {
     );
   }
 
-  // REPLACE _buildPendahuluanItem dengan ini:
   Widget _buildPendahuluanItem(int chapterIndex) {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final roman = _getRomanNumeral(chapterIndex);
@@ -306,21 +322,11 @@ class _TematikPageState extends State<TematikPage> {
         child: InkWell(
           onTap: () {
             final pendahuluanNumber = chapterIndex - 1;
-            /*_openWebView(
-              context,
-              "pendahuluan$pendahuluanNumber",
-              "Pendahuluan $roman",
-              chapterIndex,
-            );
-            */
-
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => HtmlReaderPage(
                   title: 'Pendahuluan $roman',
-                  // akses pake kurung siku []
-                  // pastiin kasih default value (?? []) jaga-jaga kalo null
                   chapterFiles: DaftarIsi.tem1_10[pendahuluanNumber] ?? [],
                   initialIndex: 0,
                   tematikChapterIndex: chapterIndex,
@@ -395,19 +401,17 @@ class _TematikPageState extends State<TematikPage> {
   ) {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
-    //final cardColor = Theme.of(context).colorScheme.surface;
 
-    // UBAH DARI SINI: Pakai Card biasa, bukan Container dengan dekorasi manual
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      // Elevation ikut default theme, jadi sama persis kayak card chapter lain
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
+              scrollable: true,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -423,7 +427,7 @@ class _TematikPageState extends State<TematikPage> {
                     child: Text(
                       item["title"]!,
                       style: TextStyle(
-                        fontSize: 14, //dlm dialog
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
@@ -437,11 +441,11 @@ class _TematikPageState extends State<TematikPage> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Card(
-                      elevation: 0, // Dalam dialog biasanya flat atau stroke
+                      elevation: 0,
                       color: Theme.of(context)
                           .colorScheme
                           .surfaceContainerHighest
-                          .withValues(alpha: 0.3), // Sedikit bedain
+                          .withValues(alpha: 0.3),
                       margin: EdgeInsets.zero,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -527,7 +531,7 @@ class _TematikPageState extends State<TematikPage> {
                     Text(
                       item["title"]!,
                       style: TextStyle(
-                        fontSize: 14, //1-2
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
@@ -558,12 +562,11 @@ class _TematikPageState extends State<TematikPage> {
                 title: 'Penjelasan Singkat',
                 chapterFiles: DaftarIsi.tem,
                 initialIndex: 0,
-                tematikChapterIndex: 0, // ✅ Kirim index 0 (Info Umum)
+                tematikChapterIndex: 0,
               ),
             ),
           );
           break;
-        // ... case 1 ...
         case 1:
           _launchURL(
             context,
@@ -580,7 +583,7 @@ class _TematikPageState extends State<TematikPage> {
               title: 'Prakata',
               chapterFiles: DaftarIsi.tem0_1,
               initialIndex: 0,
-              tematikChapterIndex: 1, // ✅ Kirim index 1
+              tematikChapterIndex: 1,
             ),
           ),
         );
@@ -592,7 +595,7 @@ class _TematikPageState extends State<TematikPage> {
               title: 'Pendahuluan Umum',
               chapterFiles: DaftarIsi.tem0_2,
               initialIndex: 0,
-              tematikChapterIndex: 1, // ✅ Kirim index 1
+              tematikChapterIndex: 1,
             ),
           ),
         );
@@ -600,27 +603,6 @@ class _TematikPageState extends State<TematikPage> {
     }
   }
 
-  /* void _openWebView(
-    BuildContext context,
-    String key,
-    String title,
-    int? chapterIndex, // Tambah parameter ini
-  ) {
-    final url = TematikData.webviewUrls[key];
-    if (url != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TematikWebView(
-            url: url,
-            title: title,
-            chapterIndex: chapterIndex, // Pass ke webview
-          ),
-        ),
-      );
-    }
-  }
-*/
   String _getRomanNumeral(int index) {
     if (index < 2) return "";
     const numerals = [
@@ -652,6 +634,7 @@ class _TematikPageState extends State<TematikPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
+        scrollable: true,
         backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
@@ -785,6 +768,7 @@ class _TematikPageState extends State<TematikPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
+        scrollable: true,
         backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(

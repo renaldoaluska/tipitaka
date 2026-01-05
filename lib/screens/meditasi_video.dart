@@ -286,11 +286,11 @@ class _VideoPageState extends State<VideoPage> {
         : Colors.black.withValues(alpha: 0.1);
 
     return Positioned(
-      top: MediaQuery.of(context).padding.top,
+      top: 0,
       left: 0,
       right: 0,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -741,215 +741,223 @@ class _VideoPageState extends State<VideoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top + 80;
+    final topPadding = MediaQuery.of(context).padding.top + 35;
     //  final isDark = _isDarkMode(context);
     //final sectionTitleColor = isDark ? Colors.white : const Color(0xFF212121);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          if (_isOffline)
-            _buildOfflineMessage()
-          else
-            Column(
-              children: [
-                Expanded(
-                  // ✅ Tambah NotificationListener untuk deteksi scroll
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (scrollInfo) {
-                      if (scrollInfo.metrics.pixels > 0 && !_isScrolled) {
-                        setState(() => _isScrolled = true);
-                      } else if (scrollInfo.metrics.pixels <= 0 &&
-                          _isScrolled) {
-                        setState(() => _isScrolled = false);
-                      }
-                      return false;
-                    },
-                    child: FutureBuilder<ProcessedData>(
-                      future: _dataFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: kPrimaryColor,
-                            ),
-                          );
+      body: SafeArea(
+        child: Stack(
+          children: [
+            if (_isOffline)
+              _buildOfflineMessage()
+            else
+              Column(
+                children: [
+                  Expanded(
+                    // ✅ Tambah NotificationListener untuk deteksi scroll
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (scrollInfo) {
+                        if (scrollInfo.metrics.pixels > 0 && !_isScrolled) {
+                          setState(() => _isScrolled = true);
+                        } else if (scrollInfo.metrics.pixels <= 0 &&
+                            _isScrolled) {
+                          setState(() => _isScrolled = false);
                         }
-                        if (snapshot.hasError) {
-                          return Center(
-                            child: Text('Error: ${snapshot.error}'),
-                          );
-                        }
-
-                        final processed = snapshot.data!;
-                        if (processed.rawData.isEmpty) {
-                          return const Center(child: Text("Belum ada video."));
-                        }
-
-                        bool hasContent = false;
-                        for (var key in processed.categories) {
-                          final videos =
-                              processed.rawData[key] as List<dynamic>? ?? [];
-                          if (_getFilteredVideosForCategory(
-                            key,
-                            videos,
-                          ).isNotEmpty) {
-                            hasContent = true;
-                            break;
+                        return false;
+                      },
+                      child: FutureBuilder<ProcessedData>(
+                        future: _dataFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: kPrimaryColor,
+                              ),
+                            );
                           }
-                        }
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text('Error: ${snapshot.error}'),
+                            );
+                          }
 
-                        return RefreshIndicator(
-                          onRefresh: _refreshData,
-                          color: kPrimaryColor,
-                          child: SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: EdgeInsets.only(
-                              bottom: 50,
-                              top: topPadding,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildHistorySection(),
-                                //   _buildCategoryList(processed.categories),
-                                _buildAuthorList(processed.authors),
+                          final processed = snapshot.data!;
+                          if (processed.rawData.isEmpty) {
+                            return const Center(
+                              child: Text("Belum ada video."),
+                            );
+                          }
 
-                                if (!hasContent)
-                                  _buildEmptyState()
-                                else
-                                  ...processed.categories.map((key) {
-                                    final rawVideos =
-                                        processed.rawData[key]
-                                            as List<dynamic>? ??
-                                        [];
-                                    final filteredVideos =
-                                        _getFilteredVideosForCategory(
-                                          key,
-                                          rawVideos,
-                                        );
+                          bool hasContent = false;
+                          for (var key in processed.categories) {
+                            final videos =
+                                processed.rawData[key] as List<dynamic>? ?? [];
+                            if (_getFilteredVideosForCategory(
+                              key,
+                              videos,
+                            ).isNotEmpty) {
+                              hasContent = true;
+                              break;
+                            }
+                          }
 
-                                    if (filteredVideos.isEmpty) {
-                                      return const SizedBox.shrink();
-                                    }
+                          return RefreshIndicator(
+                            onRefresh: _refreshData,
+                            color: kPrimaryColor,
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: EdgeInsets.only(
+                                bottom: 50,
+                                top: topPadding,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildHistorySection(),
+                                  //   _buildCategoryList(processed.categories),
+                                  _buildAuthorList(processed.authors),
 
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                            20,
-                                            20,
-                                            20,
-                                            12,
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              // 1. JUDUL KATEGORI
-                                              Expanded(
-                                                child: Text(
-                                                  _capitalize(key),
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurfaceVariant,
-                                                  ),
-                                                ),
-                                              ),
+                                  if (!hasContent)
+                                    _buildEmptyState()
+                                  else
+                                    ...processed.categories.map((key) {
+                                      final rawVideos =
+                                          processed.rawData[key]
+                                              as List<dynamic>? ??
+                                          [];
+                                      final filteredVideos =
+                                          _getFilteredVideosForCategory(
+                                            key,
+                                            rawVideos,
+                                          );
 
-                                              // 2. TOMBOL LIHAT SEMUA (DIBUNGKUS IF)
-                                              // Cuma muncul kalau videonya lebih dari 5
-                                              if (filteredVideos.length > 5)
-                                                InkWell(
-                                                  onTap: () {
-                                                    // Logic Judul + Filter yang tadi
-                                                    String judulHalaman =
-                                                        _capitalize(key);
-                                                    if (_selectedAuthor !=
-                                                        'Semua') {
-                                                      judulHalaman +=
-                                                          ' (Filter: $_selectedAuthor)';
-                                                    }
+                                      if (filteredVideos.isEmpty) {
+                                        return const SizedBox.shrink();
+                                      }
 
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (context) =>
-                                                            SeeAllPage(
-                                                              categoryTitle:
-                                                                  judulHalaman,
-                                                              videos:
-                                                                  filteredVideos,
-                                                            ),
-                                                      ),
-                                                    ).then(
-                                                      (_) => _loadHistory(),
-                                                    );
-                                                  },
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                          4.0,
-                                                        ),
-                                                    child: Text(
-                                                      'Lihat Semua (${filteredVideos.length})',
-                                                      style: const TextStyle(
-                                                        color: kPrimaryColor,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontSize: 13,
-                                                      ),
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.fromLTRB(
+                                              20,
+                                              20,
+                                              20,
+                                              12,
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                // 1. JUDUL KATEGORI
+                                                Expanded(
+                                                  child: Text(
+                                                    _capitalize(key),
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
                                                     ),
                                                   ),
                                                 ),
-                                            ],
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          height: 270,
-                                          child: ListView.builder(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 20,
+
+                                                // 2. TOMBOL LIHAT SEMUA (DIBUNGKUS IF)
+                                                // Cuma muncul kalau videonya lebih dari 5
+                                                if (filteredVideos.length > 5)
+                                                  InkWell(
+                                                    onTap: () {
+                                                      // Logic Judul + Filter yang tadi
+                                                      String judulHalaman =
+                                                          _capitalize(key);
+                                                      if (_selectedAuthor !=
+                                                          'Semua') {
+                                                        judulHalaman +=
+                                                            ' (Filter: $_selectedAuthor)';
+                                                      }
+
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              SeeAllPage(
+                                                                categoryTitle:
+                                                                    judulHalaman,
+                                                                videos:
+                                                                    filteredVideos,
+                                                              ),
+                                                        ),
+                                                      ).then(
+                                                        (_) => _loadHistory(),
+                                                      );
+                                                    },
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            4.0,
+                                                          ),
+                                                      child: Text(
+                                                        'Lihat Semua (${filteredVideos.length})',
+                                                        style: const TextStyle(
+                                                          color: kPrimaryColor,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
-                                            scrollDirection: Axis.horizontal,
-                                            itemCount: filteredVideos.length > 5
-                                                ? 5
-                                                : filteredVideos.length,
-                                            itemBuilder: (context, index) {
-                                              final videoMap =
-                                                  Map<String, dynamic>.from(
-                                                    filteredVideos[index]
-                                                        as Map,
-                                                  );
-                                              return _buildHorizontalVideoCard(
-                                                videoMap,
-                                              );
-                                            },
                                           ),
-                                        ),
-                                      ],
-                                    );
-                                  }),
-                              ],
+                                          SizedBox(
+                                            height: 270,
+                                            child: ListView.builder(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 20,
+                                                  ),
+                                              scrollDirection: Axis.horizontal,
+                                              itemCount:
+                                                  filteredVideos.length > 5
+                                                  ? 5
+                                                  : filteredVideos.length,
+                                              itemBuilder: (context, index) {
+                                                final videoMap =
+                                                    Map<String, dynamic>.from(
+                                                      filteredVideos[index]
+                                                          as Map,
+                                                    );
+                                                return _buildHorizontalVideoCard(
+                                                  videoMap,
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          // ✅ Style Tematik Header Overlay
-          _buildTematikStyleHeader(),
-        ],
+                ],
+              ),
+            // ✅ Style Tematik Header Overlay
+            _buildTematikStyleHeader(),
+          ],
+        ),
       ),
     );
   }

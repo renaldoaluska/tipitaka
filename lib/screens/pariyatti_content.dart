@@ -391,11 +391,15 @@ class _PariyattiContentState extends State<PariyattiContent> {
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
-    const contentPadding = EdgeInsets.only(
-      top: 230,
+    final contentPadding = EdgeInsets.only(
+      top: isLandscape
+          ? isTabletLandscape
+                ? 200
+                : 218
+          : 234,
       left: 18,
       right: 18,
-      bottom: 100,
+      bottom: 90,
     );
 
     // Jika Sutta Tab (ada KN expansion)
@@ -751,14 +755,21 @@ class _PariyattiContentState extends State<PariyattiContent> {
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final cardColor = Theme.of(context).colorScheme.surface;
+    //   final isTabletLandscape = _isTabletLandscape(context);
+
+    //final isLandscape =
+    MediaQuery.of(context).orientation == Orientation.landscape;
 
     return ListTile(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
       leading: buildNikayaAvatar(acronym),
       title: Text(
+        //   isTabletLandscape
+        //    ? kitab["name"]!.replaceAll('\n', '→')
+        // :
         kitab["name"]!,
-        maxLines: 1,
+        // maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontWeight: FontWeight.w600,
@@ -768,7 +779,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
       ),
       subtitle: Text(
         kitab["desc"]!,
-        maxLines: 1,
+        // maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(color: subtextColor, fontSize: 12), // ✅ Dinamis
       ),

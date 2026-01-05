@@ -44,9 +44,9 @@ doc/api/
 # ----------------------------------------------------------------------------
 **/android/.gradle
 **/android/captures/
-**/android/gradle/
-**/android/gradlew
-**/android/gradlew.bat
+#**/android/gradle/
+#**/android/gradlew
+#**/android/gradlew.bat
 
 # PENTING: Jangan bocorin key alias dan config lokal laptop
 **/android/local.properties

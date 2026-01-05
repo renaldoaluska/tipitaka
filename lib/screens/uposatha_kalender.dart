@@ -880,7 +880,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
       left: 0,
       right: 0,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -952,7 +952,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                       ),
                       onPressed: _goToToday,
                     ),
-                    IconButton(
+                    /*IconButton(
                       icon: const Icon(
                         Icons.refresh,
                         color: Colors.white,
@@ -960,7 +960,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                       ),
                       onPressed: _forceRefresh, // 👈 Pake yang force
                       // ...
-                    ),
+                    ),*/
                   ],
                 ),
               ),

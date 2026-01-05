@@ -55,6 +55,7 @@ enum SuttaSnackType {
 enum ReaderTheme { light, light2, sepia, dark, dark2 }
 
 class _SuttaDetailState extends State<SuttaDetail> {
+  double _horizontalPadding = 16.0;
   // --- NAV CONTEXT & STATE ---
   late bool _hasNavigatedBetweenSuttas; // ✅ 3. Ubah jadi 'late' (hapus = false)
   String? _parentVaggaId;
@@ -106,7 +107,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
           'text': t.colorScheme.onSurface, // ✅ Hitam (Standard)
           'note': t.colorScheme.onSurfaceVariant,
           'card': uiCardColor,
-          'icon': uiIconColor,
+          'icon': uiIconColor, // 👇 WARNA PALI (Coklat Tua Klasik)
+          'pali': const Color(0xFF8B4513),
         };
 
       // --- TERANG 2 (Soft: Bg ThemeManager, Teks Abu) ---
@@ -117,7 +119,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
           'text': const Color(0xFF424242), // ✨ Custom: Abu Tua Soft
           'note': const Color(0xFF9E9E9E),
           'card': uiCardColor,
-          'icon': uiIconColor,
+          'icon': uiIconColor, // 👇 WARNA PALI (Coklat Kemerahan Soft)
+          'pali': const Color(0xFFA1887F),
         };
 
       // --- SEPIA (Full Custom) ---
@@ -127,7 +130,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
           'text': const Color(0xFF5D4037), // ✨ Custom: Coklat
           'note': const Color(0xFF8D6E63),
           'card': uiCardColor,
-          'icon': uiIconColor,
+          'icon': uiIconColor, // 👇 WARNA PALI (Coklat Tanah - Kontras di Krem)
+          'pali': const Color(0xFF795548),
         };
 
       // --- GELAP 1 (Standard: Full ThemeManager) ---
@@ -138,7 +142,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
           'text': t.colorScheme.onSurface, // ✅ Putih (Standard)
           'note': t.colorScheme.onSurfaceVariant,
           'card': uiCardColor,
-          'icon': uiIconColor,
+          'icon': uiIconColor, // 👇 WARNA PALI (Emas Pudar - Elegan di Gelap)
+          'pali': const Color(0xFFD4A574),
         };
 
       // --- GELAP 2 (Soft: Bg ThemeManager, Teks Abu) ---
@@ -150,6 +155,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
           'note': const Color(0xFF757575),
           'card': uiCardColor,
           'icon': uiIconColor,
+          // ✅ WARNA BARU: Dusty Sand
+          // Tetap nuansa coklat, tapi kadar saturasi-nya diturunin biar "dingin"
+          // Mirip transisi Light1 -> Light2.
+          'pali': const Color(0xFFC5B6A6),
         };
     }
   }
@@ -213,6 +222,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     setState(() {
       _fontSize = prefs.getDouble('sutta_font_size') ?? 16.0;
+      _horizontalPadding = prefs.getDouble('horizontal_padding') ?? 16.0;
       final savedMode = prefs.getInt('sutta_view_mode');
       if (savedMode != null && savedMode < ViewMode.values.length) {
         _viewMode = ViewMode.values[savedMode];
@@ -227,7 +237,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('sutta_font_size', _fontSize);
     await prefs.setInt('sutta_view_mode', _viewMode.index);
-
+    await prefs.setDouble('horizontal_padding', _horizontalPadding);
     // Simpan index enum
     await prefs.setInt('reader_theme_index', _readerTheme.index);
   }
@@ -1512,7 +1522,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
   ) {
     // Format baris baru di komentar
     final formattedComm = comm.replaceAll('|', '<br><br>');
-
+    // final bool isLandscape =
+    //    MediaQuery.orientationOf(context) == Orientation.landscape;
     return WidgetSpan(
       // Alignment middle biar widget-nya dianggap sebaris dulu
       alignment: PlaceholderAlignment.middle,
@@ -1593,25 +1604,21 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final isHeader = headerRegex.hasMatch(verseNum);
     final isH3 = isHeader && !isH1 && !isH2;
 
-    // ✅ FIX: AMBIL WARNA DARI _themeColors (JANGAN DARI CONTEXT/SYSTEM)
-    final colors = _themeColors; // Panggil getter sakti kita
+    // ✅ AMBIL WARNA DARI _themeColors YANG BARU DIUPDATE
+    final colors = _themeColors;
 
-    // Warna Pali: Kalau Dark Mode/Sepia pake warna emas/coklat, kalau Light pake coklat tua
-    // Kita bisa ambil logika simpel: Text Color utama
     final mainTextColor = colors['text']!;
 
-    // Warna Pali (Body Text)
-    // Kalau Sepia/Light -> Coklat (ambil dari _themeColors['text'])
-    // Kalau Dark -> Emas pudar (Hardcode dikit gapapa buat variasi)
-    final isDarkReader = _readerTheme == ReaderTheme.dark;
-    final paliBodyColor = isDarkReader
-        ? const Color(0xFFD4A574)
-        : const Color(0xFF8B4513);
+    // 👇 INI DIA PERUBAHANNYA: Ambil langsung dari key 'pali'
+    final paliBodyColor = colors['pali']!;
 
-    final headerColor = mainTextColor; // Judul ngikut warna teks utama
+    final headerColor = mainTextColor;
+
+    // Kalau mode "Pali Only", judulnya pake warna teks biasa biar tegas.
+    // Tapi kalau ada terjemahan, teks Pali-nya pake warna khusus Pali.
     final paliColor = isPaliOnly ? headerColor : paliBodyColor;
-    final transBodyColor = mainTextColor; // Terjemahan ngikut warna teks utama
 
+    final transBodyColor = mainTextColor;
     TextStyle paliStyle, transStyle;
     double topPadding, bottomPadding;
 
@@ -1752,6 +1759,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       startMatchCount,
     );
 
+    // INI SEGMENTED (PALI, ING+TERJ, DLL)
     return Html(
       data: contentWithHighlight,
       style: {
@@ -2303,7 +2311,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
         child: ScrollablePositionedList.builder(
           itemScrollController: _itemScrollController,
           itemPositionsListener: _itemPositionsListener,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+
+          padding: EdgeInsets.fromLTRB(
+            _horizontalPadding,
+            16,
+            _horizontalPadding,
+            80,
+          ),
           itemCount: keysOrder.length,
           itemBuilder: (context, index) {
             return _buildSegmentedItem(
@@ -2347,7 +2361,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
         child: ScrollablePositionedList.builder(
           itemScrollController: _itemScrollController,
           itemPositionsListener: _itemPositionsListener,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+          padding: EdgeInsets.fromLTRB(
+            _horizontalPadding,
+            16,
+            _horizontalPadding,
+            80,
+          ),
           itemCount: _htmlSegments.length,
           itemBuilder: (context, index) {
             // Inject Highlight
@@ -2445,7 +2464,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
         child: ScrollablePositionedList.builder(
           itemScrollController: _itemScrollController,
           itemPositionsListener: _itemPositionsListener,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+          padding: EdgeInsets.fromLTRB(
+            _horizontalPadding,
+            16,
+            _horizontalPadding,
+            80,
+          ),
           itemCount: paliKeys.length,
           itemBuilder: (context, index) {
             return _buildSegmentedItem(
@@ -2570,7 +2594,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 SizedBox(
                   height: MediaQuery.of(context).padding.top + 70,
                 ), // Spacing untuk header
-                Expanded(child: body),
+                Expanded(
+                  child: body,
+                  // ✅ Langsung body tanpa Padding wrapper
+                ),
               ],
             ),
 
@@ -2801,37 +2828,43 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
+  // ============================================
+  // UPDATED FLOATING ACTIONS (RESPONSIVE)
+  // ============================================
   Widget _buildFloatingActions(bool isSegmented) {
-    // 1. Cek Logic (Hanya loading yang bener-bener matikan tombol)
+    // 1. Cek Logic Navigasi
     final isTematik = widget.entryPoint == "tematik";
+    final showToc = _tocList.isNotEmpty && !_connectionError;
 
-    // Kita hapus isPrevDisabled/isNextDisabled buat onTap
-    // Jadi tombol tetap clickable meski di awal/akhir (buat nampilin pesan)
+    // 2. Deteksi Layout (HP Landscape vs Tablet vs Portrait)
+    final size = MediaQuery.of(context).size;
+    final isLandscape = size.width > size.height;
+    final isTablet = size.shortestSide >= 600;
+    // Mode Compact aktif cuma kalau di HP dan Landscape
+    final isPhoneLandscape = isLandscape && !isTablet;
 
-    final bool showToc = _tocList.isNotEmpty && !_connectionError;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // Warna
-    final containerColor = isDark ? const Color(0xFF2C2C2C) : Colors.white;
+    // 3. Styling Variabel
+    final systemScheme = Theme.of(context).colorScheme;
+    final containerColor = systemScheme.surface;
+    final iconColor = systemScheme.onSurface;
+    final activeColor = systemScheme.primary;
     final shadowColor = Colors.black.withValues(alpha: 0.15);
-    final activeColor = Theme.of(context).colorScheme.primary;
-    final iconColor = Theme.of(context).colorScheme.onSurface;
-
-    // Warna khusus buat tombol mentok (tetep keliatan tapi agak pudar)
     final disabledClickableColor = Colors.grey.withValues(alpha: 0.5);
+
+    // Styling Compact vs Normal
+    final double verticalMargin = isPhoneLandscape ? 4.0 : 10.0;
+    final double internalPaddingH = isPhoneLandscape ? 4.0 : 6.0;
+    final double internalPaddingV = isPhoneLandscape ? 2.0 : 4.0;
+    final double iconSize = isPhoneLandscape ? 20.0 : 24.0;
+    final double separatorHeight = isPhoneLandscape ? 16.0 : 24.0;
 
     Widget buildBtn({
       required IconData icon,
       required VoidCallback? onTap,
       bool isActive = false,
       String tooltip = "",
-      // Parameter baru buat override warna kalau tombol "mentok"
       Color? customIconColor,
     }) {
-      // Tentukan warna icon:
-      // 1. Kalau Loading (onTap null) -> Abu mati
-      // 2. Kalau Custom (Mentok) -> Abu pudar (disabledClickableColor)
-      // 3. Normal -> Hitam/Putih (iconColor)
       Color finalColor;
       if (onTap == null) {
         finalColor = Colors.grey.withValues(alpha: 0.3);
@@ -2851,14 +2884,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
           child: Tooltip(
             message: tooltip,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              // Padding tombol menyesuaikan mode compact
+              padding: EdgeInsets.symmetric(
+                horizontal: isPhoneLandscape ? 8 : 12,
+                vertical: isPhoneLandscape ? 8 : 12,
+              ),
               decoration: isActive
                   ? BoxDecoration(
                       color: activeColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     )
                   : null,
-              child: Icon(icon, color: finalColor, size: 24),
+              child: Icon(icon, color: finalColor, size: iconSize),
             ),
           ),
         ),
@@ -2866,16 +2903,21 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      // Margin bawah dinamis
+      margin: EdgeInsets.symmetric(horizontal: 24, vertical: verticalMargin),
+      padding: EdgeInsets.symmetric(
+        horizontal: internalPaddingH,
+        vertical: internalPaddingV,
+      ),
       decoration: BoxDecoration(
-        color: containerColor,
+        // Agak transparan dikit kalo compact mode biar teks belakangnya ngintip
+        color: containerColor.withValues(alpha: isPhoneLandscape ? 0.9 : 1.0),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
             color: shadowColor,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            blurRadius: isPhoneLandscape ? 10 : 20,
+            offset: Offset(0, isPhoneLandscape ? 4 : 8),
             spreadRadius: 2,
           ),
         ],
@@ -2885,15 +2927,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // --- TOMBOL PREV ---
+          // --- PREV ---
           buildBtn(
             icon: Icons.chevron_left_rounded,
             tooltip: "Sebelumnya",
-            // Kalau mentok (_isFirst/Tematik), warnanya pudar. Tapi tetep bisa diklik!
             customIconColor: (_isFirst || isTematik)
                 ? disabledClickableColor
                 : null,
-            // Cuma disable kalau lagi LOADING
             onTap: _isLoading
                 ? null
                 : () {
@@ -2912,11 +2952,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
           Container(
             width: 1,
-            height: 24,
+            height: separatorHeight,
             color: Colors.grey.withValues(alpha: 0.2),
           ),
 
-          // --- TENGAH (TOOLS) ---
+          // --- TOOLS ---
           buildBtn(
             icon: Icons.translate_rounded,
             tooltip: "Info Sutta & Terjemahan",
@@ -2940,17 +2980,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
               tooltip: "Daftar Isi",
               onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
             ),
+
           Container(
             width: 1,
-            height: 24,
+            height: separatorHeight,
             color: Colors.grey.withValues(alpha: 0.2),
           ),
 
-          // --- TOMBOL NEXT ---
+          // --- NEXT ---
           buildBtn(
             icon: Icons.chevron_right_rounded,
             tooltip: "Selanjutnya",
-            // Kalau mentok (_isLast/Tematik), warnanya pudar.
             customIconColor: (_isLast || isTematik)
                 ? disabledClickableColor
                 : null,
@@ -2974,27 +3014,30 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
+  // ============================================
+  // UPDATED SEARCH MODAL (KEYBOARD SAFE)
+  // ============================================
   void _openSearchModal() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled: true, // Wajib true buat handle keyboard
+      useSafeArea: true, // Biar aman di Landscape/Notch
       backgroundColor: Colors.transparent,
-
-      // ✅ INI DIA JUARANYA: Kasih warna hitam transparan (Overlay)
-      // Jadi user tau kalo belakangnya lagi "dikunci"
       barrierColor: Colors.black.withValues(alpha: 0.4),
-
       builder: (context) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
+            // Ambil tinggi keyboard
+            final double keyboardHeight = MediaQuery.of(
+              context,
+            ).viewInsets.bottom;
+
             return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
+              // Padding bawah responsif keyboard
+              padding: EdgeInsets.only(bottom: keyboardHeight),
               child: Container(
-                padding: const EdgeInsets.all(16),
+                width: double.infinity,
                 decoration: BoxDecoration(
-                  // Warna kotak search-nya ngikutin tema (Putih/Gelap)
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: const [
                     BoxShadow(
@@ -3004,131 +3047,144 @@ class _SuttaDetailState extends State<SuttaDetail> {
                     ),
                   ],
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20), // Radius makin tumpul makin manis
+                    top: Radius.circular(20),
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Header kecil biar manis (Opsional, kayak handle pintu)
-                    Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-
-                    Row(
+                child: SingleChildScrollView(
+                  // Biar bisa discroll kalo layar pendek (landscape)
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            autofocus: true,
-                            decoration: InputDecoration(
-                              hintText: "Cari kata (min. 2 huruf)...",
-                              prefixIcon: const Icon(Icons.search),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              // Warna kolom input dikit beda biar kontras
-                              fillColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest
-                                  .withValues(alpha: 0.5),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                              suffixIcon: _searchController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear, size: 20),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        if (mounted) {
-                                          setState(() => _allMatches.clear());
-                                        }
-                                        if (mounted) setSheetState(() {});
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            onChanged: (val) {
-                              if (_debounce?.isActive ?? false) {
-                                _debounce!.cancel();
-                              }
-                              _debounce = Timer(
-                                const Duration(milliseconds: 500),
-                                () {
-                                  if (!mounted) return;
-                                  if (val.trim().length >= 2) {
-                                    _performSearch(val);
-                                  } else {
-                                    setState(() => _allMatches.clear());
-                                  }
-                                  if (mounted) setSheetState(() {});
-                                },
-                              );
-                            },
+                        // Handle bar
+                        Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // Tombol Close Text ganti jadi Cancel biar jelas
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("Batal"),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
 
-                    // Baris Kontrol Navigasi (Panah Atas Bawah)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _allMatches.isEmpty
-                              ? "Belum ada hasil"
-                              : "${_currentMatchIndex + 1} dari ${_allMatches.length} hasil",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _allMatches.isEmpty
-                                ? Theme.of(context).colorScheme.secondary
-                                : Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
+                        // Input Field Row
                         Row(
                           children: [
-                            IconButton.filledTonal(
-                              icon: const Icon(Icons.keyboard_arrow_up),
-                              tooltip: "Sebelumnya",
-                              onPressed: _allMatches.isEmpty
-                                  ? null
-                                  : () {
-                                      _jumpToResult(_currentMatchIndex - 1);
-                                      setSheetState(() {});
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                autofocus: true,
+                                decoration: InputDecoration(
+                                  hintText: "Cari kata (min. 2 huruf)...",
+                                  prefixIcon: const Icon(Icons.search),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.5),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  suffixIcon: _searchController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(
+                                            Icons.clear,
+                                            size: 20,
+                                          ),
+                                          onPressed: () {
+                                            _searchController.clear();
+                                            if (mounted) {
+                                              setState(
+                                                () => _allMatches.clear(),
+                                              );
+                                            }
+                                            if (mounted) setSheetState(() {});
+                                          },
+                                        )
+                                      : null,
+                                ),
+                                onChanged: (val) {
+                                  if (_debounce?.isActive ?? false) {
+                                    _debounce!.cancel();
+                                  }
+                                  _debounce = Timer(
+                                    const Duration(milliseconds: 500),
+                                    () {
+                                      if (!mounted) return;
+                                      if (val.trim().length >= 2) {
+                                        _performSearch(val);
+                                      } else {
+                                        setState(() => _allMatches.clear());
+                                      }
+                                      if (mounted) setSheetState(() {});
                                     },
+                                  );
+                                },
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            IconButton.filledTonal(
-                              icon: const Icon(Icons.keyboard_arrow_down),
-                              tooltip: "Selanjutnya",
-                              onPressed: _allMatches.isEmpty
-                                  ? null
-                                  : () {
-                                      _jumpToResult(_currentMatchIndex + 1);
-                                      setSheetState(() {});
-                                    },
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("Tutup"),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 16),
+
+                        // Navigation Control Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _allMatches.isEmpty
+                                  ? "Belum ada hasil"
+                                  : "${_currentMatchIndex + 1} dari ${_allMatches.length} hasil",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: _allMatches.isEmpty
+                                    ? Theme.of(context).colorScheme.secondary
+                                    : Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.keyboard_arrow_up),
+                                  tooltip: "Sebelumnya",
+                                  onPressed: _allMatches.isEmpty
+                                      ? null
+                                      : () {
+                                          _jumpToResult(_currentMatchIndex - 1);
+                                          setSheetState(() {});
+                                        },
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.keyboard_arrow_down),
+                                  tooltip: "Selanjutnya",
+                                  onPressed: _allMatches.isEmpty
+                                      ? null
+                                      : () {
+                                          _jumpToResult(_currentMatchIndex + 1);
+                                          setSheetState(() {});
+                                        },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        // Spacer bawah buat safety
+                        const SizedBox(height: 8),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             );
@@ -3174,16 +3230,21 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
+  // ============================================
+  // SETTINGS MODAL (WITH SCROLL INDICATOR)
+  // ============================================
   void _openViewSettingsModal(bool isSegmented) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      // Biar modalnya gak ketutup keyboard/ui lain
-      isScrollControlled: true,
+      isScrollControlled: true, // Wajib true biar bisa full height
+      useSafeArea: true, // Wajib biar aman dari notch landscape
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            // Helper Style Tombol (Tetap sama kayak sebelumnya)
             ButtonStyle getBtnStyle(bool isActive) {
               final scheme = Theme.of(context).colorScheme;
               return OutlinedButton.styleFrom(
@@ -3202,245 +3263,325 @@ class _SuttaDetailState extends State<SuttaDetail> {
               );
             }
 
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  16,
-                  16,
-                  16,
-                  24,
-                ), // Bottom agak gedean dikit
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ✅ HEADER BARU: Judul + Tombol Close (X)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Pengaturan Tampilan",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                          // Biar area sentuhnya pas
-                          splashRadius: 24,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24), // Jarak ke konten
-
-                    Text(
-                      "Tema Baca",
-
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-
-                    // ... (Kode Text "Tema Baca" di atasnya) ...
-                    const SizedBox(height: 12),
-
-                    // ✅ GANTI ROW LAMA DENGAN INI (Bisa discroll)
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          // 1. Terang (Full Black)
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.light,
-                            Colors.white,
-                            Colors.black,
-                            "Terang",
-                            () => setModalState(() {}),
-                          ),
-                          const SizedBox(width: 16), // Jarak antar tombol
-                          // 2. Terang 2 (Soft)
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.light2,
-                            const Color(0xFFFAFAFA),
-                            const Color(0xFF424242), // Preview Text Abu Tua
-                            "Terang 2",
-                            () => setModalState(() {}),
-                          ),
-                          const SizedBox(width: 16),
-
-                          // 3. Sepia
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.sepia,
-                            const Color(0xFFF4ECD8),
-                            const Color(0xFF5D4037),
-                            "Sepia",
-                            () => setModalState(() {}),
-                          ),
-                          const SizedBox(width: 16),
-
-                          // 4. Gelap (Full White)
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.dark,
-                            const Color(0xFF212121),
-                            Colors.white,
-                            "Gelap",
-                            () => setModalState(() {}),
-                          ),
-                          const SizedBox(width: 16),
-
-                          // 5. Gelap 2 (Dimmed)
-                          _buildThemeOption(
-                            context,
-                            ReaderTheme.dark2,
-                            const Color(0xFF212121),
-                            const Color(0xFFB0BEC5), // Preview Text Abu
-                            "Gelap 2",
-                            () => setModalState(() {}),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20), // Jarak ke konten
-                    // Opsi Tampilan Segmen
-                    if (isSegmented && widget.lang != "pli") ...[
+            return Padding(
+              // Padding luar (jarak dari pinggir layar)
+              padding: const EdgeInsets.only(
+                left: 24,
+                right: 24,
+                bottom: 24,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. HEADER (FIXED - Gak ikut kescroll)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
                       Text(
-                        "Mode Baca",
+                        "Pengaturan Tampilan",
                         style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              style: getBtnStyle(
-                                _viewMode == ViewMode.lineByLine,
-                              ),
-                              onPressed: () {
-                                setState(() => _viewMode = ViewMode.lineByLine);
-                                setModalState(() {});
-                                _savePreferences();
-                              },
-                              child: const FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text("Atas-Bawah"),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              style: getBtnStyle(
-                                _viewMode == ViewMode.sideBySide,
-                              ),
-                              onPressed: () {
-                                setState(() => _viewMode = ViewMode.sideBySide);
-                                setModalState(() {});
-                                _savePreferences();
-                              },
-                              child: const FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text("Kiri-Kanan"),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              style: getBtnStyle(
-                                _viewMode == ViewMode.translationOnly,
-                              ),
-                              onPressed: () {
-                                setState(
-                                  () => _viewMode = ViewMode.translationOnly,
-                                );
-                                setModalState(() {});
-                                _savePreferences();
-                              },
-                              child: const FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text("Tanpa Pāli"),
-                              ),
-                            ),
-                          ),
-                        ],
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      const SizedBox(height: 20),
                     ],
-                    // Opsi Ukuran Font
-                    Text(
-                      "Ukuran Teks",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 2. ISI SETTING (SCROLLABLE + INDICATOR)
+                  Flexible(
+                    fit: FlexFit.loose,
+                    // ✅ WRAP PAKE SCROLLBAR BIAR KELIATAN BISA DI-SCROLL
+                    child: Scrollbar(
+                      thumbVisibility:
+                          true, // 🔥 Ini kuncinya: Biar scrollbar selalu kelihatan
+                      thickness: 6, // Ketebalan scrollbar
+                      radius: const Radius.circular(10), // Biar bunder
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        // Kasih padding kanan dikit biar konten gak ketutupan scrollbar
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // --- TEMA BACA ---
+                            Text(
+                              "Tema Baca",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.light,
+                                    Colors.white,
+                                    Colors.black,
+                                    "Terang",
+                                    () => setModalState(() {}),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.light2,
+                                    const Color(0xFFFAFAFA),
+                                    const Color(0xFF424242),
+                                    "Terang 2",
+                                    () => setModalState(() {}),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.sepia,
+                                    const Color(0xFFF4ECD8),
+                                    const Color(0xFF5D4037),
+                                    "Sepia",
+                                    () => setModalState(() {}),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.dark,
+                                    const Color(0xFF212121),
+                                    Colors.white,
+                                    "Gelap",
+                                    () => setModalState(() {}),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  _buildThemeOption(
+                                    context,
+                                    ReaderTheme.dark2,
+                                    const Color(0xFF212121),
+                                    const Color(0xFFB0BEC5),
+                                    "Gelap 2",
+                                    () => setModalState(() {}),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // --- MODE BACA (Segmented Only) ---
+                            if (isSegmented && widget.lang != "pli") ...[
+                              Text(
+                                "Mode Baca",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      style: getBtnStyle(
+                                        _viewMode == ViewMode.lineByLine,
+                                      ),
+                                      onPressed: () {
+                                        setState(
+                                          () => _viewMode = ViewMode.lineByLine,
+                                        );
+                                        setModalState(() {});
+                                        _savePreferences();
+                                      },
+                                      child: const FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text("Atas-Bawah"),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      style: getBtnStyle(
+                                        _viewMode == ViewMode.sideBySide,
+                                      ),
+                                      onPressed: () {
+                                        setState(
+                                          () => _viewMode = ViewMode.sideBySide,
+                                        );
+                                        setModalState(() {});
+                                        _savePreferences();
+                                      },
+                                      child: const FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text("Kiri-Kanan"),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      style: getBtnStyle(
+                                        _viewMode == ViewMode.translationOnly,
+                                      ),
+                                      onPressed: () {
+                                        setState(
+                                          () => _viewMode =
+                                              ViewMode.translationOnly,
+                                        );
+                                        setModalState(() {});
+                                        _savePreferences();
+                                      },
+                                      child: const FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text("Tanpa Pāli"),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+
+                            // --- UKURAN TEKS ---
+                            Text(
+                              "Ukuran Teks",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: getBtnStyle(false),
+                                    icon: const Icon(Icons.remove, size: 18),
+                                    label: const Text("Kecil"),
+                                    onPressed: () {
+                                      setState(
+                                        () => _fontSize = (_fontSize - 2).clamp(
+                                          12.0,
+                                          30.0,
+                                        ),
+                                      );
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: getBtnStyle(false),
+                                    icon: const Icon(Icons.refresh, size: 18),
+                                    label: const Text("Reset"),
+                                    onPressed: () {
+                                      setState(() => _fontSize = 16.0);
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: getBtnStyle(false),
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text("Besar"),
+                                    onPressed: () {
+                                      setState(
+                                        () => _fontSize = (_fontSize + 2).clamp(
+                                          12.0,
+                                          30.0,
+                                        ),
+                                      );
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+
+                            // --- JARAK SISI (PADDING) ---
+                            Text(
+                              "Jarak Sisi (Padding)",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: getBtnStyle(false),
+                                    icon: const Icon(Icons.remove, size: 18),
+                                    label: const Text("Sempit"),
+                                    onPressed: () {
+                                      setState(
+                                        () => _horizontalPadding =
+                                            (_horizontalPadding - 8).clamp(
+                                              0.0,
+                                              128.0,
+                                            ),
+                                      );
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: getBtnStyle(false),
+                                    icon: const Icon(Icons.refresh, size: 18),
+                                    label: const Text("Reset"),
+                                    onPressed: () {
+                                      setState(() => _horizontalPadding = 16.0);
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: getBtnStyle(false),
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text("Lebar"),
+                                    onPressed: () {
+                                      setState(
+                                        () => _horizontalPadding =
+                                            (_horizontalPadding + 8).clamp(
+                                              0.0,
+                                              128.0,
+                                            ),
+                                      );
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: getBtnStyle(false),
-                            icon: const Icon(Icons.remove, size: 18),
-                            label: const Text("Kecil"),
-                            onPressed: () {
-                              setState(
-                                () => _fontSize = (_fontSize - 2).clamp(
-                                  12.0,
-                                  30.0,
-                                ),
-                              );
-                              _savePreferences();
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: getBtnStyle(false),
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text("Reset"),
-                            onPressed: () {
-                              setState(() => _fontSize = 16.0);
-                              _savePreferences();
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: getBtnStyle(false),
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text("Besar"),
-                            onPressed: () {
-                              setState(
-                                () => _fontSize = (_fontSize + 2).clamp(
-                                  12.0,
-                                  30.0,
-                                ),
-                              );
-                              _savePreferences();
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },

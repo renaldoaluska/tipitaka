@@ -27,7 +27,7 @@ class Suttaplex extends StatefulWidget {
     required this.uid,
     this.onSelect,
     this.initialData,
-    this.sourceMode = "sutta_detail", // ✅ TAMBAH INI (default dari book button)
+    this.sourceMode = "sutta_detail",
   });
   @override
   State<Suttaplex> createState() => _SuttaplexState();
@@ -42,7 +42,8 @@ class _SuttaplexState extends State<Suttaplex> {
 
   List<Map<String, dynamic>> _extraTranslations = [];
 
-  String? _errorType; // "network", "not_found", atau null
+  // ✅ ERROR TYPE DITAMBAH: "server_error"
+  String? _errorType; // "network", "not_found", "server_error", atau null
 
   static const List<String> priorityLangs = ["pli", "id", "en"];
 
@@ -77,8 +78,11 @@ class _SuttaplexState extends State<Suttaplex> {
               onSubmitted: (_) {
                 Navigator.pop(ctx, controller.text.trim());
               },
-              maxLength: 100, // 🔥 MAX 100 KARAKTER
+              maxLength: 100,
               maxLines: 3,
+              scrollPadding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              ),
               decoration: const InputDecoration(
                 hintText: "Contoh: Favorit saya... (atau kosongkan)",
                 border: OutlineInputBorder(),
@@ -88,7 +92,7 @@ class _SuttaplexState extends State<Suttaplex> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, null), // Cancel
+            onPressed: () => Navigator.pop(ctx, null),
             child: const Text("Batal"),
           ),
           FilledButton(
@@ -100,7 +104,6 @@ class _SuttaplexState extends State<Suttaplex> {
     );
   }
 
-  // ✅ Process translations: filter & sort (zero data manipulation)
   ({List<Map<String, dynamic>> filtered, List<Map<String, dynamic>> extra})
   _processTranslations(List<Map<String, dynamic>> translations) {
     final filtered = translations
@@ -123,12 +126,6 @@ class _SuttaplexState extends State<Suttaplex> {
   void _setupSuttaFromData(dynamic data) {
     final suttaplexData = (data is List && data.isNotEmpty) ? data[0] : data;
 
-    debugPrint('>>> suttaplexData resolved: $suttaplexData');
-    debugPrint(
-      '>>> raw translations: ${suttaplexData?["translations"]} (${suttaplexData?["translations"]?.runtimeType})',
-    );
-
-    // 🔥 CEK: Data benar-benar kosong/null (not found)
     if (suttaplexData == null || suttaplexData is! Map) {
       setState(() {
         _sutta = null;
@@ -138,7 +135,6 @@ class _SuttaplexState extends State<Suttaplex> {
       return;
     }
 
-    // parsing translations lebih aman
     final translations = <Map<String, dynamic>>[];
     final rawTrans = suttaplexData["translations"];
     if (rawTrans is List) {
@@ -149,12 +145,10 @@ class _SuttaplexState extends State<Suttaplex> {
       }
     }
 
-    // 📥 CEK: Kalau translations kosong DAN tidak ada title, anggap not found
     final hasTitle =
         suttaplexData["translated_title"] != null ||
         suttaplexData["original_title"] != null;
 
-    // 📥 CEK: Ada minimal 1 translasi yang valid (tidak disabled)
     final hasValidTranslation = translations.any((t) => t["disabled"] != true);
 
     if (!hasTitle && translations.isEmpty) {
@@ -166,7 +160,6 @@ class _SuttaplexState extends State<Suttaplex> {
       return;
     }
 
-    // 📥 TAMBAHAN: Kalau semua translasi disabled/locked (root text kosong)
     if (!hasValidTranslation) {
       setState(() {
         _sutta = null;
@@ -179,7 +172,7 @@ class _SuttaplexState extends State<Suttaplex> {
     suttaplexData["filtered_translations"] = processed.filtered;
 
     setState(() {
-      _sutta = Map<String, dynamic>.from(suttaplexData); // Cast ke Map
+      _sutta = Map<String, dynamic>.from(suttaplexData);
       _extraTranslations = processed.extra;
       _errorType = null;
       _loading = false;
@@ -198,13 +191,18 @@ class _SuttaplexState extends State<Suttaplex> {
       if (mounted) {
         setState(() {
           _loading = false;
-          // 🔥 Deteksi tipe error
-          if (e.toString().contains('SocketException') ||
-              e.toString().contains('Failed host lookup') ||
-              e.toString().contains('Network is unreachable')) {
-            _errorType = "network";
+          final errString = e.toString().toLowerCase();
+
+          // 🔥 LOGIC ERROR HANDLING YANG LEBIH CERDAS
+          if (errString.contains('socket') ||
+              errString.contains('lookup') ||
+              errString.contains('unreachable')) {
+            _errorType = "network"; // Internet mati
+          } else if (errString.contains('404') ||
+              errString.contains('not found')) {
+            _errorType = "not_found"; // Beneran gak ketemu
           } else {
-            _errorType = "not_found";
+            _errorType = "server_error"; // Server bengek / error lain
           }
         });
       }
@@ -212,7 +210,6 @@ class _SuttaplexState extends State<Suttaplex> {
   }
 
   Widget lockIcon() {
-    // ✅ Background icon dinamis (terang di light mode, gelap di dark mode)
     final bgColor = Theme.of(context).brightness == Brightness.dark
         ? Colors.grey[800]
         : Colors.grey[100];
@@ -227,35 +224,8 @@ class _SuttaplexState extends State<Suttaplex> {
     );
   }
 
-  Text lockedText(String text, {FontWeight? weight}) {
-    return Text(
-      text,
-      style: TextStyle(color: kLockedColor, fontWeight: weight),
-    );
-  }
-
-  Widget buildTag(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          // ✅ Pastikan teks tag kelihatan di dark mode
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
-    );
-  }
-
   Widget buildBadges(Map<String, dynamic> t) {
     final List<Widget> badges = [];
-
-    // ✅ Background badge dinamis
     final badgeBgColor = Theme.of(context).brightness == Brightness.dark
         ? Colors.grey[800]
         : Colors.grey[100];
@@ -268,7 +238,7 @@ class _SuttaplexState extends State<Suttaplex> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: badgeBgColor, // ✅ Ganti
+            color: badgeBgColor,
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
@@ -283,7 +253,7 @@ class _SuttaplexState extends State<Suttaplex> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: badgeBgColor, // ✅ Ganti
+            color: badgeBgColor,
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
@@ -298,7 +268,7 @@ class _SuttaplexState extends State<Suttaplex> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: badgeBgColor, // ✅ Ganti
+            color: badgeBgColor,
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
@@ -314,7 +284,6 @@ class _SuttaplexState extends State<Suttaplex> {
   }
 
   Widget buildTranslationItem(Map<String, dynamic> t) {
-    // ✅ Setup Warna Item List (ini yang bikin ondel-ondel kalau salah)
     final cardColor = Theme.of(context).colorScheme.surface;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -332,7 +301,7 @@ class _SuttaplexState extends State<Suttaplex> {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: cardColor, // ✅ Jangan Colors.white
+      color: cardColor,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: disabled || _fetchingText
@@ -359,13 +328,10 @@ class _SuttaplexState extends State<Suttaplex> {
                   if (!mounted) return;
 
                   if (widget.onSelect != null) {
-                    // Mode: Callback (ganti versi dari SuttaDetail)
                     widget.onSelect!(targetUid, lang, safeAuthorUid, textData);
                     Navigator.pop(context);
                   } else {
-                    // Mode: Buka SuttaDetail baru
                     if (widget.sourceMode == "sutta_detail") {
-                      // ✅ Dari SuttaDetail → REPLACE (cegah dobel screen)
                       Navigator.of(
                         context,
                         rootNavigator: true,
@@ -375,15 +341,11 @@ class _SuttaplexState extends State<Suttaplex> {
                             uid: targetUid,
                             lang: lang,
                             textData: textData,
-                            entryPoint:
-                                null, // Gak ada entry point (dari SuttaDetail sendiri)
+                            entryPoint: null,
                           ),
                         ),
                       );
                     } else {
-                      // 🔥 FIX: Tutup modal Suttaplex dulu, baru push SuttaDetail
-                      //Navigator.pop(context); // ✅ Tutup modal bottomsheet
-                      // 1. Tambah 'await'. Ini bikin Suttaplex "nunggu" sampai SuttaDetail ditutup.
                       await Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
                           builder: (_) => SuttaDetail(
@@ -395,8 +357,6 @@ class _SuttaplexState extends State<Suttaplex> {
                         ),
                       );
 
-                      // 2. Begitu SuttaDetail ditutup (kode lanjut jalan ke sini),
-                      // panggil setState buat refresh tampilan Suttaplex (termasuk ikon bookmark).
                       if (mounted) {
                         setState(() {});
                       }
@@ -406,7 +366,6 @@ class _SuttaplexState extends State<Suttaplex> {
                   debugPrint("Error loading sutta: $e");
                   if (!mounted) return;
 
-                  // 🔥 Deteksi tipe error
                   String errorMessage;
                   if (e.toString().contains('SocketException') ||
                       e.toString().contains('Failed host lookup') ||
@@ -441,7 +400,6 @@ class _SuttaplexState extends State<Suttaplex> {
                       label,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        // ✅ Warna teks label dinamis
                         color: disabled ? kLockedColor : textColor,
                       ),
                     ),
@@ -449,7 +407,6 @@ class _SuttaplexState extends State<Suttaplex> {
                       authorWithYear,
                       style: TextStyle(
                         fontSize: 13,
-                        // ✅ Warna teks author dinamis
                         color: disabled ? kLockedColor : subTextColor,
                       ),
                     ),
@@ -475,47 +432,9 @@ class _SuttaplexState extends State<Suttaplex> {
     );
   }
 
-  Widget lockedSectionLang(String lang, {String subtitle = "Belum tersedia"}) {
-    final label = lang == "pli" ? "Pāli" : "Bahasa Indonesia";
-    // ✅ Ambil warna card dinamis
-    final cardColor = Theme.of(context).colorScheme.surface;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: cardColor, // ✅ Jangan Colors.white
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: kLockedColor,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 13, color: kLockedColor),
-                  ),
-                ],
-              ),
-            ),
-            lockIcon(),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget lockedSectionGroup(String title, List<String> langs) {
-    // ✅ Judul group perlu warna dinamis
     final textColor = Theme.of(context).colorScheme.onSurface;
+    final cardColor = Theme.of(context).colorScheme.surface;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,27 +444,170 @@ class _SuttaplexState extends State<Suttaplex> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: textColor, // ✅ Ganti default
+            color: textColor,
           ),
         ),
         const SizedBox(height: 8),
-        ...langs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final lang = entry.value;
-          final isLast = index == langs.length - 1;
-
+        ...langs.map((lang) {
+          final label = lang == "pli" ? "Pāli" : "Bahasa Indonesia";
           return Padding(
-            padding: EdgeInsets.only(bottom: isLast ? 8 : 4),
-            child: lockedSectionLang(lang),
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Card(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              color: cardColor,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: kLockedColor,
+                            ),
+                          ),
+                          const Text(
+                            "Belum tersedia",
+                            style: TextStyle(fontSize: 13, color: kLockedColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                    lockIcon(),
+                  ],
+                ),
+              ),
+            ),
           );
         }),
       ],
     );
   }
 
+  // ✅ HELPER UNTUK KONTEN ERROR BIAR GAK DUPLIKAT KODE
+  Widget _buildErrorContent() {
+    String title;
+    IconData icon;
+    List<InlineSpan> details;
+    bool showRetry = false;
+
+    if (_errorType == "network") {
+      title = "Tidak Ada Koneksi";
+      icon = Icons.wifi_off_rounded;
+      showRetry = true;
+      details = [
+        const TextSpan(text: "Mohon periksa koneksi internet Anda\n\n"),
+        const TextSpan(
+          text:
+              "Untuk menghemat ruang penyimpanan, data Tipiṭaka (1 GB+) tidak tersimpan secara offline.\n\n",
+        ),
+        TextSpan(
+          text: "Fitur offline tersedia:\n",
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.9),
+          ),
+        ),
+        TextSpan(
+          text:
+              "Paritta • Pendahuluan Tematik • Panduan Uposatha\nAbhidhammattha-Saṅgaha • Timer Meditasi",
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+          ),
+        ),
+      ];
+    } else if (_errorType == "not_found") {
+      title = "Kode Tidak Ditemukan";
+      icon = Icons.search_off_rounded;
+      details = [
+        TextSpan(
+          text:
+              "Kode \"${widget.uid}\" tidak ditemukan.\nPeriksa ejaan atau coba kode lain.\n\n",
+        ),
+        const TextSpan(
+          text:
+              "Mungkin kode yang dicari adalah bagian dari suatu range\n(mis. 'Bi Pj 2' dalam 'Bi Pj 1-4').",
+        ),
+      ];
+    } else {
+      // ✅ SERVER ERROR / LAINNYA
+      title = "Gangguan Teknis";
+      icon = Icons.dns_rounded;
+      showRetry = true;
+      details = [
+        const TextSpan(
+          text: "Terjadi kesalahan saat menghubungi server SuttaCentral.\n",
+        ),
+        const TextSpan(text: "Silakan coba lagi beberapa saat lagi."),
+      ];
+    }
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+                children: details,
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (showRetry)
+              FilledButton.icon(
+                onPressed: () {
+                  setState(() => _loading = true);
+                  _fetchSuttaplex();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text("Coba Lagi"),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ✅ SETUP WARNA UTAMA DISINI
     final cardColor = Theme.of(context).colorScheme.surface;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subTextColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -568,8 +630,7 @@ class _SuttaplexState extends State<Suttaplex> {
         ),
         title: null,
         actions: [
-          // 🔥 HIDE kalau _sutta kosong (error state)
-          if (_sutta != null) // 👈 TAMBAH INI
+          if (_sutta != null)
             StatefulBuilder(
               builder: (context, setBookmarkState) {
                 return FutureBuilder<bool>(
@@ -611,9 +672,6 @@ class _SuttaplexState extends State<Suttaplex> {
                                       _sutta?["translated_title"] ??
                                       widget.uid,
                                   'acronym': _sutta?["acronym"] ?? "",
-                                  //'acronym': normalizeNikayaAcronym(
-                                  // _sutta?["acronym"] ?? "",
-                                  // ),
                                   'note': note,
                                 };
 
@@ -647,114 +705,21 @@ class _SuttaplexState extends State<Suttaplex> {
       ),
       body: Stack(
         children: [
-          // Body utama
           _loading
               ? const Center(child: CircularProgressIndicator())
               : _sutta == null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _errorType == "network"
-                              ? Icons.wifi_off_rounded
-                              : Icons.search_off_rounded,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _errorType == "network"
-                              ? "Tidak Ada Koneksi"
-                              : "Kode Tidak Ditemukan",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        // ✅ PAKAI RichText BIAR BISA ATUR STYLE PER BAGIAN
-                        RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: subTextColor,
-                              height: 1.5,
-                            ),
-                            children: _errorType == "network"
-                                ? [
-                                    const TextSpan(
-                                      text:
-                                          "Mohon periksa koneksi internet Anda\n\n",
-                                    ),
-                                    const TextSpan(
-                                      text:
-                                          "Untuk menghemat ruang penyimpanan, data Tipiṭaka (1 GB+) tidak tersimpan secara offline.\n\n",
-                                    ),
-                                    TextSpan(
-                                      text: "Fitur offline tersedia:\n",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: textColor.withValues(alpha: 0.9),
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text:
-                                          "Paritta • Pendahuluan Tematik • Panduan Uposatha\nAbhidhammattha-Saṅgaha • Timer Meditasi",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: subTextColor.withValues(
-                                          alpha: 0.8,
-                                        ),
-                                      ),
-                                    ),
-                                  ]
-                                : [
-                                    TextSpan(
-                                      text:
-                                          "Kode \"${widget.uid}\" tidak ditemukan.\nPeriksa ejaan atau coba kode lain.\n\n",
-                                    ),
-                                    const TextSpan(
-                                      text:
-                                          "Mungkin kode yang dicari adalah bagian dari suatu range\n(mis. 'Bi Pj 2' dalam 'Bi Pj 1-4').",
-                                    ),
-                                  ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        if (_errorType == "network")
-                          FilledButton.icon(
-                            onPressed: () {
-                              setState(() => _loading = true);
-                              _fetchSuttaplex();
-                            },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text("Coba Lagi"),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.deepOrange,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                )
+              ? Center(child: _buildErrorContent()) // ✅ PANGGIL HELPER BARU
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // const SizedBox(height: 6),
                       Text(
                         titleStr,
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: textColor, // ✅ Judul
+                          color: textColor,
                         ),
                       ),
                       if (paliTitle != null) ...[
@@ -785,8 +750,6 @@ class _SuttaplexState extends State<Suttaplex> {
                           ),
                         ),
                       ],
-
-                      // ✅ HANYA render Html kalau blurb ada isinya
                       if (blurb.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Html(
@@ -805,15 +768,9 @@ class _SuttaplexState extends State<Suttaplex> {
                           },
                         ),
                       ],
-
-                      // ✅ Divider dengan jarak yang lebih rapi
                       Opacity(
                         opacity: 0.15,
-                        child: Divider(
-                          height: blurb.isNotEmpty
-                              ? 32
-                              : 24, // Lebih rapat kalau gaada blurb
-                        ),
+                        child: Divider(height: blurb.isNotEmpty ? 32 : 24),
                       ),
 
                       Text(
@@ -850,20 +807,12 @@ class _SuttaplexState extends State<Suttaplex> {
                       if (_showAllTranslations)
                         buildTranslationList(_extraTranslations),
 
-                      Opacity(
-                        opacity:
-                            0.15, // nilai antara 0.0 (transparan) sampai 1.0 (solid)
-                        child: const Divider(height: 32),
-                      ),
+                      Opacity(opacity: 0.15, child: const Divider(height: 32)),
                       lockedSectionGroup("Tafsiran (Aṭṭhakathā)", [
                         "pli",
                         "id",
                       ]),
-                      Opacity(
-                        opacity:
-                            0.15, // nilai antara 0.0 (transparan) sampai 1.0 (solid)
-                        child: const Divider(height: 32),
-                      ),
+                      Opacity(opacity: 0.15, child: const Divider(height: 32)),
                       lockedSectionGroup("Subtafsiran (Ṭīkā)", ["pli", "id"]),
 
                       const SizedBox(height: 4),
@@ -899,12 +848,9 @@ class _SuttaplexState extends State<Suttaplex> {
                     ],
                   ),
                 ),
-
-          // ✅ Overlay loading pas fetch text
           if (_fetchingText)
             Container(
-              color:
-                  Colors.black54, // Overlay tetap gelap transparan biar fokus
+              color: Colors.black54,
               child: const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
