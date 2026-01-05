@@ -140,7 +140,12 @@ class _SuttaplexState extends State<Suttaplex> {
     if (rawTrans is List) {
       for (var item in rawTrans) {
         if (item is Map) {
-          translations.add(Map<String, dynamic>.from(item));
+          try {
+            translations.add(Map<String, dynamic>.from(item));
+          } catch (e) {
+            debugPrint("⚠️ Error parsing translation item: $e");
+            // Skip translation yang error, lanjut
+          }
         }
       }
     }

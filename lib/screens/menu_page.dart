@@ -48,9 +48,13 @@ class _MenuPageState extends State<MenuPage> {
 
       List<MenuItem> items = [];
       for (var child in children) {
-        //TAMBAH
         if (child["uid"] != null && child["uid"].toString().isNotEmpty) {
-          items.add(MenuItem.fromJson(child));
+          try {
+            items.add(MenuItem.fromJson(child));
+          } catch (e) {
+            debugPrint("⚠️ Error parsing item ${child["uid"]}: $e");
+            // Skip item yang error, lanjut
+          }
         }
       }
 
@@ -281,7 +285,7 @@ class _MenuPageState extends State<MenuPage> {
     final rawBlurb = _root?["blurb"] ?? "";
     final previewBlurb = rawBlurb.replaceAll(RegExp(r'<[^>]*>'), '').trim();
     final hasBlurb = previewBlurb.isNotEmpty;
-    final isLong = previewBlurb.length > 60;
+    final isLong = previewBlurb.length > 80;
     final bool isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
 
@@ -580,7 +584,7 @@ class _MenuPageState extends State<MenuPage> {
                                           children: [
                                             TextSpan(
                                               text: isLong
-                                                  ? "${previewBlurb.substring(0, 80)}... "
+                                                  ? "${previewBlurb.substring(0, 80)}... " //  Karena isLong udah jamin > 80
                                                   : previewBlurb,
                                             ),
                                             if (isLong)
