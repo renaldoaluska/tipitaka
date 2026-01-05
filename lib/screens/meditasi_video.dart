@@ -1398,6 +1398,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Reset System UI dulu pas buka player
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _controller = YoutubePlayerController(
       initialVideoId: widget.videoId,
       flags: const YoutubePlayerFlags(
@@ -1440,12 +1443,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     _controller.removeListener(_listener);
     _controller.dispose();
-    // SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+
+    // Reset ke portrait dan system UI normal
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
+
     super.dispose();
   }
 
@@ -1461,10 +1466,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       onExitFullScreen: () {
         // ✅ 1. Paksa Portrait saat keluar fullscreen
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-        SystemChrome.setEnabledSystemUIMode(
-          SystemUiMode.edgeToEdge,
-          overlays: SystemUiOverlay.values,
-        );
+        // SystemChrome.setEnabledSystemUIMode(
+        //  SystemUiMode.edgeToEdge,
+        // overlays: SystemUiOverlay.values,
+        //);
       },
       // ✅ 2. Player langsung YoutubePlayer (Jangan dibungkus Stack disini)
       player: YoutubePlayer(

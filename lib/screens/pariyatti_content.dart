@@ -131,7 +131,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
     },
     {
       "acronym": "Bv",
-      "name": "Buddhavaṃsa",
+      "name": "Buddhavaṁsa",
       "desc": "Wangsa Buddha",
       "range": "Bv 1–29",
     },

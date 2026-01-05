@@ -59,15 +59,28 @@ class Campaign {
   static String _formatRupiah(int amount) {
     if (amount >= 1000000000) {
       double m = amount / 1000000000;
-      // Munculkan desimal hanya jika bukan angka bulat
-      return 'Rp ${m.toStringAsFixed(m == m.toInt() ? 0 : 2)}M';
+      if (m == m.toInt()) {
+        return 'Rp ${m.toInt()}M';
+      }
+      // Truncate ke 2 desimal (potong, bukan bulatkan)
+      double truncated = (m * 100).truncate() / 100;
+      return 'Rp ${truncated.toStringAsFixed(2)}M';
     } else if (amount >= 1000000) {
       double jt = amount / 1000000;
-      return 'Rp ${jt.toStringAsFixed(jt == jt.toInt() ? 0 : 2)}jt';
+      if (jt == jt.toInt()) {
+        return 'Rp ${jt.toInt()}jt';
+      }
+      // Truncate ke 2 desimal (potong, bukan bulatkan)
+      double truncated = (jt * 100).truncate() / 100;
+      return 'Rp ${truncated.toStringAsFixed(2)}jt';
     } else if (amount >= 1000) {
       double rb = amount / 1000;
-      // Ini perbaikan buat 19.600 tadi -> jadi 19.6rb
-      return 'Rp ${rb.toStringAsFixed(rb == rb.toInt() ? 0 : 1)}rb';
+      if (rb == rb.toInt()) {
+        return 'Rp ${rb.toInt()}rb';
+      }
+      // Truncate ke 1 desimal (potong, bukan bulatkan)
+      double truncated = (rb * 10).truncate() / 10;
+      return 'Rp ${truncated.toStringAsFixed(1)}rb';
     }
     return 'Rp $amount';
   }

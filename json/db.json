@@ -280,5 +280,55 @@
     "ParittaAradhana": "paritta",
     "DhammadesanaAradhana": "dhammadesana",
     "Ettavatatiadipattidana": "ettavata"
+  },
+  "ayat": [
+  {
+    "kitab": "Dhammapada 183",
+    "uid": "dhp183",
+    "pali": "Sabbapāpassa akaraṇaṃ, kusalassa upasampadā; Sacittapariyodapanaṃ, etaṃ buddhāna sāsanaṃ.",
+    "indo": "Tidak berbuat kejahatan, mengembangkan kebajikan, memurnikan pikiran—inilah ajaran para Buddha."
+  },
+  {
+    "kitab": "Dhammapada 1",
+    "uid": "dhp1",
+    "pali": "Manopubbaṅgamā dhammā, manoseṭṭhā manomayā;",
+    "indo": "Pikiran adalah pelopor dari segala hal, pikiran adalah pemimpin, pikiran adalah pembentuk."
+  },
+  {
+    "kitab": "Dhammapada 223",
+    "uid": "dhp223",
+    "pali": "Akkodhena jine kodhaṃ, asādhuṃ sādhunā jine;",
+    "indo": "Kalahkan amarah dengan tidak marah, kalahkan kejahatan dengan kebaikan."
+  },
+  {
+    "kitab": "Dhammapada 103",
+    "uid": "dhp103",
+    "pali": "Yo sahassaṃ sahassena, saṅgāme mānuse jine; Ekañca jeyyamattānaṃ, sa ve saṅgāmajuttamo.",
+    "indo": "Walaupun seseorang dapat menaklukkan ribuan musuh, dalam ribuan kali pertempuran; Namun sesungguhnya penakluk terbesar, adalah orang yang dapat menaklukkan dirinya sendiri."
+  },
+  {
+    "kitab": "Dhammapada 197",
+    "uid": "dhp197",
+    "pali": "Susukhaṃ vata jīvāma, verinesu averino; Verinesu manussesu, viharāma averino.",
+    "indo": "Sungguh bahagia kita hidup, tanpa permusuhan di antara mereka yang bermusuhan."
+  },
+  {
+    "kitab": "Dhammapada 204",
+    "uid": "dhp204",
+    "pali": "Ārogyaparamā lābhā, santuṭṭhiparamaṃ dhanaṃ; Vissāsaparamā ñātī, nibbānaparamaṃ sukhaṃ.",
+    "indo": "Kesehatan adalah keuntungan tertinggi, kepuasan adalah kekayaan tertinggi, kepercayaan adalah kerabat terbaik, Nibbana adalah kebahagiaan tertinggi."
+  },
+  {
+    "kitab": "Dhammapada 290",
+    "uid": "dhp290",
+    "pali": "Mattāsukhapariccāgā, passe ce vipulaṃ sukhaṃ; Caje mattāsukhaṃ dhīro, sampassaṃ vipulaṃ sukhaṃ.",
+    "indo": "Jika dengan melepaskan kebahagiaan kecil, seseorang dapat melihat kebahagiaan yang lebih besar, maka orang bijak akan melepaskan kebahagiaan kecil itu demi kebahagiaan yang lebih besar."
+  },
+  {
+    "kitab": "Dhammapada 273",
+    "uid": "dhp273",
+    "pali": "Maggānaṭṭhaṅgiko seṭṭho, saccānaṃ caturo padā; Virāgo seṭṭho dhammānaṃ, dvipadānañca cakkhumā.",
+    "indo": "Yang terbaik dari semua jalan adalah Jalan Mulia Berunsur Delapan. Yang terbaik dari semua kebenaran adalah Empat Kebenaran Mulia. Tanpa nafsu adalah yang terbaik dari semua dhamma. Yang terbaik dari makhluk berkaki dua adalah mereka yang memiliki mata kebijaksanaan."
   }
+]
 }
