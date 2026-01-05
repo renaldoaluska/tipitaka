@@ -2,8 +2,8 @@ name: tipitaka
 description: "Aplikasi myDhamma: Tipitaka Indonesia digital, referensi lengkap paritta dan sutta."
 publish_to: 'none' 
 
-# Versi Production (Code 63)
-version: 4.0.1+64
+# Versi Production
+version: 4.0.2+65
 
 environment:
   sdk: ^3.10.4

@@ -583,7 +583,7 @@ class _TematikPageState extends State<TematikPage> {
               title: 'Prakata',
               chapterFiles: DaftarIsi.tem0_1,
               initialIndex: 0,
-              tematikChapterIndex: 1,
+              tematikChapterIndex: 0,
             ),
           ),
         );
@@ -595,7 +595,7 @@ class _TematikPageState extends State<TematikPage> {
               title: 'Pendahuluan Umum',
               chapterFiles: DaftarIsi.tem0_2,
               initialIndex: 0,
-              tematikChapterIndex: 1,
+              tematikChapterIndex: 0,
             ),
           ),
         );

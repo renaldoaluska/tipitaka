@@ -1803,7 +1803,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             ),
           ],
 
-          if (widget.tematikChapterIndex != null)
+          if (widget.tematikChapterIndex != null &&
+              widget.tematikChapterIndex != 0)
             buildBtn(
               icon: Icons.library_books_outlined,
               onTap: _showTematikListModal,
