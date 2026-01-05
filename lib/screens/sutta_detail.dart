@@ -2653,7 +2653,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
                               }
 
                               // ✅ Triple check before scroll
-                              if (!mounted || !_itemScrollController.isAttached) {
+                              if (!mounted ||
+                                  !_itemScrollController.isAttached) {
                                 return;
                               }
 
