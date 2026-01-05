@@ -420,6 +420,13 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   Future<void> _loadHtmlContent() async {
+    if (widget.chapterFiles.isEmpty) {
+      setState(() {
+        _rawHtmlContent = "<p>Data bab kosong.</p>";
+        _isLoading = false;
+      });
+      return;
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -494,14 +501,16 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   void _applySearchHighlight(String query) {
     if (query.length < 2) return;
 
-    final RegExp regExp = RegExp(query, caseSensitive: false);
+    //  final RegExp regExp = RegExp(query, caseSensitive: false);
+    final RegExp regExp = RegExp(RegExp.escape(query), caseSensitive: false);
     final matches = regExp.allMatches(_rawHtmlContent);
 
     _searchKeys.clear();
     int matchCounter = 0;
 
     String highlightedHtml = _rawHtmlContent.replaceAllMapped(
-      RegExp('($query)', caseSensitive: false),
+      // RegExp('($query)', caseSensitive: false),
+      RegExp('(${RegExp.escape(query)})', caseSensitive: false),
       (match) {
         final index = matchCounter++;
         return '<mark-highlight index="$index">${match.group(0)}</mark-highlight>';
@@ -770,6 +779,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     return;
                                   }
 
+                                  // Di dalam TextField onChanged:
                                   _debounce = Timer(
                                     const Duration(milliseconds: 500),
                                     () {
@@ -777,7 +787,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                       if (val.trim().length >= 2) {
                                         _performSearch(val);
                                       }
-                                      if (mounted) setSheetState(() {});
+                                      // ✅ FIX: Bungkus try-catch agar tidak crash jika modal sudah tutup
+                                      try {
+                                        setSheetState(() {});
+                                      } catch (_) {}
                                     },
                                   );
                                 },
@@ -1310,7 +1323,9 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                       final indexStr =
                                           extensionContext.attributes['index'];
                                       if (indexStr != null) {
-                                        final int index = int.parse(indexStr);
+                                        final int index =
+                                            int.tryParse(indexStr) ?? 0;
+                                        // final int index = int.parse(indexStr);
                                         final key = GlobalKey();
                                         _searchKeys[index] = key;
 
@@ -1560,7 +1575,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   void _handleLinkTap(String url) {
     for (int i = 0; i < widget.chapterFiles.length; i++) {
       final fileName = widget.chapterFiles[i].split('/').last;
-      if (url.contains(fileName)) {
+      // if (url.contains(fileName)) {
+      if (url.endsWith(fileName) || url == fileName) {
         _goToIndex(i);
         return;
       }
