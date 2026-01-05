@@ -58,11 +58,16 @@ class Campaign {
 
   static String _formatRupiah(int amount) {
     if (amount >= 1000000000) {
-      return 'Rp ${(amount / 1000000000).toStringAsFixed(1)}M';
+      double m = amount / 1000000000;
+      // Munculkan desimal hanya jika bukan angka bulat
+      return 'Rp ${m.toStringAsFixed(m == m.toInt() ? 0 : 2)}M';
     } else if (amount >= 1000000) {
-      return 'Rp ${(amount / 1000000).toStringAsFixed(1)}jt';
+      double jt = amount / 1000000;
+      return 'Rp ${jt.toStringAsFixed(jt == jt.toInt() ? 0 : 2)}jt';
     } else if (amount >= 1000) {
-      return 'Rp ${(amount / 1000).toStringAsFixed(0)}rb';
+      double rb = amount / 1000;
+      // Ini perbaikan buat 19.600 tadi -> jadi 19.6rb
+      return 'Rp ${rb.toStringAsFixed(rb == rb.toInt() ? 0 : 1)}rb';
     }
     return 'Rp $amount';
   }
