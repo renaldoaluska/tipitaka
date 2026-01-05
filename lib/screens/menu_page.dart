@@ -22,7 +22,7 @@ class _MenuPageState extends State<MenuPage> {
   List<MenuItem> _items = [];
   bool _loading = true;
   String _rootAcronym = "";
-  String? _errorType; // "network", "not_found", atau null
+  String? _errorType; // "network", "not_found", "server_error", atau null
 
   @override
   void initState() {
@@ -85,13 +85,18 @@ class _MenuPageState extends State<MenuPage> {
       if (mounted) {
         setState(() {
           _loading = false;
-          // 🔥 Deteksi tipe error
-          if (e.toString().contains('SocketException') ||
-              e.toString().contains('Failed host lookup') ||
-              e.toString().contains('Network is unreachable')) {
-            _errorType = "network";
+          final errString = e.toString().toLowerCase();
+
+          // 🔥 LOGIC ERROR HANDLING YANG LEBIH CERDAS
+          if (errString.contains('socket') ||
+              errString.contains('lookup') ||
+              errString.contains('unreachable')) {
+            _errorType = "network"; // Internet mati
+          } else if (errString.contains('404') ||
+              errString.contains('not found')) {
+            _errorType = "not_found"; // Beneran gak ketemu
           } else {
-            _errorType = "not_found";
+            _errorType = "server_error"; // Server bengek / error lain
           }
         });
       }
@@ -306,6 +311,8 @@ class _MenuPageState extends State<MenuPage> {
                           Icon(
                             _errorType == "network"
                                 ? Icons.wifi_off_rounded
+                                : _errorType == "server_error"
+                                ? Icons.dns_rounded
                                 : Icons.folder_off_rounded,
                             size: 64,
                             color: Colors.grey[400],
@@ -314,6 +321,8 @@ class _MenuPageState extends State<MenuPage> {
                           Text(
                             _errorType == "network"
                                 ? "Tidak Ada Koneksi"
+                                : _errorType == "server_error"
+                                ? "Gangguan Teknis"
                                 : "Data Tidak Tersedia",
                             style: TextStyle(
                               fontSize: 20,
@@ -362,6 +371,17 @@ class _MenuPageState extends State<MenuPage> {
                                         ),
                                       ),
                                     ]
+                                  : _errorType == "server_error"
+                                  ? [
+                                      const TextSpan(
+                                        text:
+                                            "Terjadi kesalahan saat menghubungi server SuttaCentral.\n",
+                                      ),
+                                      const TextSpan(
+                                        text:
+                                            "Silakan coba lagi beberapa saat lagi.",
+                                      ),
+                                    ]
                                   : [
                                       const TextSpan(
                                         text:
@@ -371,7 +391,8 @@ class _MenuPageState extends State<MenuPage> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          if (_errorType == "network")
+                          if (_errorType == "network" ||
+                              _errorType == "server_error")
                             FilledButton.icon(
                               onPressed: () {
                                 setState(() => _loading = true);
