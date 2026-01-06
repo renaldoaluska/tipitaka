@@ -6,29 +6,29 @@ const Map<String, Color> nikayaColors = {
   "MN": Color(0xFFF57C00), // oranye
   "SN": Color(0xFF388E3C), // hijau
   "AN": Color(0xFF1976D2), // biru
-  "KN": Color(0xFF7B1FA2), // ungu
+  "KN": Color(0xFFBA68C8), // ungu
 
-  "Kp": Color(0xFF7B1FA2), // ungu
-  "Dhp": Color(0xFF7B1FA2), // ungu
-  "Ud": Color(0xFF7B1FA2), // ungu
-  "Iti": Color(0xFF7B1FA2), // ungu
-  "Snp": Color(0xFF7B1FA2), // ungu
-  "Vv": Color(0xFF7B1FA2), // ungu
-  "Pv": Color(0xFF7B1FA2), // ungu
-  "Thag": Color(0xFF7B1FA2), // ungu
-  "Thig": Color(0xFF7B1FA2), // ungu
+  "Kp": Color(0xFFBA68C8), // ungu
+  "Dhp": Color(0xFFBA68C8), // ungu
+  "Ud": Color(0xFFBA68C8), // ungu
+  "Iti": Color(0xFFBA68C8), // ungu
+  "Snp": Color(0xFFBA68C8), // ungu
+  "Vv": Color(0xFFBA68C8), // ungu
+  "Pv": Color(0xFFBA68C8), // ungu
+  "Thag": Color(0xFFBA68C8), // ungu
+  "Thig": Color(0xFFBA68C8), // ungu
 
-  "Tha Ap": Color(0xFF7B1FA2), // ungu
-  "Thi Ap": Color(0xFF7B1FA2), // ungu
-  "Bv": Color(0xFF7B1FA2), // ungu
-  "Cp": Color(0xFF7B1FA2), // ungu
-  "Ja": Color(0xFF7B1FA2), // ungu
-  "Mnd": Color(0xFF7B1FA2), // ungu
-  "Cnd": Color(0xFF7B1FA2), // ungu
-  "Ps": Color(0xFF7B1FA2), // ungu
-  "Ne": Color(0xFF7B1FA2), // ungu
-  "Pe": Color(0xFF7B1FA2), // ungu
-  "Mil": Color(0xFF7B1FA2), // ungu
+  "Tha Ap": Color(0xFFBA68C8), // ungu
+  "Thi Ap": Color(0xFFBA68C8), // ungu
+  "Bv": Color(0xFFBA68C8), // ungu
+  "Cp": Color(0xFFBA68C8), // ungu
+  "Ja": Color(0xFFBA68C8), // ungu
+  "Mnd": Color(0xFFBA68C8), // ungu
+  "Cnd": Color(0xFFBA68C8), // ungu
+  "Ps": Color(0xFFBA68C8), // ungu
+  "Ne": Color(0xFFBA68C8), // ungu
+  "Pe": Color(0xFFBA68C8), // ungu
+  "Mil": Color(0xFFBA68C8), // ungu
 
   "Ds": Color(0xFF00796B),
   "Vb": Color(0xFF00796B),
@@ -38,25 +38,25 @@ const Map<String, Color> nikayaColors = {
   "Ya": Color(0xFF00796B),
   "Pat": Color(0xFF00796B),
 
-  "Kd": Color(0xFF795548),
-  "Pvr": Color(0xFF795548),
-  "Bu": Color(0xFF795548),
-  "Bi": Color(0xFF795548),
-  "Bu Pj": Color(0xFF795548),
-  "Bu Ss": Color(0xFF795548),
-  "Bu Ay": Color(0xFF795548),
-  "Bu Np": Color(0xFF795548),
-  "Bu Pc": Color(0xFF795548),
-  "Bu Pd": Color(0xFF795548),
-  "Bu Sk": Color(0xFF795548),
-  "Bu As": Color(0xFF795548),
-  "Bi Pj": Color(0xFF795548),
-  "Bi Ss": Color(0xFF795548),
-  "Bi Np": Color(0xFF795548),
-  "Bi Pc": Color(0xFF795548),
-  "Bi Pd": Color(0xFF795548),
-  "Bi Sk": Color(0xFF795548),
-  "Bi As": Color(0xFF795548),
+  "Kd": Color(0xFFA1887F),
+  "Pvr": Color(0xFFA1887F),
+  "Bu": Color(0xFFA1887F),
+  "Bi": Color(0xFFA1887F),
+  "Bu Pj": Color(0xFFA1887F),
+  "Bu Ss": Color(0xFFA1887F),
+  "Bu Ay": Color(0xFFA1887F),
+  "Bu Np": Color(0xFFA1887F),
+  "Bu Pc": Color(0xFFA1887F),
+  "Bu Pd": Color(0xFFA1887F),
+  "Bu Sk": Color(0xFFA1887F),
+  "Bu As": Color(0xFFA1887F),
+  "Bi Pj": Color(0xFFA1887F),
+  "Bi Ss": Color(0xFFA1887F),
+  "Bi Np": Color(0xFFA1887F),
+  "Bi Pc": Color(0xFFA1887F),
+  "Bi Pd": Color(0xFFA1887F),
+  "Bi Sk": Color(0xFFA1887F),
+  "Bi As": Color(0xFFA1887F),
 };
 
 /// Daftar kitab yang termasuk Khuddaka Nikāya
