@@ -1660,7 +1660,7 @@ class _HomeState extends State<Home> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      "mettā · karuṇā · muditā",
+                      "mettā · karuṇā · muditā · upekkhā",
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.white.withValues(alpha: 0.9),
