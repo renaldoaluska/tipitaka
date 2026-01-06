@@ -822,42 +822,43 @@ class _HomeState extends State<Home> {
     if (uid.startsWith("pli-tv-")) {
       if (uid.contains("bu-vb-pj")) {
         derivedAcronym = "Bu Pj";
-      } else if (uid.contains("bu-vb-ss")) {}
-      derivedAcronym = "Bu Ss";
-    } else if (uid.contains("bu-vb-ay")) {
-      derivedAcronym = "Bu Ay";
-    } else if (uid.contains("bu-vb-np")) {
-      derivedAcronym = "Bu Np";
-    } else if (uid.contains("bu-vb-pc")) {
-      derivedAcronym = "Bu Pc";
-    } else if (uid.contains("bu-vb-pd")) {
-      derivedAcronym = "Bu Pd";
-    } else if (uid.contains("bu-vb-sk")) {
-      derivedAcronym = "Bu Sk";
-    } else if (uid.contains("bu-vb-as")) {
-      derivedAcronym = "Bu As";
-    } else if (uid.contains("bi-vb-pj")) {
-      derivedAcronym = "Bi Pj";
-    } else if (uid.contains("bi-vb-ss")) {
-      derivedAcronym = "Bi Ss";
-    } else if (uid.contains("bi-vb-np")) {
-      derivedAcronym = "Bi Np";
-    } else if (uid.contains("bi-vb-pc")) {
-      derivedAcronym = "Bi Pc";
-    } else if (uid.contains("bi-vb-pd")) {
-      derivedAcronym = "Bi Pd";
-    } else if (uid.contains("bi-vb-sk")) {
-      derivedAcronym = "Bi Sk";
-    } else if (uid.contains("bi-vb-as")) {
-      derivedAcronym = "Bi As";
-    } else if (uid.contains("kd")) {
-      derivedAcronym = "Kd";
-    } else if (uid.contains("pvr")) {
-      derivedAcronym = "Pvr";
-    } else if (uid.contains("bu-pm")) {
-      derivedAcronym = "Bu";
-    } else if (uid.contains("bi-pm")) {
-      derivedAcronym = "Bi";
+      } else if (uid.contains("bu-vb-ss")) {
+        derivedAcronym = "Bu Ss";
+      } else if (uid.contains("bu-vb-ay")) {
+        derivedAcronym = "Bu Ay";
+      } else if (uid.contains("bu-vb-np")) {
+        derivedAcronym = "Bu Np";
+      } else if (uid.contains("bu-vb-pc")) {
+        derivedAcronym = "Bu Pc";
+      } else if (uid.contains("bu-vb-pd")) {
+        derivedAcronym = "Bu Pd";
+      } else if (uid.contains("bu-vb-sk")) {
+        derivedAcronym = "Bu Sk";
+      } else if (uid.contains("bu-vb-as")) {
+        derivedAcronym = "Bu As";
+      } else if (uid.contains("bi-vb-pj")) {
+        derivedAcronym = "Bi Pj";
+      } else if (uid.contains("bi-vb-ss")) {
+        derivedAcronym = "Bi Ss";
+      } else if (uid.contains("bi-vb-np")) {
+        derivedAcronym = "Bi Np";
+      } else if (uid.contains("bi-vb-pc")) {
+        derivedAcronym = "Bi Pc";
+      } else if (uid.contains("bi-vb-pd")) {
+        derivedAcronym = "Bi Pd";
+      } else if (uid.contains("bi-vb-sk")) {
+        derivedAcronym = "Bi Sk";
+      } else if (uid.contains("bi-vb-as")) {
+        derivedAcronym = "Bi As";
+      } else if (uid.contains("kd")) {
+        derivedAcronym = "Kd";
+      } else if (uid.contains("pvr")) {
+        derivedAcronym = "Pvr";
+      } else if (uid.contains("bu-pm")) {
+        derivedAcronym = "Bu";
+      } else if (uid.contains("bi-pm")) {
+        derivedAcronym = "Bi";
+      }
     }
 
     // --- FILTER 2: LOGIKA FORMAT TEXT ---

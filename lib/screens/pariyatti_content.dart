@@ -769,7 +769,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
         //    ? kitab["name"]!.replaceAll('\n', '→')
         // :
         kitab["name"]!,
-        maxLines: acronym.contains("Bu ") || acronym.contains("Bi ") ? 3 : 1,
+        maxLines: acronym.contains("Bu") || acronym.contains("Bi") ? 3 : 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontWeight: FontWeight.w600,
@@ -779,7 +779,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
       ),
       subtitle: Text(
         kitab["desc"]!,
-        maxLines: acronym.contains("Bu ") || acronym.contains("Bi ") ? 3 : 1,
+        maxLines: acronym.contains("Bu") || acronym.contains("Bi") ? 3 : 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(color: subtextColor, fontSize: 12), // ✅ Dinamis
       ),

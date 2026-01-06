@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 /// Set warna untuk tiap Nikāya
 const Map<String, Color> nikayaColors = {
-  "DN": Color(0xFFEA4E4E), // merah terang
-  "MN": Color(0xFFF57C00), // oranye
-  "SN": Color(0xFF388E3C), // hijau
-  "AN": Color(0xFF1976D2), // biru
+  "DN": Color(0xFFEF5350), // merah terang
+  "MN": Color(0xFFFF9800), // oranye
+  "SN": Color(0xFF66BB6A), // hijau
+  "AN": Color(0xFF42A5F5), // biru
   "KN": Color(0xFFBA68C8), // ungu
 
   "Kp": Color(0xFFBA68C8), // ungu
@@ -30,13 +30,13 @@ const Map<String, Color> nikayaColors = {
   "Pe": Color(0xFFBA68C8), // ungu
   "Mil": Color(0xFFBA68C8), // ungu
 
-  "Ds": Color(0xFF00796B),
-  "Vb": Color(0xFF00796B),
-  "Dt": Color(0xFF00796B),
-  "Pp": Color(0xFF00796B),
-  "Kv": Color(0xFF00796B),
-  "Ya": Color(0xFF00796B),
-  "Pat": Color(0xFF00796B),
+  "Ds": Color(0xFF4DB6AC),
+  "Vb": Color(0xFF4DB6AC),
+  "Dt": Color(0xFF4DB6AC),
+  "Pp": Color(0xFF4DB6AC),
+  "Kv": Color(0xFF4DB6AC),
+  "Ya": Color(0xFF4DB6AC),
+  "Pat": Color(0xFF4DB6AC),
 
   "Kd": Color(0xFFA1887F),
   "Pvr": Color(0xFFA1887F),

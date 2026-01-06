@@ -460,7 +460,12 @@ class _MenuPageState extends State<MenuPage> {
                                 ) {
                                   return buildMenuItem(_items[index]);
                                 }, childCount: _items.length),
-                              ),
+                              ), // Tambah spacer di bawah
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: isTabletLandscape ? 14 : 6,
+                          ), // bebas atur tinggi
+                        ),
                       ],
                     ),
 
