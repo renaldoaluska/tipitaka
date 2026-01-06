@@ -20,7 +20,7 @@ class TematikData {
     {"title": "Jalan Pembebasan", "desc": "Memasuki jalan menuju nibbāna"},
     {"title": "Penguasaan Pikiran", "desc": "Meditasi dan latihan pikiran"},
     {"title": "Cahaya Kebijaksanaan", "desc": "Mengembangkan paññā"},
-    {"title": "Tingkat Pencerahan", "desc": "Empat tingkat orang mulia"},
+    {"title": "Tataran Realisasi", "desc": "Empat tingkat orang mulia"},
   ];
 
   static Map<String, dynamic> getChapterDetail(int chapterIndex) {

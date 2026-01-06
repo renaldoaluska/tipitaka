@@ -244,6 +244,71 @@ class _SuttaDetailState extends State<SuttaDetail> {
     await prefs.setInt('reader_theme_index', _readerTheme.index);
   }
 
+  // BEST PRACTICE PARSER
+  // Mengubah String HTML sederhana menjadi List<InlineSpan>
+  List<InlineSpan> _parseHtmlToSpans(String htmlText, TextStyle baseStyle) {
+    if (htmlText.isEmpty) return [];
+
+    final unescape = HtmlUnescape();
+    final spans = <InlineSpan>[];
+
+    // Regex untuk menangkap tag <em>, <i>, <b>, <strong> case insensitive
+    // Group 1: Tag name (em/i/b)
+    // Group 2: Isi teks di dalam tag
+    // final regex = RegExp(r'<(em|i|b|strong)>(.*?)<\/\1>', caseSensitive: false);
+    final regex = RegExp(
+      r'<(em|i|b|strong)[^>]*>(.*?)<\/\1>',
+      caseSensitive: false,
+      dotAll: true,
+    );
+
+    int lastIndex = 0;
+
+    // Loop setiap kali ketemu tag
+    for (final match in regex.allMatches(htmlText)) {
+      // 1. Ambil teks BIASA sebelum tag ditemukan
+      if (match.start > lastIndex) {
+        final plainText = htmlText.substring(lastIndex, match.start);
+        spans.add(
+          TextSpan(
+            text: unescape.convert(plainText), // Bersihkan simbol aneh (&...;)
+            style: baseStyle,
+          ),
+        );
+      }
+
+      // 2. Ambil teks DI DALAM tag dan beri styling
+      final tag = match.group(1)?.toLowerCase();
+      final content = match.group(2) ?? "";
+
+      TextStyle matchStyle = baseStyle;
+      if (tag == 'em' || tag == 'i') {
+        matchStyle = baseStyle.copyWith(fontStyle: FontStyle.italic);
+      } else if (tag == 'b' || tag == 'strong') {
+        matchStyle = baseStyle.copyWith(fontWeight: FontWeight.bold);
+      }
+
+      spans.add(
+        TextSpan(
+          text: unescape.convert(content), // Bersihkan simbol aneh juga
+          style: matchStyle,
+        ),
+      );
+
+      lastIndex = match.end;
+    }
+
+    // 3. Ambil sisa teks setelah tag terakhir (jika ada)
+    if (lastIndex < htmlText.length) {
+      final remainingText = htmlText.substring(lastIndex);
+      spans.add(
+        TextSpan(text: unescape.convert(remainingText), style: baseStyle),
+      );
+    }
+
+    return spans;
+  }
+
   bool get _isRootOnly {
     final trans = widget.textData?["translation_text"];
     return trans == null || (trans is Map && trans.isEmpty);
@@ -1866,6 +1931,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
     bool isTransEmpty,
     String comm,
   ) {
+    // Tentukan base style
+    final baseStyle = isTransEmpty
+        ? config.transStyle.copyWith(
+            color: Colors.grey,
+            fontStyle: FontStyle.italic,
+          )
+        : config.transStyle;
+
     return Padding(
       padding: EdgeInsets.only(bottom: 8, top: config.topPadding),
       child: Row(
@@ -1880,7 +1953,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 // ✅ Gabungkan terjemahan + note jadi satu Text.rich
                 Text.rich(
                   TextSpan(
-                    text: isTransEmpty ? "..." : trans,
+                    // text: isTransEmpty ? "..." : trans,
                     style: isTransEmpty
                         ? config.transStyle.copyWith(
                             color: Colors.grey,
@@ -1888,6 +1961,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
                           )
                         : config.transStyle,
                     children: [
+                      // 1. Masukkan Content yang sudah di-parsing (Fix <em> dll)
+                      if (isTransEmpty)
+                        TextSpan(text: "...", style: baseStyle)
+                      else
+                        ..._parseHtmlToSpans(trans, baseStyle),
+
                       if (comm.isNotEmpty)
                         _buildCommentSpan(
                           context,
@@ -1920,6 +1999,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
       color: isPe ? Colors.grey : config.paliStyle.color,
     );
 
+    // Tentukan base style untuk trans
+    final baseTransStyle = isTransEmpty
+        ? config.transStyle.copyWith(
+            color: Colors.grey,
+            fontStyle: FontStyle.italic,
+          )
+        : config.transStyle;
+
     return Padding(
       padding: EdgeInsets.only(bottom: 12, top: config.topPadding),
       child: Row(
@@ -1940,7 +2027,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                       // ✅ Gabungkan trans + note jadi satu Text.rich
                       Text.rich(
                         TextSpan(
-                          text: isTransEmpty ? "..." : trans,
+                          // text: isTransEmpty ? "..." : trans,
                           style: isTransEmpty
                               ? config.transStyle.copyWith(
                                   color: Colors.grey,
@@ -1948,6 +2035,15 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                 )
                               : config.transStyle,
                           children: [
+                            // A. Render TEXT (Pakai Parser Helper tadi)
+                            if (isTransEmpty)
+                              TextSpan(text: "...", style: baseTransStyle)
+                            else
+                              ..._parseHtmlToSpans(
+                                trans,
+                                baseTransStyle,
+                              ), // Spread operator (...)
+                            // B. Render NOTE (Logic lama Anda, tinggal tempel di sini)
                             if (comm.isNotEmpty)
                               _buildCommentSpan(
                                 context,
@@ -1995,6 +2091,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
       );
     }
 
+    final baseTransStyle = isTransEmpty
+        ? config.transStyle.copyWith(
+            color: Colors.grey,
+            fontStyle: FontStyle.italic,
+          )
+        : config.transStyle;
+
     return Column(
       children: [
         Padding(
@@ -2024,7 +2127,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                     // ✅ Gabungkan trans + note jadi satu Text.rich
                     Text.rich(
                       TextSpan(
-                        text: isTransEmpty ? "..." : trans,
+                        // text: isTransEmpty ? "..." : trans,
                         style: isTransEmpty
                             ? config.transStyle.copyWith(
                                 color: Colors.grey,
@@ -2032,6 +2135,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
                               )
                             : config.transStyle,
                         children: [
+                          // 1. Content Parsing
+                          if (isTransEmpty)
+                            TextSpan(text: "...", style: baseTransStyle)
+                          else
+                            ..._parseHtmlToSpans(trans, baseTransStyle),
+
+                          // 2. Note Span
                           if (comm.isNotEmpty)
                             _buildCommentSpan(
                               context,
