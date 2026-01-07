@@ -278,11 +278,11 @@ class _SuttaplexState extends State<Suttaplex> {
             color: badgeBgColor,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(
-            Icons.archive_outlined,
-            size: 18,
-            color: kLockedColor,
-          ),
+         // child: const Icon(
+         //   Icons.archive_outlined,
+         //   size: 18,
+         //   color: kLockedColor,
+         // ),
         ),
       );
     }

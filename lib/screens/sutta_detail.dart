@@ -2071,18 +2071,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
       color: isPe ? Colors.grey : config.paliStyle.color,
     );
 
-    if (_isRootOnly || config.isH1 || config.isH2 || config.isH3) {
-      return _buildLayoutLineByLine(
-        config,
-        index,
-        pali,
-        trans,
-        isTransEmpty,
-        comm,
-        paliMatchCount,
-      );
-    }
-
     final baseTransStyle = isTransEmpty
         ? config.transStyle.copyWith(
             color: Colors.grey,
@@ -2090,73 +2078,58 @@ class _SuttaDetailState extends State<SuttaDetail> {
           )
         : config.transStyle;
 
-    // 🔥 1. CEK ORIENTASI LAYAR
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12, top: config.topPadding),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildVerseNumber(config),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pali text (sudah OK)
+                _buildHtmlText(pali, finalPaliStyle, index, true),
+                const SizedBox(height: 4),
 
-    // 🔥 2. TENTUKAN FLEX RATIO
-    // Landscape -> 1 : 1 (Pali 50%, Indo 50%) - Biar Pali lega
-    // Portrait  -> 1 : 2 (Pali 33%, Indo 66%) - Biar Indo dominan di layar sempit
-    final int paliFlex = isLandscape ? 1 : 1;
-    final int transFlex = isLandscape ? 1 : 2;
+                // Translation text
+                if (!_isRootOnly)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text.rich(
+                        TextSpan(
+                          style: baseTransStyle,
+                          children: [
+                            // ✅ FIX: Gunakan helper baru yang support highlight
+                            if (isTransEmpty)
+                              TextSpan(text: "...", style: baseTransStyle)
+                            else
+                              ..._parseHtmlToSpansWithHighlight(
+                                trans,
+                                baseTransStyle,
+                                index,
+                                false, // ✅ Offset dari pali matches
+                              ),
 
-    return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.only(top: config.topPadding),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: paliFlex, // 👈 GUNAKAN VARIABEL INI
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildVerseNumber(config),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: _buildHtmlText(pali, finalPaliStyle, index, true),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: transFlex, // 👈 GUNAKAN VARIABEL INI
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text.rich(
-                      TextSpan(
-                        style: baseTransStyle,
-                        children: [
-                          if (isTransEmpty)
-                            TextSpan(text: "...", style: baseTransStyle)
-                          else
-                            ..._parseHtmlToSpansWithHighlight(
-                              trans,
-                              baseTransStyle,
-                              index,
-                              true,
-                            ),
-
-                          if (comm.isNotEmpty)
-                            _buildCommentSpan(
-                              context,
-                              comm,
-                              config.transStyle.fontSize ?? _fontSize,
-                            ),
-                        ],
+                            // Comment span (tidak berubah)
+                            if (comm.isNotEmpty)
+                              _buildCommentSpan(
+                                context,
+                                comm,
+                                config.transStyle.fontSize ?? _fontSize,
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                    ],
+                  ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-      ],
+        ],
+      ),
     );
   }
 
@@ -2186,6 +2159,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
         paliMatchCount,
       );
     }
+    // 1. CEK ORIENTASI
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    // 2. TENTUKAN FLEX
+    final int paliFlex = 1;
+    final int transFlex = isLandscape ? 1 : 2; // Landscape 50-50, Portrait 1:2
 
     final baseTransStyle = isTransEmpty
         ? config.transStyle.copyWith(
@@ -2202,7 +2182,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: 1,
+                flex: paliFlex,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -2216,7 +2196,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                flex: 2,
+                flex: transFlex,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
