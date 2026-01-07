@@ -995,6 +995,17 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             // Ambil warna tema terbaru (karena _readerTheme mungkin berubah)
             final readerColors = _themeColors;
 
+            // 🔥 1. DETEKSI LAYAR
+            final size = MediaQuery.of(context).size;
+            final isLandscape = size.width > size.height;
+            final isTablet =
+                size.shortestSide >=
+                600; // Patokan umum tablet (7 inch ke atas)
+
+            // Tampilkan preview HANYA JIKA: (Portrait) ATAU (Tablet Landscape)
+            // Kalau HP Landscape -> Sembunyikan (False)
+            final bool showPreview = !isLandscape || isTablet;
+
             final ScrollController modalScrollController = ScrollController();
 
             ButtonStyle getFontBtnStyle(bool isActive) {
@@ -1085,95 +1096,98 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                   // ===============================================
                   // 🔥 LIVE PREVIEW BOX (SUDAH DIPERBAIKI)
                   // ===============================================
-                  Padding(
-                    padding: const EdgeInsets.only(right: 20, bottom: 16),
-                    child: Container(
-                      width: double.infinity,
-                      constraints: const BoxConstraints(maxHeight: 180),
-                      decoration: BoxDecoration(
-                        color: readerColors['bg'], // Warna background ikut tema
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.grey.withValues(alpha: 0.3),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  if (showPreview) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20, bottom: 16),
+                      child: Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        decoration: BoxDecoration(
+                          color:
+                              readerColors['bg'], // Warna background ikut tema
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.3),
                           ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 16,
-                                  top: 12,
-                                ),
-                                child: Text(
-                                  "PRATINJAU TAMPILAN",
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: readerColors['note'],
-                                    letterSpacing: 1.2,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 16,
+                                    top: 12,
+                                  ),
+                                  child: Text(
+                                    "PRATINJAU TAMPILAN",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: readerColors['note'],
+                                      letterSpacing: 1.2,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: _horizontalPadding < 16
-                                      ? 16
-                                      : _horizontalPadding,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // TEKS PALI (Preview)
-                                    Text(
-                                      "Namo Tassa Bhagavato Arahato Sammāsambuddhassa.",
-                                      style: TextStyle(
-                                        fontFamily: _currentFontFamily,
-                                        // 🔥 FIX: Pake _fontSize langsung (bukan textZoom)
-                                        fontSize: _fontSize,
-                                        height: _lineHeight,
-                                        // 🔥 FIX: Logic FontWeight disamain sama Main Style
-                                        fontWeight: _fontType == 'serif'
-                                            ? FontWeight.w400
-                                            : FontWeight.w500,
-                                        color: readerColors['pali'],
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: _horizontalPadding < 16
+                                        ? 16
+                                        : _horizontalPadding,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // TEKS PALI (Preview)
+                                      Text(
+                                        "Namo Tassa Bhagavato Arahato Sammāsambuddhassa.",
+                                        style: TextStyle(
+                                          fontFamily: _currentFontFamily,
+                                          // 🔥 FIX: Pake _fontSize langsung (bukan textZoom)
+                                          fontSize: _fontSize,
+                                          height: _lineHeight,
+                                          // 🔥 FIX: Logic FontWeight disamain sama Main Style
+                                          fontWeight: _fontType == 'serif'
+                                              ? FontWeight.w400
+                                              : FontWeight.w500,
+                                          color: readerColors['pali'],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 8),
+                                      const SizedBox(height: 8),
 
-                                    // TEKS TERJEMAHAN (Preview)
-                                    Text(
-                                      "Terpujilah Sang Bhagavā, Yang Mahasuci, Yang Telah Mencapai Penerangan Sempurna.",
-                                      style: TextStyle(
-                                        fontFamily: _currentFontFamily,
-                                        // 🔥 FIX: Pake _fontSize langsung (bukan textZoom)
-                                        fontSize: _fontSize,
-                                        height: _lineHeight,
-                                        color: readerColors['text'],
+                                      // TEKS TERJEMAHAN (Preview)
+                                      Text(
+                                        "Terpujilah Sang Bhagavā, Yang Mahasuci, Yang Telah Mencapai Penerangan Sempurna.",
+                                        style: TextStyle(
+                                          fontFamily: _currentFontFamily,
+                                          // 🔥 FIX: Pake _fontSize langsung (bukan textZoom)
+                                          fontSize: _fontSize,
+                                          height: _lineHeight,
+                                          color: readerColors['text'],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-
+                  ],
                   // --- KONTEN SETTINGS ---
                   Flexible(
                     fit: FlexFit.loose,

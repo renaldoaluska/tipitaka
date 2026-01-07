@@ -2071,6 +2071,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
       color: isPe ? Colors.grey : config.paliStyle.color,
     );
 
+    if (_isRootOnly || config.isH1 || config.isH2 || config.isH3) {
+      return _buildLayoutLineByLine(
+        config,
+        index,
+        pali,
+        trans,
+        isTransEmpty,
+        comm,
+        paliMatchCount,
+      );
+    }
+
     final baseTransStyle = isTransEmpty
         ? config.transStyle.copyWith(
             color: Colors.grey,
@@ -2078,58 +2090,73 @@ class _SuttaDetailState extends State<SuttaDetail> {
           )
         : config.transStyle;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: 12, top: config.topPadding),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildVerseNumber(config),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Pali text (sudah OK)
-                _buildHtmlText(pali, finalPaliStyle, index, true),
-                const SizedBox(height: 4),
+    // 🔥 1. CEK ORIENTASI LAYAR
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
-                // Translation text
-                if (!_isRootOnly)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text.rich(
-                        TextSpan(
-                          style: baseTransStyle,
-                          children: [
-                            // ✅ FIX: Gunakan helper baru yang support highlight
-                            if (isTransEmpty)
-                              TextSpan(text: "...", style: baseTransStyle)
-                            else
-                              ..._parseHtmlToSpansWithHighlight(
-                                trans,
-                                baseTransStyle,
-                                index,
-                                false, // ✅ Offset dari pali matches
-                              ),
+    // 🔥 2. TENTUKAN FLEX RATIO
+    // Landscape -> 1 : 1 (Pali 50%, Indo 50%) - Biar Pali lega
+    // Portrait  -> 1 : 2 (Pali 33%, Indo 66%) - Biar Indo dominan di layar sempit
+    final int paliFlex = isLandscape ? 1 : 1;
+    final int transFlex = isLandscape ? 1 : 2;
 
-                            // Comment span (tidak berubah)
-                            if (comm.isNotEmpty)
-                              _buildCommentSpan(
-                                context,
-                                comm,
-                                config.transStyle.fontSize ?? _fontSize,
-                              ),
-                          ],
-                        ),
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.only(top: config.topPadding),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: paliFlex, // 👈 GUNAKAN VARIABEL INI
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildVerseNumber(config),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: _buildHtmlText(pali, finalPaliStyle, index, true),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: transFlex, // 👈 GUNAKAN VARIABEL INI
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        style: baseTransStyle,
+                        children: [
+                          if (isTransEmpty)
+                            TextSpan(text: "...", style: baseTransStyle)
+                          else
+                            ..._parseHtmlToSpansWithHighlight(
+                              trans,
+                              baseTransStyle,
+                              index,
+                              true,
+                            ),
+
+                          if (comm.isNotEmpty)
+                            _buildCommentSpan(
+                              context,
+                              comm,
+                              config.transStyle.fontSize ?? _fontSize,
+                            ),
+                        ],
                       ),
-                    ],
-                  ),
-              ],
-            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 
@@ -3846,6 +3873,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
             final colorScheme = Theme.of(context).colorScheme;
             final readerColors = _themeColors;
 
+            // 🔥 1. DETEKSI LAYAR
+            final size = MediaQuery.of(context).size;
+            final isLandscape = size.width > size.height;
+            final isTablet =
+                size.shortestSide >=
+                600; // Patokan umum tablet (7 inch ke atas)
+
+            // Tampilkan preview HANYA JIKA: (Portrait) ATAU (Tablet Landscape)
+            // Kalau HP Landscape -> Sembunyikan (False)
+            final bool showPreview = !isLandscape || isTablet;
+
             final ScrollController modalScrollController = ScrollController();
 
             ButtonStyle getFontBtnStyle(bool isActive) {
@@ -4001,62 +4039,64 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   // ===============================================
                   // 🔥 STICKY LIVE PREVIEW BOX
                   // ===============================================
-                  Padding(
-                    padding: const EdgeInsets.only(right: 20, bottom: 16),
-                    child: Container(
-                      width: double.infinity,
-                      constraints: const BoxConstraints(maxHeight: 180),
-                      decoration: BoxDecoration(
-                        color: readerColors['bg'],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.grey.withValues(alpha: 0.3),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  if (showPreview) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20, bottom: 16),
+                      child: Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        decoration: BoxDecoration(
+                          color: readerColors['bg'],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.3),
                           ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 16,
-                                  top: 12,
-                                ),
-                                child: Text(
-                                  "PRATINJAU TAMPILAN",
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: readerColors['note'],
-                                    letterSpacing: 1.2,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 16,
+                                    top: 12,
+                                  ),
+                                  child: Text(
+                                    "PRATINJAU TAMPILAN",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: readerColors['note'],
+                                      letterSpacing: 1.2,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: _horizontalPadding < 16
-                                      ? 16
-                                      : _horizontalPadding,
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: _horizontalPadding < 16
+                                        ? 16
+                                        : _horizontalPadding,
+                                  ),
+                                  child: buildPreviewContent(),
                                 ),
-                                child: buildPreviewContent(),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
 
                   // --- KONTEN SCROLLABLE (SETTINGS) ---
                   Flexible(
