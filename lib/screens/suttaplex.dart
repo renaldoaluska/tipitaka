@@ -271,20 +271,20 @@ class _SuttaplexState extends State<Suttaplex> {
         ),
       );
     } else if (lang != "pli") {
-      badges.add(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: badgeBgColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-         // child: const Icon(
-         //   Icons.archive_outlined,
-         //   size: 18,
-         //   color: kLockedColor,
-         // ),
-        ),
-      );
+      //badges.add(
+      //Container(
+      //padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      //decoration: BoxDecoration(
+      //color: badgeBgColor,
+      // borderRadius: BorderRadius.circular(12),
+      //),
+      // child: const Icon(
+      //   Icons.archive_outlined,
+      //   size: 18,
+      //   color: kLockedColor,
+      // ),
+      // ),
+      //);
     }
 
     return Wrap(spacing: 6, children: badges);

@@ -577,62 +577,97 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
   }
 
+  // 🔥 FINAL FIX: Handle "melihat</span> Dhamma" (tags di tengah search phrase)
   String _injectSearchHighlights(
     String content,
     int listIndex,
     bool isPaliTarget,
   ) {
-    // 1. Validasi
     if (_searchController.text.length < 2) return content;
     final searchRegex = _cachedSearchRegex;
     if (searchRegex == null) return content;
 
-    // 2. 🔥 GABUNG REGEX: (Group 1: Tag HTML) | (Group 2: Teks Dicari)
-    // Kita bungkus searchRegex.pattern pake kurung biar jadi Group 2
-    final pattern = '(<[^>]+>)|(${searchRegex.pattern})';
-
-    // Hati-hati: Pastikan combinedRegex valid. Kalau user ngetik aneh-aneh, ini bisa error.
-    final combinedRegex = RegExp(pattern, caseSensitive: false);
-
-    int localMatchCounter = 0;
-
     try {
-      return content.replaceAllMapped(combinedRegex, (match) {
-        final fullMatch = match.group(0)!;
+      // 1. Decode HTML entities (& nbsp; → spasi, & amp; → &, dll)
+      final unescape = HtmlUnescape();
+      final decoded = unescape.convert(content);
 
-        // 🛡️ CEK GROUP 1: Apakah ini Tag HTML?
-        if (match.group(1) != null) {
-          return fullMatch; // JANGAN DISENTUH, Balikin utuh.
+      // 2. Strip tags untuk matching
+      final cleanText = decoded.replaceAll(RegExp(r'<[^>]+>'), '');
+
+      // 3. Find all matches di clean text
+      final matches = searchRegex.allMatches(cleanText).toList();
+      if (matches.isEmpty) return content;
+
+      // 4. Build position map: clean index → original index
+      final Map<int, int> cleanToOriginal = {};
+      int cleanIdx = 0;
+      bool insideTag = false;
+
+      for (int i = 0; i < decoded.length; i++) {
+        if (decoded[i] == '<') {
+          insideTag = true;
+        } else if (decoded[i] == '>') {
+          insideTag = false;
+          continue;
         }
 
-        // 🗡️ CEK GROUP 2: Ini Teks yang dicari!
-        if (match.group(2) != null) {
-          // Cek Active State (Warna Oranye)
-          bool isActive = false;
-          if (_allMatches.isNotEmpty &&
-              _currentMatchIndex < _allMatches.length) {
-            final activeMatch = _allMatches[_currentMatchIndex];
-            if (activeMatch.listIndex == listIndex &&
-                activeMatch.isPali == isPaliTarget &&
-                activeMatch.localIndex == localMatchCounter) {
-              isActive = true;
-            }
+        if (!insideTag) {
+          cleanToOriginal[cleanIdx] = i;
+          cleanIdx++;
+        }
+      }
+
+      // 🔥 ADD: Map untuk end position (next character after last match char)
+      // Ini biar kita bisa akurat ambil sampai akhir match
+      cleanToOriginal[cleanIdx] = decoded.length;
+
+      // 5. Inject highlights (dari belakang agar posisi tidak bergeser)
+      String result = decoded;
+
+      for (int i = matches.length - 1; i >= 0; i--) {
+        final match = matches[i];
+
+        // Check if active
+        bool isActive = false;
+        if (_allMatches.isNotEmpty && _currentMatchIndex < _allMatches.length) {
+          final activeMatch = _allMatches[_currentMatchIndex];
+          if (activeMatch.listIndex == listIndex &&
+              activeMatch.isPali == isPaliTarget &&
+              activeMatch.localIndex == i) {
+            isActive = true;
           }
-
-          localMatchCounter++; // Naikkan counter
-
-          String bgColor = isActive ? "#FF8C00" : "#FFFF00";
-          String color = isActive ? "white" : "black";
-          String activeAttr = isActive ? 'data-active="true"' : '';
-
-          return "<x-highlight style='background-color: $bgColor; color: $color; font-weight: bold; border-radius: 4px; padding: 0 2px;' $activeAttr>$fullMatch</x-highlight>";
         }
 
-        return fullMatch; // Jaga-jaga
-      });
+        // Map clean positions ke original positions
+        final origStart = cleanToOriginal[match.start] ?? 0;
+        // 🔥 FIX: match.end sudah exclusive, jadi langsung ambil posisi tersebut
+        final origEnd = cleanToOriginal[match.end] ?? decoded.length;
+
+        // Extract segment (termasuk tag HTML di dalamnya jika ada)
+        final segment = result.substring(origStart, origEnd);
+
+        // Build highlight wrapper
+        final bgColor = isActive ? "#FF8C00" : "#FFFF00";
+        final color = isActive ? "white" : "black";
+        final activeAttr = isActive ? 'data-active="true"' : '';
+
+        final wrapper =
+            "<x-highlight style='background-color: $bgColor; "
+            "color: $color; font-weight: bold; border-radius: 4px; "
+            "padding: 0 2px;' $activeAttr>$segment</x-highlight>";
+
+        // Replace (inject dari belakang jadi posisi depan tidak berubah)
+        result =
+            result.substring(0, origStart) +
+            wrapper +
+            result.substring(origEnd);
+      }
+
+      return result;
     } catch (e) {
-      debugPrint("Regex Error: $e");
-      return content; // Fallback kalau regex meledak
+      debugPrint("❌ Highlight error: $e");
+      return content; // Fallback: return original
     }
   }
 
