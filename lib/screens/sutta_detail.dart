@@ -3591,7 +3591,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                       if (isSegmented &&
                                           widget.textData?["keys_order"]
                                               is List) {
-                                        // ... (Logic scan segmented tetep sama kayak yang lu punya) ...
                                         final keys = List<String>.from(
                                           widget.textData!["keys_order"],
                                         );
@@ -3604,27 +3603,41 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                                 as Map? ??
                                             {};
 
+                                        // 🔥 1. TENTUKAN EFFECTIVE VIEW MODE
+                                        // (Logika ini meniru _buildSegmentedItem biar sinkron sama yang dilihat mata)
+                                        ViewMode effectiveViewMode = _viewMode;
+                                        // Kalau teks ini cuma punya Pali (Gak ada terjemahan), paksa mode LineByLine biar Pali tetep dicari
+                                        if (_isRootOnly) {
+                                          effectiveViewMode =
+                                              ViewMode.lineByLine;
+                                        }
+
                                         for (int i = 0; i < keys.length; i++) {
                                           final key = keys[i];
 
-                                          // A. Pali
-                                          String paliTxt =
-                                              rootMap[key]?.toString() ?? "";
-                                          paliTxt = paliTxt.replaceAll(
-                                            RegExp(r'<[^>]*>'),
-                                            '',
-                                          );
-                                          int localPali = 0;
-                                          for (final _ in regex.allMatches(
-                                            paliTxt,
-                                          )) {
-                                            _allMatches.add(
-                                              SearchMatch(i, localPali, true),
-                                            ); // isPali: true
-                                            localPali++;
+                                          // 🔥 2. BUNGKUS PENCARIAN PALI
+                                          // Cuma cari di Pali kalau modenya BUKAN Translation Only
+                                          if (effectiveViewMode !=
+                                              ViewMode.translationOnly) {
+                                            // A. Pali
+                                            String paliTxt =
+                                                rootMap[key]?.toString() ?? "";
+                                            paliTxt = paliTxt.replaceAll(
+                                              RegExp(r'<[^>]*>'),
+                                              '',
+                                            );
+                                            int localPali = 0;
+                                            for (final _ in regex.allMatches(
+                                              paliTxt,
+                                            )) {
+                                              _allMatches.add(
+                                                SearchMatch(i, localPali, true),
+                                              ); // isPali: true
+                                              localPali++;
+                                            }
                                           }
 
-                                          // B. Trans
+                                          // B. Trans (Selalu dicari kecuali kasus aneh tertentu, tapi defaultnya cari aja)
                                           String transTxt =
                                               transMap[key]?.toString() ?? "";
                                           transTxt = transTxt.replaceAll(
