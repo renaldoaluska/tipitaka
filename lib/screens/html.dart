@@ -34,6 +34,7 @@ class HtmlReaderPage extends StatefulWidget {
 }
 
 class _HtmlReaderPageState extends State<HtmlReaderPage> {
+  final ThemeManager _tm = ThemeManager();
   // ============================================
   // STATE VARIABLES
   // ============================================
@@ -55,6 +56,9 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         ? GoogleFonts.notoSerif().fontFamily
         : GoogleFonts.inter().fontFamily;
   }
+
+  // 🔥 TAMBAH INI: Notifier untuk index aktif agar tidak perlu render ulang HTML
+  final ValueNotifier<int> _activeSearchIndex = ValueNotifier<int>(-1);
 
   // 🔧 TAMBAH STATE UNTUK AUDIO
   bool _isOnline = true;
@@ -136,11 +140,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final systemScheme = Theme.of(context).colorScheme;
     final uiCardColor = systemScheme.surface;
     final uiIconColor = systemScheme.onSurface;
-    final tm = ThemeManager();
+    //  final tm = ThemeManager();
 
     switch (_readerTheme) {
       case ReaderTheme.light:
-        final t = tm.lightTheme;
+        final t = _tm.lightTheme;
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': t.colorScheme.onSurface,
@@ -150,7 +154,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           'pali': const Color(0xFF8B4513), // Coklat Tua
         };
       case ReaderTheme.light2:
-        final t = tm.lightTheme;
+        final t = _tm.lightTheme;
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': const Color(0xFF424242),
@@ -169,7 +173,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           'pali': const Color(0xFF795548), // Coklat Tanah
         };
       case ReaderTheme.dark:
-        final t = tm.darkTheme;
+        final t = _tm.darkTheme;
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': t.colorScheme.onSurface,
@@ -179,7 +183,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           'pali': const Color(0xFFD4A574), // Emas Pudar
         };
       case ReaderTheme.dark2:
-        final t = tm.darkTheme;
+        final t = _tm.darkTheme;
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': const Color(0xFFB0BEC5), // Abu Kebiruan
@@ -224,6 +228,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   @override
   void dispose() {
+    _activeSearchIndex.dispose();
     _debounce?.cancel();
     _debounce = null;
 
@@ -550,50 +555,51 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     _applySearchHighlight(query);
   }
 
+  // ============================================
+  // 🔥 FIX SEARCH LOGIC: ANTI JEBOL HTML TAG
+  // ============================================
   void _applySearchHighlight(String query) {
     if (query.length < 2) return;
 
-    final RegExp regExp = _createPaliRegex(query.trim());
-    final matches = regExp.allMatches(_rawHtmlContent);
+    final RegExp paliRegExp = _createPaliRegex(query.trim());
+    final String pattern = '(<[^>]+>)|(${paliRegExp.pattern})';
+    final RegExp combinedRegex = RegExp(pattern, caseSensitive: false);
 
+    // 🔥 Reset Keys di sini (Hanya saat QUERY berubah/search baru)
     _searchKeys.clear();
     int matchCounter = 0;
+    final List<String> foundMatches = [];
 
-    // 🔥 LOGIC SAKTI ALA SUTTA_DETAIL
-    // Kita langsung tanam warna Oren/Kuning di sini
-    String highlightedHtml = _rawHtmlContent.replaceAllMapped(regExp, (match) {
-      final int index = matchCounter++;
+    String highlightedHtml = _rawHtmlContent.replaceAllMapped(combinedRegex, (
+      match,
+    ) {
+      final String fullMatch = match.group(0)!;
 
-      // Cek apakah ini match yang lagi aktif (sedang dipilih user)
-      // Karena ini HTML satu blok, logicnya simpel: index == current
-      final bool isActive = (index == _currentMatchIndex);
+      if (match.group(1) != null) return fullMatch; // Ini tag HTML, skip
 
-      // Warna Oren kalau aktif, Kuning kalau pasif
-      String bgColor = isActive ? "#FF8C00" : "#FFFF00";
-      String color = isActive ? "white" : "black";
+      if (match.group(2) != null) {
+        final int index = matchCounter++;
+        foundMatches.add(fullMatch);
 
-      // Attribute penanda
-      String activeAttr = isActive ? 'data-active="true"' : '';
-
-      // Bungkus pake tag <x-highlight> (sama kayak sutta_detail)
-      return "<x-highlight index='$index' style='background-color: $bgColor; color: $color; font-weight: bold; border-radius: 4px; padding: 0 2px;' $activeAttr>${match.group(0)}</x-highlight>";
+        // 🔥 SIMPELKAN: Cukup kasih index saja. Style & Warna kita atur di Widget Builder nanti.
+        return "<x-highlight index='$index'>$fullMatch</x-highlight>";
+      }
+      return fullMatch;
     });
 
     setState(() {
-      _allMatches = matches.map((e) => e.group(0)!).toList();
-      // Reset ke 0 kalau ada hasil
-      if (_currentMatchIndex == -1 && matches.isNotEmpty) {
-        _currentMatchIndex = 0;
-        // Render ulang biar yang ke-0 jadi Oren
-        _applySearchHighlight(query);
-        return;
-      }
+      _allMatches = foundMatches;
+      _currentMatchIndex = 0; // Reset ke awal
       _displayHtmlContent = highlightedHtml;
+
+      // Update notifier juga ke 0
+      _activeSearchIndex.value = 0;
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (matches.isNotEmpty && _currentMatchIndex == 0) _jumpToResult(0);
-    });
+    // Auto scroll ke hasil pertama setelah render selesai
+    if (_allMatches.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToResult(0));
+    }
   }
 
   void _jumpToResult(int index) {
@@ -603,23 +609,31 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     if (newIndex < 0) newIndex = _allMatches.length - 1;
     if (newIndex >= _allMatches.length) newIndex = 0;
 
+    // 🔥 UPDATE STATE TANPA RE-RENDER HTML
     setState(() {
       _currentMatchIndex = newIndex;
     });
 
-    // 🔥 RE-RENDER HIGHLIGHT BIAR WARNA OREN PINDAH
-    _applySearchHighlight(_currentQuery);
+    // 🔥 Update Notifier biar warnanya berubah (kuning -> oranye)
+    _activeSearchIndex.value = newIndex;
 
-    // Scroll Logic (Tetap sama)
-    final key = _searchKeys[newIndex];
-    if (key?.currentContext != null) {
-      Scrollable.ensureVisible(
-        key!.currentContext!,
-        duration: const Duration(milliseconds: 300),
-        alignment: 0.2,
-        curve: Curves.easeInOut,
-      );
-    }
+    // 🔥 JALANKAN SCROLL
+    // Karena HTML tidak dihancurkan, Key-nya masih ada dan valid!
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final key = _searchKeys[newIndex];
+      // Cek apakah key ada dan punya context
+      if (key != null && key.currentContext != null) {
+        Scrollable.ensureVisible(
+          key.currentContext!,
+          duration: const Duration(milliseconds: 300),
+          alignment:
+              0.3, // 0.3 artinya posisi agak di sepertiga atas layar (enak dibaca)
+          curve: Curves.easeInOutCubic,
+        );
+      } else {
+        debugPrint("⚠️ Key not found or not attached for index $newIndex");
+      }
+    });
   }
 
   void _clearSearch() {
@@ -965,7 +979,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   // SETTINGS MODAL (WITH SCROLLBAR)
   // ============================================
-
   void _showSettingsModal() {
     showModalBottomSheet(
       context: context,
@@ -979,10 +992,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             final colorScheme = Theme.of(context).colorScheme;
+            // Ambil warna tema terbaru (karena _readerTheme mungkin berubah)
             final readerColors = _themeColors;
+
             final ScrollController modalScrollController = ScrollController();
 
-            // Helper Style Tombol Font
             ButtonStyle getFontBtnStyle(bool isActive) {
               return OutlinedButton.styleFrom(
                 backgroundColor: isActive ? colorScheme.primaryContainer : null,
@@ -1002,7 +1016,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
               );
             }
 
-            // Helper Header Section
             Widget buildSectionHeader(String title) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12, top: 4),
@@ -1026,7 +1039,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // --- HEADER (DRAG HANDLE) ---
+                  // --- HEADER HANDLE ---
                   Center(
                     child: Container(
                       width: 40,
@@ -1039,14 +1052,14 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                     ),
                   ),
 
-                  // --- JUDUL UTAMA ---
+                  // --- JUDUL ---
                   Padding(
                     padding: const EdgeInsets.only(right: 20),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "Pengaturan Baca", // ✅ Konsisten
+                          "Pengaturan Baca",
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -1070,7 +1083,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                   const SizedBox(height: 16),
 
                   // ===============================================
-                  // 🔥 STICKY LIVE PREVIEW BOX
+                  // 🔥 LIVE PREVIEW BOX (SUDAH DIPERBAIKI)
                   // ===============================================
                   Padding(
                     padding: const EdgeInsets.only(right: 20, bottom: 16),
@@ -1078,7 +1091,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                       width: double.infinity,
                       constraints: const BoxConstraints(maxHeight: 180),
                       decoration: BoxDecoration(
-                        color: readerColors['bg'],
+                        color: readerColors['bg'], // Warna background ikut tema
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: Colors.grey.withValues(alpha: 0.3),
@@ -1104,7 +1117,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                   top: 12,
                                 ),
                                 child: Text(
-                                  "PRATINJAU TAMPILAN", // ✅ Konsisten
+                                  "PRATINJAU TAMPILAN",
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -1116,7 +1129,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                               Padding(
                                 padding: EdgeInsets.symmetric(
                                   vertical: 16,
-                                  // Logic padding preview
                                   horizontal: _horizontalPadding < 16
                                       ? 16
                                       : _horizontalPadding,
@@ -1124,25 +1136,30 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Contoh Teks Pali
+                                    // TEKS PALI (Preview)
                                     Text(
                                       "Namo Tassa Bhagavato Arahato Sammāsambuddhassa.",
                                       style: TextStyle(
                                         fontFamily: _currentFontFamily,
-                                        // Konversi zoom ke fontSize (basis 16)
+                                        // 🔥 FIX: Pake _fontSize langsung (bukan textZoom)
                                         fontSize: _fontSize,
                                         height: _lineHeight,
-                                        fontWeight: FontWeight.w600,
+                                        // 🔥 FIX: Logic FontWeight disamain sama Main Style
+                                        fontWeight: _fontType == 'serif'
+                                            ? FontWeight.w400
+                                            : FontWeight.w500,
                                         color: readerColors['pali'],
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    // Contoh Teks Terjemahan
+
+                                    // TEKS TERJEMAHAN (Preview)
                                     Text(
                                       "Terpujilah Sang Bhagavā, Yang Mahasuci, Yang Telah Mencapai Penerangan Sempurna.",
                                       style: TextStyle(
                                         fontFamily: _currentFontFamily,
-                                        fontSize: 16 * (_textZoom / 100),
+                                        // 🔥 FIX: Pake _fontSize langsung (bukan textZoom)
+                                        fontSize: _fontSize,
                                         height: _lineHeight,
                                         color: readerColors['text'],
                                       ),
@@ -1157,7 +1174,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                     ),
                   ),
 
-                  // --- KONTEN SCROLLABLE ---
+                  // --- KONTEN SETTINGS ---
                   Flexible(
                     fit: FlexFit.loose,
                     child: Scrollbar(
@@ -1175,7 +1192,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                             // 1. GAYA & WARNA
                             buildSectionHeader("Gaya & Warna"),
 
-                            // Theme Selector
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
@@ -1196,7 +1212,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     const Color(0xFF424242),
                                     "Lembut",
                                     () => setModalState(() {}),
-                                  ), // ✅ Jadi Soft
+                                  ),
                                   const SizedBox(width: 16),
                                   _buildThemeOption(
                                     context,
@@ -1223,13 +1239,12 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     const Color(0xFFB0BEC5),
                                     "Redup",
                                     () => setModalState(() {}),
-                                  ), // ✅ Jadi Redup
+                                  ),
                                 ],
                               ),
                             ),
                             const SizedBox(height: 16),
 
-                            // Font Selector
                             Row(
                               children: [
                                 Expanded(
@@ -1285,17 +1300,14 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                               ),
                               child: Column(
                                 children: [
-                                  // Ukuran Teks (Zoom)
-                                  // Ukuran Teks (Absolute)
+                                  // UKURAN TEKS
                                   _buildStepperRow(
                                     context,
                                     icon: Icons.format_size_rounded,
                                     label: "Ukuran Teks",
-                                    // 🔥 Tampilkan angka bulat (16, 18, 20)
                                     valueLabel: "${_fontSize.toInt()}",
                                     onMinus: () {
                                       setState(() {
-                                        // 🔥 Step 2.0, Clamp 12-40
                                         _fontSize = (_fontSize - 2).clamp(
                                           12.0,
                                           40.0,
@@ -1306,7 +1318,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     },
                                     onPlus: () {
                                       setState(() {
-                                        // 🔥 Step 2.0, Clamp 12-40
                                         _fontSize = (_fontSize + 2).clamp(
                                           12.0,
                                           40.0,
@@ -1321,7 +1332,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     height: 16,
                                   ),
 
-                                  // Jarak Baris
+                                  // JARAK BARIS
                                   _buildStepperRow(
                                     context,
                                     icon: Icons.format_line_spacing_rounded,
@@ -1349,11 +1360,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     height: 16,
                                   ),
 
-                                  // Jarak Sisi
+                                  // JARAK SISI
                                   _buildStepperRow(
                                     context,
                                     icon: Icons.space_bar_rounded,
-                                    label: "Jarak Sisi", // ✅ Konsisten
+                                    label: "Jarak Sisi",
                                     valueLabel: "${_horizontalPadding.toInt()}",
                                     onMinus: () {
                                       setState(
@@ -1381,8 +1392,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                 ],
                               ),
                             ),
-
-                            //const SizedBox(height: 24),
                           ],
                         ),
                       ),
@@ -1600,54 +1609,75 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                         final attrs =
                                             extensionContext.attributes;
                                         final indexStr = attrs['index'];
-                                        final isGlobalActive =
-                                            attrs['data-active'] == 'true';
 
-                                        // FIX 1: NYONTEK UKURAN FONT INDUK
+                                        // Ambil ukuran font induk atau default
                                         final style = extensionContext
                                             .styledElement
                                             ?.style;
                                         double? currentFontSize =
                                             style?.fontSize?.value;
-                                        // Fallback ke default font size
                                         currentFontSize ??= _fontSize;
 
                                         if (indexStr != null) {
                                           final int index =
                                               int.tryParse(indexStr) ?? 0;
 
-                                          // Simpan key buat scroll
-                                          final key = GlobalKey();
-                                          _searchKeys[index] = key;
+                                          // 🔥 LOGIC KEY PINTAR:
+                                          // Gunakan putIfAbsent. Kalau key udah ada (dari render sebelumnya), PAKAI ITU.
+                                          // Jangan bikin GlobalKey() baru terus-terusan, nanti scroll-nya bingung.
+                                          final key = _searchKeys.putIfAbsent(
+                                            index,
+                                            () => GlobalKey(),
+                                          );
 
-                                          return Container(
-                                            key: key,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: isGlobalActive
-                                                  ? Colors.orange
-                                                  : Colors.yellow,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            // 🔥 FIX 2: Pake Transform & Height 1.0 (Biar kotak rapi)
-                                            child: Transform.translate(
-                                              offset: const Offset(0, 1),
-                                              child: Text(
-                                                extensionContext.element!.text,
-                                                style: TextStyle(
-                                                  color: isGlobalActive
-                                                      ? Colors.white
-                                                      : Colors.black,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: currentFontSize,
-                                                  height:
-                                                      1.0, // 👈 PENTING: Reset line height
+                                          // 🔥 PAKAI ValueListenableBuilder
+                                          // Ini yang bikin warna berubah tanpa reload HTML
+                                          return ValueListenableBuilder<int>(
+                                            valueListenable: _activeSearchIndex,
+                                            builder: (context, activeIndex, child) {
+                                              final bool isActive =
+                                                  (activeIndex == index);
+
+                                              return Container(
+                                                key: key, // Tempel Key di sini
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: isActive
+                                                      ? Colors.orange
+                                                      : Colors.yellow,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                  // Kasih border kalau aktif biar makin jelas (opsional)
+                                                  border: isActive
+                                                      ? Border.all(
+                                                          color:
+                                                              Colors.deepOrange,
+                                                          width: 2,
+                                                        )
+                                                      : null,
                                                 ),
-                                              ),
-                                            ),
+                                                child: Transform.translate(
+                                                  offset: const Offset(0, 1),
+                                                  child: Text(
+                                                    extensionContext
+                                                        .element!
+                                                        .text,
+                                                    style: TextStyle(
+                                                      color: isActive
+                                                          ? Colors.white
+                                                          : Colors.black,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: currentFontSize,
+                                                      height: 1.0,
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                           );
                                         }
                                         return Text(
@@ -1656,7 +1686,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                       },
                                     ),
                                   ],
-
                                   onLinkTap: (url, attributes, element) {
                                     if (url != null) _handleLinkTap(url);
                                   },
@@ -1713,29 +1742,27 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   Map<String, Style> _getHtmlStyles() {
     final mainFont = _currentFontFamily;
     final colors = _themeColors;
+
     final bgColor = colors['bg']!;
     final textColor = colors['text']!;
-    final noteColor = colors['note']!;
-
-    // ✅ AMBIL WARNA PALI DARI MAP (Jangan logic if-else manual lagi)
     final paliAccentColor = colors['pali']!;
 
-    // final fontSize = _textZoom / 100.0;
+    // 🔥 FORMULA WARNA PINTAR (Biar Reader Theme Konsisten)
+    // Kita gak pake warna sistem (noteColor), tapi nurunin dari textColor.
+    // Jadi kalau Sepia -> Abu-nya kecoklatan. Kalau Dark -> Abu-nya keperakan.
+    final subtleColor = textColor.withValues(alpha: 0.6); // Buat teks sekunder
+    final buttonFillColor = textColor.withValues(
+      alpha: 0.04,
+    ); // Buat background tombol (tipis)
+    final buttonBorderColor = textColor.withValues(
+      alpha: 0.12,
+    ); // Buat garis pinggir tombol
 
     final serifFont = GoogleFonts.varta().fontFamily!;
     final sansFont = GoogleFonts.varta().fontFamily!;
 
     final isDarkVariant =
         _readerTheme == ReaderTheme.dark || _readerTheme == ReaderTheme.dark2;
-
-    Color contentBoxColor;
-    if (isDarkVariant) {
-      contentBoxColor = const Color(0xFF252525);
-    } else if (_readerTheme == ReaderTheme.sepia) {
-      contentBoxColor = const Color(0xFFFFF8E1);
-    } else {
-      contentBoxColor = Colors.white;
-    }
 
     return {
       "body": Style(
@@ -1751,140 +1778,181 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       "#isi": Style(margin: Margins.zero, padding: HtmlPaddings.zero),
 
       // ===========================================
-      // 1. HEADER UTAMA (JUDUL KITAB/BAB)
+      // 1. HEADER UTAMA
       // ===========================================
       "h1": Style(
         fontFamily: mainFont,
         fontSize: FontSize(_fontSize * 1.6),
-        fontWeight: FontWeight.w900,
-        margin: Margins.only(top: 24, bottom: 8),
+        fontWeight: FontWeight.w800,
+        margin: Margins.only(top: 32, bottom: 12),
         color: textColor,
-        border: Border(
-          bottom: BorderSide(color: noteColor.withValues(alpha: 0.3), width: 1),
-        ),
       ),
 
-      // ===========================================
-      // 2. SUB-HEADERS
-      // ===========================================
       "h2": Style(
         fontFamily: mainFont,
-        fontSize: FontSize(_fontSize * 1.4),
-        fontWeight: FontWeight.bold,
-        margin: Margins.only(top: 20, bottom: 8),
+        fontSize: FontSize(_fontSize * 1.35),
+        fontWeight: FontWeight.w700,
+        margin: Margins.only(top: 28, bottom: 10),
         color: textColor,
       ),
       "h3": Style(
         fontFamily: mainFont,
-        fontSize: FontSize(_fontSize * 1.2),
-        fontWeight: FontWeight.w700,
-        margin: Margins.only(top: 16, bottom: 6),
+        fontSize: FontSize(_fontSize * 1.15),
+        fontWeight: FontWeight.w600,
+        margin: Margins.only(top: 24, bottom: 8),
         color: textColor,
       ),
 
-      // 🔥 INI KUNCINYA: TARGET SEMUA SPAN.INDO DI DALAM HEADER
+      // Subtitle Header (Terjemahan Judul)
       "h1 span.indo, h2 span.indo, h3 span.indo": Style(
-        display: Display.block, // Turun baris
+        display: Display.block,
         fontFamily: mainFont,
         fontWeight: FontWeight.normal,
-        fontSize: FontSize(_fontSize * 0.85), // Ukuran subtitle
-        color: textColor.withValues(alpha: 0.75), // Agak pudar
-        fontStyle: FontStyle.italic,
+        fontSize: FontSize(_fontSize * 0.75),
+        color: subtleColor, // ✅ Pake warna turunan teks
+        fontStyle: FontStyle.normal,
         margin: Margins.only(top: 4),
+        lineHeight: LineHeight(1.3),
       ),
 
-      // ✅ Terapkan paliAccentColor di sini
+      // ===========================================
+      // 3. TEKS PALI (FOKUS UTAMA)
+      // ===========================================
       "p": Style(
         fontFamily: mainFont,
-        // fontFamily: serifFont,
-        fontWeight: _fontType == 'serif' ? FontWeight.w500 : FontWeight.w600,
+        fontWeight: _fontType == 'serif' ? FontWeight.w400 : FontWeight.w500,
         color: paliAccentColor,
-        margin: Margins.only(bottom: 6),
+
+        // 🔥 UBAH BAGIAN INI:
+        // Tambahin 'top: 16' biar ada jarak dari teks terjemahan di atasnya.
+        // 'bottom: 8' tetep ada biar jarak ke terjemahan di bawahnya rapet.
+        margin: Margins.only(top: 16, bottom: 8),
+
         fontSize: FontSize(_fontSize),
+        lineHeight: LineHeight(_lineHeight * 1.1),
       ),
 
+      // ===========================================
+      // 4. TEKS TERJEMAHAN (SEKUNDER)
+      // ===========================================
       "p.indo": Style(
         fontFamily: mainFont,
-        //fontFamily: serifFont,
         fontWeight: FontWeight.normal,
-        color: textColor,
-        margin: Margins.only(bottom: 20),
+        color: textColor.withValues(alpha: 0.9),
+
+        // 🔥 UBAH BAGIAN INI:
+        // Kasih jarak bawah 12 biar antar paragraf Indo ada napasnya.
+        // Kalau ketemu Pali di bawahnya, jaraknya bakal nambah (jadi pemisah ayat yang tegas).
+        margin: Margins.only(bottom: 12),
+
         fontSize: FontSize(_fontSize),
+        // Tambahin dikit line-height biar teks panjang lebih enak dibaca
+        lineHeight: LineHeight(1.5),
       ),
 
       "p.footnote": Style(
         fontFamily: mainFont,
         fontStyle: FontStyle.italic,
-        //   fontFamily: sansFont,
         fontSize: FontSize(_fontSize * 0.85),
-        color: noteColor,
+        color: subtleColor, // ✅ Konsisten
         margin: Margins.only(bottom: 4),
       ),
 
-      // ✅ Dan di border kiri kotak isi
+      // ===========================================
+      // 3. KOTAK ISI (CLEAN)
+      // ===========================================
       "div.isi": Style(
-        backgroundColor: contentBoxColor,
-        padding: HtmlPaddings.all(12),
-        margin: Margins.symmetric(vertical: 10),
+        backgroundColor: Colors.transparent,
         border: Border(
-          left: BorderSide(color: paliAccentColor, width: 4), // <-- SINI JUGA
-          top: BorderSide(
-            color: Colors.grey.withValues(alpha: 0.2),
-            width: 0.5,
-          ),
-          right: BorderSide(
-            color: Colors.grey.withValues(alpha: 0.2),
-            width: 0.5,
-          ),
-          bottom: BorderSide(
-            color: Colors.grey.withValues(alpha: 0.2),
-            width: 0.5,
+          left: BorderSide(
+            color: paliAccentColor.withValues(alpha: 0.3),
+            width: 3,
           ),
         ),
+        padding: HtmlPaddings.only(left: 16, top: 4, bottom: 4),
+        margin: Margins.only(bottom: 24),
       ),
 
+      // ===========================================
+      // 4. DAFTAR ISI (TOMBOL "SOFT BUTTON")
+      // ===========================================
       "div.daftar": Style(
-        margin: Margins.only(top: 10),
+        margin: Margins.only(top: 10, bottom: 32),
         display: Display.block,
       ),
 
+      // 🔥 INI DIA: Tampilan "Bisa Dipencet" tapi Gak Norak
       "div.daftar-child": Style(
-        backgroundColor: contentBoxColor,
-        padding: HtmlPaddings.symmetric(horizontal: 12, vertical: 10),
+        // Background: Warna teks tapi opacity 4% (Soft banget)
+        backgroundColor: buttonFillColor,
+
+        // Border: Warna teks opacity 12% (Garis halus penegas)
+        border: Border.all(color: buttonBorderColor, width: 1),
+
+        // Radius: Biar modern & ramah (bukan kotak tajam)
+        // Note: Flutter HTML pake 'radius' via css style logic,
+        // tapi properti border di Style object gak support radius langsung di semua versi.
+        // Triknya di padding & margin yang pas. Kalau mau radius di flutter_html lama susah,
+        // tapi tampilan kotak halus dengan warna fill udah cukup ngasih sinyal "tombol".
+        // (Versi flutter_html baru support, tapi kalau error, hapus properti yang gak support).
+        padding: HtmlPaddings.symmetric(horizontal: 16, vertical: 12),
         margin: Margins.only(bottom: 8),
-        border: Border(
-          left: BorderSide(color: const Color(0xFF4CAF50), width: 3),
-        ),
       ),
 
+      // Judul Bab: Pake Warna Aksen (Pali) biar kerasa Link Aktif
       ".daftar-child": Style(
         fontFamily: serifFont,
-        // 🔥 15/16 ≈ 0.94
-        fontSize: FontSize(_fontSize * 0.94),
+        fontSize: FontSize(_fontSize * 1.05),
         fontWeight: FontWeight.bold,
-        color: textColor,
+        color: paliAccentColor, // Warna "Link"
+        lineHeight: LineHeight(1.3),
       ),
 
+      // Subtitle Bab
       "span.dindo": Style(
         fontFamily: sansFont,
         display: Display.block,
-        margin: Margins.only(top: 2),
-        // 🔥 13/16 ≈ 0.82
-        fontSize: FontSize(_fontSize * 0.82),
+        margin: Margins.only(top: 4),
+        fontSize: FontSize(_fontSize * 0.85),
         fontWeight: FontWeight.normal,
-        color: noteColor,
+        color: subtleColor, // Warna abu turunan
+        lineHeight: LineHeight(1.4),
       ),
 
+      // ===========================================
+      // 5. LAIN-LAIN
+      // ===========================================
+      ".nomor": Style(
+        display: Display.block,
+        textAlign: TextAlign.center,
+        fontFamily: serifFont,
+        fontSize: FontSize(_fontSize * 0.9),
+        fontWeight: FontWeight.bold,
+        color: subtleColor, // ✅ Konsisten
+        margin: Margins.only(top: 32, bottom: 8),
+      ),
+
+      // ===========================================
+      // 7. GUIDE / INSTRUKSI (EMPHASIZED)
+      // ===========================================
       ".guide": Style(
         fontFamily: sansFont,
         display: Display.block,
-        margin: Margins.only(top: 2),
-        // 🔥 14/16 ≈ 0.88
-        fontSize: FontSize(_fontSize * 0.88),
-        fontWeight: FontWeight.normal,
-        color: noteColor,
-      ),
 
+        // Jarak: Kasih napas atas bawah biar gak nempel ayat
+        margin: Margins.only(top: 24, bottom: 8),
+
+        // Font: Agak kecil tapi TEBAL & MIRING (Standar instruksi)
+        fontSize: FontSize(_fontSize * 0.85),
+        fontWeight: FontWeight.w700, // Bold biar kebaca jelas
+        fontStyle: FontStyle.italic, // Miring biar beda sama ayat
+        // Warna: Pake warna Aksen (Pali) biar senada tapi tegas
+        // Atau kalau mau beda banget, bisa pake textColor.withOpacity(0.7)
+        color: paliAccentColor,
+
+        // Opsional: Rata tengah biar kayak instruksi formal
+        // textAlign: TextAlign.center,
+      ),
       "a": Style(
         fontFamily: sansFont,
         color: isDarkVariant
@@ -1893,7 +1961,18 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         textDecoration: TextDecoration.none,
       ),
 
-      "div.disabled": Style(color: noteColor.withValues(alpha: 0.4)),
+      "div.disabled": Style(color: subtleColor.withValues(alpha: 0.4)),
+
+      ".ref": Style(
+        fontSize: FontSize.smaller,
+        color: subtleColor,
+        textDecoration: TextDecoration.none,
+        verticalAlign: VerticalAlign.sup,
+        border: Border.all(color: buttonBorderColor),
+        margin: Margins.only(right: 4),
+        padding: HtmlPaddings.symmetric(horizontal: 2, vertical: 0),
+        display: Display.inlineBlock,
+      ),
     };
   }
 

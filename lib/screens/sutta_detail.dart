@@ -57,6 +57,7 @@ enum SuttaSnackType {
 enum ReaderTheme { light, light2, sepia, dark, dark2 }
 
 class _SuttaDetailState extends State<SuttaDetail> {
+  final ThemeManager _tm = ThemeManager();
   double _horizontalPadding = 16.0;
   // --- NAV CONTEXT & STATE ---
   late bool _hasNavigatedBetweenSuttas; // ✅ 3. Ubah jadi 'late' (hapus = false)
@@ -83,9 +84,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   // 🔥 FUNGSI SAKTI BUAT PALI FUZZY SEARCH
   RegExp _createPaliRegex(String query) {
+    // 🔥 FIX: Hapus simbol < dan > biar user gak bisa search tag HTML
+    final cleanQuery = query.replaceAll(RegExp(r'[<>]'), '');
+
     final buffer = StringBuffer();
-    for (int i = 0; i < query.length; i++) {
-      final char = query[i].toLowerCase();
+    for (int i = 0; i < cleanQuery.length; i++) {
+      // Pakai cleanQuery
+      final char = cleanQuery[i].toLowerCase();
       switch (char) {
         case 'a':
           buffer.write('(?:a|ā)');
@@ -98,10 +103,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
           break;
         case 'm':
           buffer.write('(?:m|ṁ|ṃ)');
-          break; // Handle nigghahita
+          break;
         case 'n':
           buffer.write('(?:n|ṇ|ñ|ṅ)');
-          break; // Handle n variants
+          break;
         case 't':
           buffer.write('(?:t|ṭ)');
           break;
@@ -112,7 +117,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
           buffer.write('(?:l|ḷ)');
           break;
         default:
-          buffer.write(RegExp.escape(char)); // Karakter lain di-escape aman
+          // 🔥 INI PENYELAMATNYA:
+          // Mengubah simbol regex kayak '(', '[', '*', '?' jadi teks biasa.
+          // Jadi kalau user ketik '(', aplikasi gak crash.
+          buffer.write(RegExp.escape(char));
       }
     }
     return RegExp(buffer.toString(), caseSensitive: false);
@@ -146,12 +154,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final uiIconColor = systemScheme.onSurface;
 
     // 2. Panggil ThemeManager buat nyontek warna background asli
-    final tm = ThemeManager();
+    //final tm = ThemeManager();
 
     switch (_readerTheme) {
       // --- TERANG 1 (Standard: Full ThemeManager) ---
       case ReaderTheme.light:
-        final t = tm.lightTheme;
+        final t = _tm.lightTheme;
         return {
           'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
           'text': t.colorScheme.onSurface, // ✅ Hitam (Standard)
@@ -163,7 +171,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       // --- TERANG 2 (Soft: Bg ThemeManager, Teks Abu) ---
       case ReaderTheme.light2:
-        final t = tm.lightTheme;
+        final t = _tm.lightTheme;
         return {
           'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
           'text': const Color(0xFF424242), // ✨ Custom: Abu Tua Soft
@@ -186,7 +194,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       // --- GELAP 1 (Standard: Full ThemeManager) ---
       case ReaderTheme.dark:
-        final t = tm.darkTheme;
+        final t = _tm.darkTheme;
         return {
           'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
           'text': t.colorScheme.onSurface, // ✅ Putih (Standard)
@@ -198,7 +206,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       // --- GELAP 2 (Soft: Bg ThemeManager, Teks Abu) ---
       case ReaderTheme.dark2:
-        final t = tm.darkTheme;
+        final t = _tm.darkTheme;
         return {
           'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
           'text': const Color(0xFFB0BEC5), // ✨ Custom: Abu Kebiruan
@@ -306,85 +314,86 @@ class _SuttaDetailState extends State<SuttaDetail> {
   ) {
     if (htmlText.isEmpty) return [];
 
-    final htmlWithHighlight = _injectSearchHighlights(
-      htmlText,
-      listIndex,
-      isPali,
-    );
+    // ❌ HAPUS INI: Jangan inject di string mentah lagi
+    // final htmlWithHighlight = _injectSearchHighlights(...)
 
+    // ✅ PAKAI RAW HTML LANGSUNG
     final unescape = HtmlUnescape();
     final spans = <InlineSpan>[];
 
-    // 🔥 UPDATE REGEX: Tambahkan x-highlight di sini
-    final regex = RegExp(
-      r'<(em|i|b|strong|span|x-highlight)([^>]*)>(.*?)<\/\1>',
+    // Regex Tag (Sama kayak tadi)
+    final tagRegex = RegExp(
+      r'<(/)?(em|i|b|strong|span)([^>]*)>', // Note: x-highlight udah gak perlu dideteksi di sini
       caseSensitive: false,
-      dotAll: true,
     );
 
     int lastIndex = 0;
+    List<TextStyle> styleStack = [baseStyle];
 
-    for (final match in regex.allMatches(htmlWithHighlight)) {
+    // Kita butuh counter lokal untuk sinkronisasi dengan SearchMatch
+    int localMatchCounter = 0;
+
+    for (final match in tagRegex.allMatches(htmlText)) {
       if (match.start > lastIndex) {
-        final plainText = htmlWithHighlight.substring(lastIndex, match.start);
-        spans.add(
-          TextSpan(text: unescape.convert(plainText), style: baseStyle),
-        );
-      }
+        final plainText = htmlText.substring(lastIndex, match.start);
 
-      final tag = match.group(1)?.toLowerCase();
-      final attributes = match.group(2) ?? "";
-      final content = match.group(3) ?? "";
+        // 🔥 DISINI MAGIC-NYA:
+        // Kita decode dulu teksnya, BARU kita cari highlight-nya
+        if (plainText.isNotEmpty) {
+          final decodedText = unescape.convert(plainText);
 
-      TextStyle matchStyle = baseStyle;
-
-      if (tag == 'em' || tag == 'i') {
-        matchStyle = baseStyle.copyWith(fontStyle: FontStyle.italic);
-      } else if (tag == 'b' || tag == 'strong') {
-        matchStyle = baseStyle.copyWith(fontWeight: FontWeight.bold);
-      }
-      // 🔥 HANDLE x-highlight
-      else if (tag == 'x-highlight') {
-        Color bgColor = Colors.yellow;
-        Color textColor = Colors.black;
-
-        // Cek data-active="true"
-        if (attributes.contains('data-active="true"')) {
-          bgColor = Colors.orange;
-          textColor = Colors.white;
-        }
-
-        matchStyle = baseStyle.copyWith(
-          backgroundColor: bgColor,
-          color: textColor,
-          fontWeight: FontWeight.bold,
-        );
-      }
-      // Fallback span biasa
-      else if (tag == 'span' && attributes.contains('background-color')) {
-        if (attributes.contains('orange')) {
-          // Jaga-jaga legacy code
-          matchStyle = baseStyle.copyWith(
-            backgroundColor: Colors.orange,
-            color: Colors.white,
+          // Helper function buat mecah teks jadi (Normal - Highlight - Normal)
+          final highlightedSpans = _buildHighlightedSpans(
+            decodedText,
+            styleStack.last, // Pakai style tumpukan saat ini (misal lagi Bold)
+            listIndex,
+            isPali,
+            localMatchCounter, // Oper counter saat ini
           );
-        } else {
-          matchStyle = baseStyle.copyWith(
-            backgroundColor: Colors.yellow,
-            color: Colors.black,
-          );
+
+          spans.addAll(highlightedSpans.spans);
+          localMatchCounter = highlightedSpans.newCounter; // Update counter
         }
       }
 
-      spans.add(TextSpan(text: unescape.convert(content), style: matchStyle));
+      // --- LOGIC PARSING TAG (Sama kayak sebelumnya) ---
+      final isClosing = match.group(1) == '/';
+      final tagName = match.group(2)?.toLowerCase();
+
+      if (!isClosing) {
+        final parentStyle = styleStack.last;
+        TextStyle newStyle = parentStyle;
+
+        if (tagName == 'b' || tagName == 'strong') {
+          newStyle = parentStyle.copyWith(fontWeight: FontWeight.bold);
+        } else if (tagName == 'em' || tagName == 'i') {
+          newStyle = parentStyle.copyWith(fontStyle: FontStyle.italic);
+        }
+        // Note: span/color logic bisa ditambah disini kalau perlu
+
+        styleStack.add(newStyle);
+      } else {
+        if (styleStack.length > 1) {
+          styleStack.removeLast();
+        }
+      }
+
       lastIndex = match.end;
     }
 
-    if (lastIndex < htmlWithHighlight.length) {
-      final remainingText = htmlWithHighlight.substring(lastIndex);
-      spans.add(
-        TextSpan(text: unescape.convert(remainingText), style: baseStyle),
+    // Render sisa teks
+    if (lastIndex < htmlText.length) {
+      final remainingText = htmlText.substring(lastIndex);
+      final decodedText = unescape.convert(remainingText);
+
+      final highlightedSpans = _buildHighlightedSpans(
+        decodedText,
+        styleStack.last,
+        listIndex,
+        isPali,
+        localMatchCounter,
       );
+      spans.addAll(highlightedSpans.spans);
     }
 
     return spans;
@@ -573,36 +582,57 @@ class _SuttaDetailState extends State<SuttaDetail> {
     int listIndex,
     bool isPaliTarget,
   ) {
+    // 1. Validasi
     if (_searchController.text.length < 2) return content;
+    final searchRegex = _cachedSearchRegex;
+    if (searchRegex == null) return content;
 
-    final regex = _cachedSearchRegex;
-    if (regex == null) return content;
+    // 2. 🔥 GABUNG REGEX: (Group 1: Tag HTML) | (Group 2: Teks Dicari)
+    // Kita bungkus searchRegex.pattern pake kurung biar jadi Group 2
+    final pattern = '(<[^>]+>)|(${searchRegex.pattern})';
+
+    // Hati-hati: Pastikan combinedRegex valid. Kalau user ngetik aneh-aneh, ini bisa error.
+    final combinedRegex = RegExp(pattern, caseSensitive: false);
+
+    int localMatchCounter = 0;
 
     try {
-      int localMatchCounter = 0;
-      return content.replaceAllMapped(regex, (match) {
-        bool isActive = false;
+      return content.replaceAllMapped(combinedRegex, (match) {
+        final fullMatch = match.group(0)!;
 
-        if (_allMatches.isNotEmpty && _currentMatchIndex < _allMatches.length) {
-          final activeMatch = _allMatches[_currentMatchIndex];
-          // Cek index baris, jenis teks (Pali/Trans), dan urutan kata
-          isActive =
-              (activeMatch.listIndex == listIndex &&
-              activeMatch.isPali == isPaliTarget &&
-              activeMatch.localIndex == localMatchCounter);
+        // 🛡️ CEK GROUP 1: Apakah ini Tag HTML?
+        if (match.group(1) != null) {
+          return fullMatch; // JANGAN DISENTUH, Balikin utuh.
         }
 
-        localMatchCounter++;
+        // 🗡️ CEK GROUP 2: Ini Teks yang dicari!
+        if (match.group(2) != null) {
+          // Cek Active State (Warna Oranye)
+          bool isActive = false;
+          if (_allMatches.isNotEmpty &&
+              _currentMatchIndex < _allMatches.length) {
+            final activeMatch = _allMatches[_currentMatchIndex];
+            if (activeMatch.listIndex == listIndex &&
+                activeMatch.isPali == isPaliTarget &&
+                activeMatch.localIndex == localMatchCounter) {
+              isActive = true;
+            }
+          }
 
-        String bgColor = isActive ? "#FF8C00" : "#FFFF00"; // Oren / Kuning
-        String color = isActive ? "white" : "black";
-        String activeAttr = isActive ? 'data-active="true"' : '';
+          localMatchCounter++; // Naikkan counter
 
-        // 🔥 PENTING: Pakai tag <x-highlight> biar konsisten
-        return "<x-highlight style='background-color: $bgColor; color: $color; font-weight: bold; border-radius: 4px; padding: 0 2px;' $activeAttr>${match.group(0)}</x-highlight>";
+          String bgColor = isActive ? "#FF8C00" : "#FFFF00";
+          String color = isActive ? "white" : "black";
+          String activeAttr = isActive ? 'data-active="true"' : '';
+
+          return "<x-highlight style='background-color: $bgColor; color: $color; font-weight: bold; border-radius: 4px; padding: 0 2px;' $activeAttr>$fullMatch</x-highlight>";
+        }
+
+        return fullMatch; // Jaga-jaga
       });
     } catch (e) {
-      return content;
+      debugPrint("Regex Error: $e");
+      return content; // Fallback kalau regex meledak
     }
   }
 
@@ -4462,6 +4492,89 @@ class _SuttaDetailState extends State<SuttaDetail> {
       ),
     );
   }
+
+  // 🔥 FUNGSI UTAMA PEMBUAT HIGHLIGHT
+  HighlightResult _buildHighlightedSpans(
+    String text,
+    TextStyle currentStyle,
+    int listIndex,
+    bool isPaliTarget,
+    int startCounter,
+  ) {
+    // Kalau gak ada search, balikin teks polos
+    if (_cachedSearchRegex == null || _searchController.text.length < 2) {
+      return HighlightResult([
+        TextSpan(text: text, style: currentStyle),
+      ], startCounter);
+    }
+
+    final matches = _cachedSearchRegex!.allMatches(text);
+    if (matches.isEmpty) {
+      return HighlightResult([
+        TextSpan(text: text, style: currentStyle),
+      ], startCounter);
+    }
+
+    final spans = <InlineSpan>[];
+    int textCursor = 0;
+    int currentCounter = startCounter;
+
+    for (final match in matches) {
+      // 1. Teks sebelum highlight
+      if (match.start > textCursor) {
+        spans.add(
+          TextSpan(
+            text: text.substring(textCursor, match.start),
+            style: currentStyle,
+          ),
+        );
+      }
+
+      // 2. Cek apakah highlight ini AKTIF?
+      bool isActive = false;
+      // Cek di daftar _allMatches global
+      if (_allMatches.isNotEmpty && _currentMatchIndex < _allMatches.length) {
+        final activeMatch = _allMatches[_currentMatchIndex];
+        // Syarat: Index Baris sama, Tipe sama (Pali/Indo), dan Urutan Counter sama
+        if (activeMatch.listIndex == listIndex &&
+            activeMatch.isPali == isPaliTarget &&
+            activeMatch.localIndex == currentCounter) {
+          isActive = true;
+        }
+      }
+
+      // 3. Render HIGHLIGHT (Gabungin style sekarang + Warna Background)
+      spans.add(
+        TextSpan(
+          text: text.substring(match.start, match.end),
+          style: currentStyle.copyWith(
+            backgroundColor: isActive ? Colors.orange : Colors.yellow,
+            color: isActive ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold, // Opsional: biar lebih jelas
+          ),
+        ),
+      );
+
+      textCursor = match.end;
+      currentCounter++; // Nambah counter setiap ketemu kata
+    }
+
+    // 4. Sisa teks setelah highlight terakhir
+    if (textCursor < text.length) {
+      spans.add(
+        TextSpan(text: text.substring(textCursor), style: currentStyle),
+      );
+    }
+
+    return HighlightResult(spans, currentCounter);
+  }
+}
+
+// Helper class buat return 2 nilai sekaligus
+class HighlightResult {
+  final List<InlineSpan> spans;
+  final int newCounter;
+  HighlightResult(this.spans, this.newCounter);
 }
 
 class SearchMatch {
