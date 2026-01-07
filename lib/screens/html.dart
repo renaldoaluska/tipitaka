@@ -39,11 +39,22 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   ReaderTheme _readerTheme = ReaderTheme.light;
   double _horizontalPadding = 12.0; // Default awal
-  double _textZoom = 100.0;
+  double _fontSize = 16.0; // Default langsung 16.0
+
+  final double _textZoom = 100.0;
   bool _isLoading = true;
   late int _currentIndex;
   bool _isScrolled = false;
   bool _isSearchModalOpen = false;
+
+  double _lineHeight = 1.6;
+  String _fontType = 'sans'; // 'sans' (Inter) atau 'serif' (Noto)
+  // ✅ 2. HELPER FONT
+  String? get _currentFontFamily {
+    return _fontType == 'serif'
+        ? GoogleFonts.notoSerif().fontFamily
+        : GoogleFonts.inter().fontFamily;
+  }
 
   // 🔧 TAMBAH STATE UNTUK AUDIO
   bool _isOnline = true;
@@ -66,10 +77,47 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isPlayerVisible = false; // Buat toggle buka/tutup
+  bool _isSearchActive = false;
   String _currentAudioUrl = ""; // Buat nyimpen url audio yg aktif
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
+  //  (HELPER FUZZY SEARCH)
+  RegExp _createPaliRegex(String query) {
+    final buffer = StringBuffer();
+    for (int i = 0; i < query.length; i++) {
+      final char = query[i].toLowerCase();
+      switch (char) {
+        case 'a':
+          buffer.write('(?:a|ā)');
+          break;
+        case 'i':
+          buffer.write('(?:i|ī)');
+          break;
+        case 'u':
+          buffer.write('(?:u|ū)');
+          break;
+        case 'm':
+          buffer.write('(?:m|ṁ|ṃ)');
+          break;
+        case 'n':
+          buffer.write('(?:n|ṇ|ñ|ṅ)');
+          break;
+        case 't':
+          buffer.write('(?:t|ṭ)');
+          break;
+        case 'd':
+          buffer.write('(?:d|ḍ)');
+          break;
+        case 'l':
+          buffer.write('(?:l|ḷ)');
+          break;
+        default:
+          buffer.write(RegExp.escape(char));
+      }
+    }
+    return RegExp(buffer.toString(), caseSensitive: false);
+  }
 
   // 🔧 AUTO DETECT: File Paritta = yang ada di folder 'par/' DAN filename mulai 'p'
   bool get _isParittaPage {
@@ -407,17 +455,14 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _textZoom = prefs.getDouble('html_text_zoom') ?? 100.0;
+        //  _textZoom = prefs.getDouble('html_text_zoom') ?? 100.0;
+        _fontSize = prefs.getDouble('html_font_size_v2') ?? 16.0;
         // Load padding, default 12.0
         _horizontalPadding = prefs.getDouble('html_horizontal_padding') ?? 12.0;
+        _lineHeight = prefs.getDouble('html_line_height') ?? 1.6;
+        _fontType = prefs.getString('html_font_type') ?? 'sans';
       });
     }
-  }
-
-  // 3. TAMBAH FUNGSI SIMPAN PADDING
-  Future<void> _savePaddingPref() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('html_horizontal_padding', _horizontalPadding);
   }
 
   Future<void> _loadHtmlContent() async {
@@ -480,9 +525,15 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
   }
 
-  Future<void> _saveZoomPref() async {
+  // ✅ HELPER SAVE BARU BIAR GAMPANG
+  Future<void> _savePreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('html_text_zoom', _textZoom);
+    await prefs.setDouble('html_font_size_v2', _fontSize);
+    //  await prefs.setDouble('html_text_zoom', _textZoom);
+    await prefs.setDouble('html_horizontal_padding', _horizontalPadding);
+    await prefs.setDouble('html_line_height', _lineHeight);
+    await prefs.setString('html_font_type', _fontType);
+    await prefs.setInt('reader_theme_index', _readerTheme.index);
   }
 
   // ============================================
@@ -502,30 +553,46 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   void _applySearchHighlight(String query) {
     if (query.length < 2) return;
 
-    //  final RegExp regExp = RegExp(query, caseSensitive: false);
-    final RegExp regExp = RegExp(RegExp.escape(query), caseSensitive: false);
+    final RegExp regExp = _createPaliRegex(query.trim());
     final matches = regExp.allMatches(_rawHtmlContent);
 
     _searchKeys.clear();
     int matchCounter = 0;
 
-    String highlightedHtml = _rawHtmlContent.replaceAllMapped(
-      // RegExp('($query)', caseSensitive: false),
-      RegExp('(${RegExp.escape(query)})', caseSensitive: false),
-      (match) {
-        final index = matchCounter++;
-        return '<mark-highlight index="$index">${match.group(0)}</mark-highlight>';
-      },
-    );
+    // 🔥 LOGIC SAKTI ALA SUTTA_DETAIL
+    // Kita langsung tanam warna Oren/Kuning di sini
+    String highlightedHtml = _rawHtmlContent.replaceAllMapped(regExp, (match) {
+      final int index = matchCounter++;
+
+      // Cek apakah ini match yang lagi aktif (sedang dipilih user)
+      // Karena ini HTML satu blok, logicnya simpel: index == current
+      final bool isActive = (index == _currentMatchIndex);
+
+      // Warna Oren kalau aktif, Kuning kalau pasif
+      String bgColor = isActive ? "#FF8C00" : "#FFFF00";
+      String color = isActive ? "white" : "black";
+
+      // Attribute penanda
+      String activeAttr = isActive ? 'data-active="true"' : '';
+
+      // Bungkus pake tag <x-highlight> (sama kayak sutta_detail)
+      return "<x-highlight index='$index' style='background-color: $bgColor; color: $color; font-weight: bold; border-radius: 4px; padding: 0 2px;' $activeAttr>${match.group(0)}</x-highlight>";
+    });
 
     setState(() {
       _allMatches = matches.map((e) => e.group(0)!).toList();
-      _currentMatchIndex = matches.isNotEmpty ? 0 : -1;
+      // Reset ke 0 kalau ada hasil
+      if (_currentMatchIndex == -1 && matches.isNotEmpty) {
+        _currentMatchIndex = 0;
+        // Render ulang biar yang ke-0 jadi Oren
+        _applySearchHighlight(query);
+        return;
+      }
       _displayHtmlContent = highlightedHtml;
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (matches.isNotEmpty) _jumpToResult(0);
+      if (matches.isNotEmpty && _currentMatchIndex == 0) _jumpToResult(0);
     });
   }
 
@@ -536,8 +603,14 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     if (newIndex < 0) newIndex = _allMatches.length - 1;
     if (newIndex >= _allMatches.length) newIndex = 0;
 
-    setState(() => _currentMatchIndex = newIndex);
+    setState(() {
+      _currentMatchIndex = newIndex;
+    });
 
+    // 🔥 RE-RENDER HIGHLIGHT BIAR WARNA OREN PINDAH
+    _applySearchHighlight(_currentQuery);
+
+    // Scroll Logic (Tetap sama)
     final key = _searchKeys[newIndex];
     if (key?.currentContext != null) {
       Scrollable.ensureVisible(
@@ -547,8 +620,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         curve: Curves.easeInOut,
       );
     }
-
-    HapticFeedback.selectionClick();
   }
 
   void _clearSearch() {
@@ -672,7 +743,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   void _openSearchModal() {
     if (!mounted) return;
-
+    setState(() => _isSearchActive = true);
     setState(() => _isSearchModalOpen = true);
 
     showModalBottomSheet(
@@ -743,7 +814,9 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     true, // Langsung fokus biar keyboard naik
                                 decoration: InputDecoration(
                                   hintText: "Cari kata (min. 2 huruf)...",
-                                  prefixIcon: const Icon(Icons.search),
+                                  prefixIcon: const Icon(
+                                    Icons.find_in_page_outlined,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide.none,
@@ -868,14 +941,23 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     ).whenComplete(() {
       Future.microtask(() {
         if (!mounted) return;
-        setState(() => _isSearchModalOpen = false);
-        _debounce?.cancel();
-        _currentQuery = "";
-        _allMatches.clear();
-        _searchKeys.clear();
-        _currentMatchIndex = -1;
-        _displayHtmlContent = _rawHtmlContent;
-        _searchController.clear();
+
+        // 🔥 SEMUANYA MASUKIN SINI BIAR RAPI & UI KE-UPDATE BARENGAN
+        setState(() {
+          _isSearchModalOpen = false;
+          _isSearchActive = false; // ✅ Penting buat padding bawah
+
+          _debounce?.cancel();
+          _currentQuery = "";
+          _allMatches.clear();
+          _searchKeys.clear();
+          _currentMatchIndex = -1;
+
+          // Reset konten jadi polos lagi
+          _displayHtmlContent = _rawHtmlContent;
+
+          _searchController.clear();
+        });
       });
     });
   }
@@ -883,6 +965,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   // SETTINGS MODAL (WITH SCROLLBAR)
   // ============================================
+
   void _showSettingsModal() {
     showModalBottomSheet(
       context: context,
@@ -890,70 +973,209 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            final int displayZoom = _textZoom.toInt();
-            final String displayPadding = _horizontalPadding.toStringAsFixed(0);
+            final colorScheme = Theme.of(context).colorScheme;
+            final readerColors = _themeColors;
+            final ScrollController modalScrollController = ScrollController();
 
-            return Padding(
-              padding: const EdgeInsets.only(
-                left: 24,
-                right: 24,
-                bottom: 24,
-                top: 16,
+            // Helper Style Tombol Font
+            ButtonStyle getFontBtnStyle(bool isActive) {
+              return OutlinedButton.styleFrom(
+                backgroundColor: isActive ? colorScheme.primaryContainer : null,
+                side: BorderSide(
+                  color: isActive
+                      ? colorScheme.primary
+                      : Colors.grey.withValues(alpha: 0.3),
+                ),
+                foregroundColor: isActive
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onSurface,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              );
+            }
+
+            // Helper Header Section
+            Widget buildSectionHeader(String title) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12, top: 4),
+                child: Text(
+                  title.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              );
+            }
+
+            return Container(
+              padding: const EdgeInsets.fromLTRB(24, 12, 4, 24),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // HEADER (Fixed)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Pengaturan Tampilan",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
+                  // --- HEADER (DRAG HANDLE) ---
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+
+                  // --- JUDUL UTAMA ---
+                  Padding(
+                    padding: const EdgeInsets.only(right: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Pengaturan Baca", // ✅ Konsisten
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
+                        CircleAvatar(
+                          backgroundColor: colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                          radius: 16,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            padding: EdgeInsets.zero,
+                            color: colorScheme.onSurface,
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 
-                  // ISI (Scrollable + Visual Indicator)
+                  // ===============================================
+                  // 🔥 STICKY LIVE PREVIEW BOX
+                  // ===============================================
+                  Padding(
+                    padding: const EdgeInsets.only(right: 20, bottom: 16),
+                    child: Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(maxHeight: 180),
+                      decoration: BoxDecoration(
+                        color: readerColors['bg'],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 16,
+                                  top: 12,
+                                ),
+                                child: Text(
+                                  "PRATINJAU TAMPILAN", // ✅ Konsisten
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: readerColors['note'],
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 16,
+                                  // Logic padding preview
+                                  horizontal: _horizontalPadding < 16
+                                      ? 16
+                                      : _horizontalPadding,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Contoh Teks Pali
+                                    Text(
+                                      "Namo Tassa Bhagavato Arahato Sammāsambuddhassa.",
+                                      style: TextStyle(
+                                        fontFamily: _currentFontFamily,
+                                        // Konversi zoom ke fontSize (basis 16)
+                                        fontSize: _fontSize,
+                                        height: _lineHeight,
+                                        fontWeight: FontWeight.w600,
+                                        color: readerColors['pali'],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // Contoh Teks Terjemahan
+                                    Text(
+                                      "Terpujilah Sang Bhagavā, Yang Mahasuci, Yang Telah Mencapai Penerangan Sempurna.",
+                                      style: TextStyle(
+                                        fontFamily: _currentFontFamily,
+                                        fontSize: 16 * (_textZoom / 100),
+                                        height: _lineHeight,
+                                        color: readerColors['text'],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // --- KONTEN SCROLLABLE ---
                   Flexible(
                     fit: FlexFit.loose,
-                    // ✅ TAMBAH SCROLLBAR DI SINI
                     child: Scrollbar(
+                      controller: modalScrollController,
                       thumbVisibility: true,
-                      thickness: 6,
-                      radius: const Radius.circular(10),
+                      radius: const Radius.circular(8),
+                      thickness: 4,
                       child: SingleChildScrollView(
+                        controller: modalScrollController,
                         physics: const BouncingScrollPhysics(),
-                        // Kasih padding kanan dikit biar konten gak ketabrak scrollbar
-                        padding: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.only(right: 20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // --- A. TEMA BACA ---
-                            Text(
-                              "Tema Baca",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
+                            // 1. GAYA & WARNA
+                            buildSectionHeader("Gaya & Warna"),
+
+                            // Theme Selector
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
@@ -972,9 +1194,9 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     ReaderTheme.light2,
                                     const Color(0xFFFAFAFA),
                                     const Color(0xFF424242),
-                                    "Terang 2",
+                                    "Lembut",
                                     () => setModalState(() {}),
-                                  ),
+                                  ), // ✅ Jadi Soft
                                   const SizedBox(width: 16),
                                   _buildThemeOption(
                                     context,
@@ -999,152 +1221,141 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     ReaderTheme.dark2,
                                     const Color(0xFF212121),
                                     const Color(0xFFB0BEC5),
-                                    "Gelap 2",
+                                    "Redup",
                                     () => setModalState(() {}),
-                                  ),
+                                  ), // ✅ Jadi Redup
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 16),
 
-                            // --- B. UKURAN TEKS ---
+                            // Font Selector
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  "Ukuran Teks",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                  ),
-                                ),
-                                TextButton(
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: const Size(50, 30),
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  onPressed: () {
-                                    setState(() => _textZoom = 100.0);
-                                    _saveZoomPref();
-                                    setModalState(() {});
-                                  },
-                                  child: const Text("Reset"),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.grey.withValues(alpha: 0.2),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  IconButton.filledTonal(
+                                Expanded(
+                                  child: OutlinedButton(
+                                    style: getFontBtnStyle(_fontType == 'sans'),
                                     onPressed: () {
-                                      setState(
-                                        () => _textZoom = (_textZoom - 10)
-                                            .clamp(50.0, 300.0),
-                                      );
-                                      _saveZoomPref();
+                                      setState(() => _fontType = 'sans');
+                                      _savePreferences();
                                       setModalState(() {});
                                     },
-                                    icon: const Icon(Icons.remove),
-                                  ),
-                                  Text(
-                                    "$displayZoom%",
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                    child: Text(
+                                      "Sans",
+                                      style: GoogleFonts.inter(),
                                     ),
                                   ),
-                                  IconButton.filledTonal(
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: OutlinedButton(
+                                    style: getFontBtnStyle(
+                                      _fontType == 'serif',
+                                    ),
                                     onPressed: () {
-                                      setState(
-                                        () => _textZoom = (_textZoom + 10)
-                                            .clamp(50.0, 300.0),
-                                      );
-                                      _saveZoomPref();
+                                      setState(() => _fontType = 'serif');
+                                      _savePreferences();
                                       setModalState(() {});
                                     },
-                                    icon: const Icon(Icons.add),
+                                    child: Text(
+                                      "Serif",
+                                      style: GoogleFonts.notoSerif(),
+                                    ),
                                   ),
-                                ],
-                              ),
-                            ),
-
-                            // --- C. JARAK SISI (PADDING) ---
-                            const SizedBox(height: 24),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Jarak Sisi (Padding)",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                  ),
-                                ),
-                                TextButton(
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: const Size(50, 30),
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  onPressed: () {
-                                    setState(() => _horizontalPadding = 12.0);
-                                    _savePaddingPref();
-                                    setModalState(() {});
-                                  },
-                                  child: const Text("Reset"),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+
+                            const SizedBox(height: 32),
+
+                            // 2. TATA LETAK
+                            buildSectionHeader("Tata Letak"),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
                               decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
+                                color: colorScheme.surfaceContainerHighest
                                     .withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: Colors.grey.withValues(alpha: 0.2),
+                                  color: Colors.grey.withValues(alpha: 0.1),
                                 ),
                               ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: Column(
                                 children: [
-                                  IconButton.filledTonal(
-                                    onPressed: () {
+                                  // Ukuran Teks (Zoom)
+                                  // Ukuran Teks (Absolute)
+                                  _buildStepperRow(
+                                    context,
+                                    icon: Icons.format_size_rounded,
+                                    label: "Ukuran Teks",
+                                    // 🔥 Tampilkan angka bulat (16, 18, 20)
+                                    valueLabel: "${_fontSize.toInt()}",
+                                    onMinus: () {
+                                      setState(() {
+                                        // 🔥 Step 2.0, Clamp 12-40
+                                        _fontSize = (_fontSize - 2).clamp(
+                                          12.0,
+                                          40.0,
+                                        );
+                                      });
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                    onPlus: () {
+                                      setState(() {
+                                        // 🔥 Step 2.0, Clamp 12-40
+                                        _fontSize = (_fontSize + 2).clamp(
+                                          12.0,
+                                          40.0,
+                                        );
+                                      });
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                  Divider(
+                                    color: Colors.grey.withValues(alpha: 0.1),
+                                    height: 16,
+                                  ),
+
+                                  // Jarak Baris
+                                  _buildStepperRow(
+                                    context,
+                                    icon: Icons.format_line_spacing_rounded,
+                                    label: "Jarak Baris",
+                                    valueLabel: _lineHeight.toStringAsFixed(1),
+                                    onMinus: () {
+                                      setState(
+                                        () => _lineHeight = (_lineHeight - 0.1)
+                                            .clamp(1.0, 3.0),
+                                      );
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                    onPlus: () {
+                                      setState(
+                                        () => _lineHeight = (_lineHeight + 0.1)
+                                            .clamp(1.0, 3.0),
+                                      );
+                                      _savePreferences();
+                                      setModalState(() {});
+                                    },
+                                  ),
+                                  Divider(
+                                    color: Colors.grey.withValues(alpha: 0.1),
+                                    height: 16,
+                                  ),
+
+                                  // Jarak Sisi
+                                  _buildStepperRow(
+                                    context,
+                                    icon: Icons.space_bar_rounded,
+                                    label: "Jarak Sisi", // ✅ Konsisten
+                                    valueLabel: "${_horizontalPadding.toInt()}",
+                                    onMinus: () {
                                       setState(
                                         () => _horizontalPadding =
                                             (_horizontalPadding - 4).clamp(
@@ -1152,20 +1363,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                               120.0,
                                             ),
                                       );
-                                      _savePaddingPref();
+                                      _savePreferences();
                                       setModalState(() {});
                                     },
-                                    icon: const Icon(Icons.remove),
-                                  ),
-                                  Text(
-                                    displayPadding,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  IconButton.filledTonal(
-                                    onPressed: () {
+                                    onPlus: () {
                                       setState(
                                         () => _horizontalPadding =
                                             (_horizontalPadding + 4).clamp(
@@ -1173,16 +1374,15 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                               120.0,
                                             ),
                                       );
-                                      _savePaddingPref();
+                                      _savePreferences();
                                       setModalState(() {});
                                     },
-                                    icon: const Icon(Icons.add),
                                   ),
                                 ],
                               ),
                             ),
 
-                            const SizedBox(height: 16),
+                            //const SizedBox(height: 24),
                           ],
                         ),
                       ),
@@ -1194,6 +1394,75 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildStepperRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String valueLabel,
+    required VoidCallback onMinus,
+    required VoidCallback onPlus,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: colorScheme.secondary),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline),
+                onPressed: onMinus,
+                color: colorScheme.onSurfaceVariant,
+                iconSize: 22,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              Container(
+                constraints: const BoxConstraints(
+                  minWidth: 50,
+                ), // Lebarin dikit buat "100%"
+                alignment: Alignment.center,
+                child: Text(
+                  valueLabel,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline),
+                onPressed: onPlus,
+                color: colorScheme.onSurfaceVariant,
+                iconSize: 22,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1301,14 +1570,18 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                           key: ValueKey<int>(_currentIndex),
                           controller: _scrollController,
                           padding: EdgeInsets.only(
-                            left:
-                                _horizontalPadding, // Padding Kiri dari settingan
-                            right:
-                                _horizontalPadding, // Padding Kanan dari settingan
+                            left: _horizontalPadding,
+                            right: _horizontalPadding,
+
+                            // LOGIKA PADDING DINAMIS:
+                            // 1. Audio Priority (340)
+                            // 2. Search Priority (300) -> Biar teks bawah gak ketutup modal
+                            // 3. Normal (120)
                             bottom: _isPlayerVisible
                                 ? 340
-                                : 120, // Padding Bawah (tetep logic player)
+                                : (_isSearchActive ? 300 : 120),
                           ),
+
                           child: Column(
                             // 👈 Tambah Column biar bisa kasih Spacer
                             children: [
@@ -1320,35 +1593,59 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                 child: Html(
                                   data: _displayHtmlContent,
                                   style: _getHtmlStyles(),
-
                                   extensions: [
                                     TagExtension(
-                                      tagsToExtend: {"mark-highlight"},
+                                      tagsToExtend: {"x-highlight"},
                                       builder: (extensionContext) {
-                                        final indexStr = extensionContext
-                                            .attributes['index'];
+                                        final attrs =
+                                            extensionContext.attributes;
+                                        final indexStr = attrs['index'];
+                                        final isGlobalActive =
+                                            attrs['data-active'] == 'true';
+
+                                        // FIX 1: NYONTEK UKURAN FONT INDUK
+                                        final style = extensionContext
+                                            .styledElement
+                                            ?.style;
+                                        double? currentFontSize =
+                                            style?.fontSize?.value;
+                                        // Fallback ke default font size
+                                        currentFontSize ??= _fontSize;
+
                                         if (indexStr != null) {
                                           final int index =
                                               int.tryParse(indexStr) ?? 0;
-                                          // final int index = int.parse(indexStr);
+
+                                          // Simpan key buat scroll
                                           final key = GlobalKey();
                                           _searchKeys[index] = key;
 
                                           return Container(
                                             key: key,
-                                            decoration: BoxDecoration(
-                                              color: Colors.yellow,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 2,
                                             ),
-                                            child: Text(
-                                              extensionContext.element!.text,
-                                              style: const TextStyle(
-                                                color: Colors.black,
-                                                fontWeight: FontWeight.bold,
+                                            decoration: BoxDecoration(
+                                              color: isGlobalActive
+                                                  ? Colors.orange
+                                                  : Colors.yellow,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            // 🔥 FIX 2: Pake Transform & Height 1.0 (Biar kotak rapi)
+                                            child: Transform.translate(
+                                              offset: const Offset(0, 1),
+                                              child: Text(
+                                                extensionContext.element!.text,
+                                                style: TextStyle(
+                                                  color: isGlobalActive
+                                                      ? Colors.white
+                                                      : Colors.black,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: currentFontSize,
+                                                  height:
+                                                      1.0, // 👈 PENTING: Reset line height
+                                                ),
                                               ),
                                             ),
                                           );
@@ -1414,6 +1711,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // UPDATED STYLES (USE THEME COLORS)
   // ============================================
   Map<String, Style> _getHtmlStyles() {
+    final mainFont = _currentFontFamily;
     final colors = _themeColors;
     final bgColor = colors['bg']!;
     final textColor = colors['text']!;
@@ -1422,7 +1720,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     // ✅ AMBIL WARNA PALI DARI MAP (Jangan logic if-else manual lagi)
     final paliAccentColor = colors['pali']!;
 
-    final fontSize = _textZoom / 100.0;
+    // final fontSize = _textZoom / 100.0;
 
     final serifFont = GoogleFonts.varta().fontFamily!;
     final sansFont = GoogleFonts.varta().fontFamily!;
@@ -1443,64 +1741,82 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       "body": Style(
         backgroundColor: bgColor,
         color: textColor,
-        fontFamily: sansFont,
-        fontSize: FontSize(16 * fontSize),
-        lineHeight: const LineHeight(1.6),
+        fontFamily: mainFont,
+        fontSize: FontSize(_fontSize),
+        lineHeight: LineHeight(_lineHeight),
         padding: HtmlPaddings.zero,
         margin: Margins.zero,
       ),
 
       "#isi": Style(margin: Margins.zero, padding: HtmlPaddings.zero),
 
+      // ===========================================
+      // 1. HEADER UTAMA (JUDUL KITAB/BAB)
+      // ===========================================
       "h1": Style(
-        fontFamily: serifFont,
-        fontSize: FontSize(22 * fontSize),
-        fontWeight: FontWeight.bold,
-        padding: HtmlPaddings.only(bottom: 5),
-        margin: Margins.only(top: 10, bottom: 5),
+        fontFamily: mainFont,
+        fontSize: FontSize(_fontSize * 1.6),
+        fontWeight: FontWeight.w900,
+        margin: Margins.only(top: 24, bottom: 8),
+        color: textColor,
         border: Border(
           bottom: BorderSide(color: noteColor.withValues(alpha: 0.3), width: 1),
         ),
       ),
 
+      // ===========================================
+      // 2. SUB-HEADERS
+      // ===========================================
       "h2": Style(
-        fontFamily: serifFont,
-        fontSize: FontSize(18 * fontSize),
+        fontFamily: mainFont,
+        fontSize: FontSize(_fontSize * 1.4),
         fontWeight: FontWeight.bold,
-        margin: Margins.only(top: 25, bottom: 10),
+        margin: Margins.only(top: 20, bottom: 8),
+        color: textColor,
+      ),
+      "h3": Style(
+        fontFamily: mainFont,
+        fontSize: FontSize(_fontSize * 1.2),
+        fontWeight: FontWeight.w700,
+        margin: Margins.only(top: 16, bottom: 6),
+        color: textColor,
       ),
 
-      "h1 span.indo": Style(
-        fontFamily: sansFont,
+      // 🔥 INI KUNCINYA: TARGET SEMUA SPAN.INDO DI DALAM HEADER
+      "h1 span.indo, h2 span.indo, h3 span.indo": Style(
+        display: Display.block, // Turun baris
+        fontFamily: mainFont,
         fontWeight: FontWeight.normal,
-        display: Display.block,
-        margin: Margins.only(top: 2),
-        fontSize: FontSize(16 * fontSize),
-        color: textColor.withValues(alpha: 0.8),
+        fontSize: FontSize(_fontSize * 0.85), // Ukuran subtitle
+        color: textColor.withValues(alpha: 0.75), // Agak pudar
         fontStyle: FontStyle.italic,
+        margin: Margins.only(top: 4),
       ),
 
       // ✅ Terapkan paliAccentColor di sini
       "p": Style(
-        fontFamily: serifFont,
-        fontWeight: FontWeight.w600,
+        fontFamily: mainFont,
+        // fontFamily: serifFont,
+        fontWeight: _fontType == 'serif' ? FontWeight.w500 : FontWeight.w600,
         color: paliAccentColor,
         margin: Margins.only(bottom: 6),
-        fontSize: FontSize(16 * fontSize),
+        fontSize: FontSize(_fontSize),
       ),
 
       "p.indo": Style(
-        fontFamily: serifFont,
+        fontFamily: mainFont,
+        //fontFamily: serifFont,
         fontWeight: FontWeight.normal,
         color: textColor,
         margin: Margins.only(bottom: 20),
-        fontSize: FontSize(15 * fontSize),
+        fontSize: FontSize(_fontSize),
       ),
 
       "p.footnote": Style(
+        fontFamily: mainFont,
         fontStyle: FontStyle.italic,
-        fontFamily: sansFont,
-        fontSize: FontSize(13 * fontSize),
+        //   fontFamily: sansFont,
+        fontSize: FontSize(_fontSize * 0.85),
         color: noteColor,
         margin: Margins.only(bottom: 4),
       ),
@@ -1543,7 +1859,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
       ".daftar-child": Style(
         fontFamily: serifFont,
-        fontSize: FontSize(15 * fontSize),
+        // 🔥 15/16 ≈ 0.94
+        fontSize: FontSize(_fontSize * 0.94),
         fontWeight: FontWeight.bold,
         color: textColor,
       ),
@@ -1552,7 +1869,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontFamily: sansFont,
         display: Display.block,
         margin: Margins.only(top: 2),
-        fontSize: FontSize(13 * fontSize),
+        // 🔥 13/16 ≈ 0.82
+        fontSize: FontSize(_fontSize * 0.82),
         fontWeight: FontWeight.normal,
         color: noteColor,
       ),
@@ -1561,7 +1879,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontFamily: sansFont,
         display: Display.block,
         margin: Margins.only(top: 2),
-        fontSize: FontSize(14 * fontSize),
+        // 🔥 14/16 ≈ 0.88
+        fontSize: FontSize(_fontSize * 0.88),
         fontWeight: FontWeight.normal,
         color: noteColor,
       ),
@@ -1827,10 +2146,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
           if (widget.tematikChapterIndex != null &&
               widget.tematikChapterIndex != 0)
-            buildBtn(
-              icon: Icons.library_books_outlined,
-              onTap: _showTematikListModal,
-            ),
+            buildBtn(icon: Icons.folder_outlined, onTap: _showTematikListModal),
 
           // SEARCH
           buildBtn(

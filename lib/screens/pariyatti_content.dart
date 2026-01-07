@@ -672,7 +672,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
               kitab["desc"]!,
               style: TextStyle(color: subtextColor, fontSize: 12),
             ),
-            initiallyExpanded: false,
+            initiallyExpanded: true,
             children: khuddakaChildren.map((child) {
               final childAcronym = normalizeNikayaAcronym(child["acronym"]!);
               return _buildKitabTile(child, childAcronym, context);

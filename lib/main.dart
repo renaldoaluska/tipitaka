@@ -277,8 +277,7 @@ class _RootPageState extends State<RootPage>
         }
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        // 🔥 TETEP ADA INI
-        value: SystemUIHelper.getStyle(context), // 🔥 PAKAI HELPER!
+        value: SystemUIHelper.getStyle(context), // PAKAI HELPER!
         child: Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: isTablet
