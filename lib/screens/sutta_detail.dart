@@ -1894,73 +1894,81 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final isHeader = headerRegex.hasMatch(verseNum);
     final isH3 = isHeader && !isH1 && !isH2;
 
-    // ✅ AMBIL WARNA DARI _themeColors YANG BARU DIUPDATE
     final colors = _themeColors;
-
     final mainTextColor = colors['text']!;
 
-    // 👇 INI DIA PERUBAHANNYA: Ambil langsung dari key 'pali'
-    final paliBodyColor = colors['pali']!;
+    // 🔥 INI KUNCINYA: Ambil warna Pali dari tema
+    final paliThemeColor = colors['pali']!;
 
-    final headerColor = mainTextColor;
+    // Logic: Kalau mode Pali Only, judul pake warna teks biasa biar tegas.
+    // Tapi kalau ada terjemahan (segmented), judul Pali pake warna Pali.
+    final paliColorToUse = isPaliOnly ? mainTextColor : paliThemeColor;
 
-    // Kalau mode "Pali Only", judulnya pake warna teks biasa biar tegas.
-    // Tapi kalau ada terjemahan, teks Pali-nya pake warna khusus Pali.
-    final paliColor = isPaliOnly ? headerColor : paliBodyColor;
-
-    final transBodyColor = mainTextColor;
     TextStyle paliStyle, transStyle;
     double topPadding, bottomPadding;
 
     if (isH1) {
       topPadding = 16.0;
       bottomPadding = 16.0;
+
+      // 🔥 PALI STYLE (Pake paliColorToUse)
       paliStyle = TextStyle(
         fontFamily: _currentFontFamily,
-        fontSize: _fontSize * 1.10, // ← H1 jadi 1.3
+        fontSize: _fontSize * 1.10,
         fontWeight: FontWeight.w900,
-        color: headerColor,
+        color: paliColorToUse, // <--- GANTI DISINI
         height: 1.2,
         letterSpacing: -0.5,
       );
-      transStyle = paliStyle;
+
+      // 🔥 TRANS STYLE (Tetep Hitam/Warna Teks Utama)
+      transStyle = paliStyle.copyWith(color: mainTextColor);
     } else if (isH2) {
       topPadding = 8.0;
       bottomPadding = 12.0;
+
       paliStyle = TextStyle(
         fontFamily: _currentFontFamily,
-        fontSize: _fontSize * 1.05, // ← H2 jadi 1.2
+        fontSize: _fontSize * 1.05,
         fontWeight: FontWeight.bold,
-        color: headerColor.withValues(alpha: 0.87),
+        color: paliColorToUse.withValues(alpha: 0.9), // <--- GANTI DISINI
         height: 1.3,
       );
-      transStyle = paliStyle;
+
+      transStyle = paliStyle.copyWith(
+        color: mainTextColor.withValues(alpha: 0.87),
+      );
     } else if (isH3) {
       topPadding = 16.0;
       bottomPadding = 8.0;
+
       paliStyle = TextStyle(
         fontFamily: _currentFontFamily,
-        fontSize: _fontSize * 1, // ← H3 jadi 1.1
+        fontSize: _fontSize * 1,
         fontWeight: FontWeight.w700,
-        color: headerColor.withValues(alpha: 0.87),
+        color: paliColorToUse.withValues(alpha: 0.9), // <--- GANTI DISINI
         height: 1.4,
       );
-      transStyle = paliStyle;
+
+      transStyle = paliStyle.copyWith(
+        color: mainTextColor.withValues(alpha: 0.87),
+      );
     } else {
+      // --- BODY TEXT (Ini udah bener sebelumnya) ---
       topPadding = 0.0;
       bottomPadding = 8.0;
       paliStyle = TextStyle(
         fontFamily: _currentFontFamily,
-        fontSize: isPaliOnly ? _fontSize : _fontSize * 0.8, // ← CONDITIONAL
+        fontSize: isPaliOnly ? _fontSize : _fontSize * 0.8,
         fontWeight: FontWeight.w500,
-        color: paliColor,
+        color: paliColorToUse,
         height: _lineHeight,
       );
       transStyle = TextStyle(
         fontFamily: _currentFontFamily,
         fontSize: _fontSize,
         fontWeight: FontWeight.normal,
-        color: transBodyColor,
+        color: mainTextColor,
         height: _lineHeight,
       );
     }
