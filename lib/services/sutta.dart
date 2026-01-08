@@ -165,8 +165,8 @@ class SuttaService {
                 )
                 as Map<String, dynamic>;
 
-        debugPrint("=== FETCH FULL SUTTA MERGE DEBUG ===");
-        debugPrint("📦 UID: $uid | Author: $authorUid | Lang: $lang");
+        //  debugPrint("=== FETCH FULL SUTTA MERGE DEBUG ===");
+        //  debugPrint("📦 UID: $uid | Author: $authorUid | Lang: $lang");
 
         // 3. Siapkan container hasil merge
         final merged = <String, dynamic>{
@@ -208,12 +208,12 @@ class SuttaService {
           // Gabungkan: Metadata + Konten
           merged["root_text"] = {...metadataMap, ...contentMap};
 
-          debugPrint(
-            "✅ Merged root_text: ${metadataMap.keys.length} meta keys + ${contentMap.keys.length} content segments",
-          );
-          debugPrint("   🔗 Vagga: ${metadataMap['vagga_uid']}");
-          debugPrint("   ⬅️ Prev: ${metadataMap['previous']?['uid']}");
-          debugPrint("   ➡️ Next: ${metadataMap['next']?['uid']}");
+          // debugPrint(
+          //   "✅ Merged root_text: ${metadataMap.keys.length} meta keys + ${contentMap.keys.length} content segments",
+          // );
+          // debugPrint("   🔗 Vagga: ${metadataMap['vagga_uid']}");
+          // debugPrint("   ⬅️ Prev: ${metadataMap['previous']?['uid']}");
+          // debugPrint("   ➡️ Next: ${metadataMap['next']?['uid']}");
         }
 
         // --- LOGIC MERGE TRANSLATION_TEXT ---

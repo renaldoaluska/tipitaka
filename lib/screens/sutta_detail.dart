@@ -59,6 +59,8 @@ enum ReaderTheme { light, light2, sepia, dark, dark2 }
 class _SuttaDetailState extends State<SuttaDetail> {
   final ThemeManager _tm = ThemeManager();
   double _horizontalPadding = 16.0;
+  // 🔥 TAMBAH INI: Penampung konten footer (Lisensi/Copyright)
+  String _htmlFooter = "";
   // --- NAV CONTEXT & STATE ---
   late bool _hasNavigatedBetweenSuttas; // ✅ 3. Ubah jadi 'late' (hapus = false)
   String? _parentVaggaId;
@@ -537,7 +539,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   final List<String> _htmlSegments = [];
-
   void _parseHtmlAndGenerateTOC(String rawHtml) {
     // ✅ 1. Ekstrak konten <footer> dan HAPUS dari rawHtml
     try {
@@ -547,8 +548,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
         dotAll: true,
       );
       final match = footerRegex.firstMatch(rawHtml);
+
       if (match != null) {
-        // 🔥 HAPUS FOOTER DARI TEXT UTAMA BIAR GAK NONGOL
+        // 🔥 SIMPAN DULU ISINYA KE VARIABEL STATE
+        _htmlFooter = match.group(1) ?? "";
+
+        // BARU HAPUS DARI TEXT UTAMA
         rawHtml = rawHtml.replaceFirst(footerRegex, "");
       }
     } catch (e) {
@@ -3355,6 +3360,56 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                               "Bahasa",
                                               metadata["langName"],
                                             ),
+
+                                            // 🔥 TAMBAHIN INI: Render Footer HTML (Lisensi)
+                                            if (_htmlFooter.isNotEmpty) ...[
+                                              const SizedBox(height: 16),
+                                              const Divider(),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                "Rincian Publikasi",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                  color: iconColor,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              // Render HTML footer (link lisensi, prepared by, dll)
+                                              Html(
+                                                data: _htmlFooter,
+                                                style: {
+                                                  "body": Style(
+                                                    fontSize: FontSize(13),
+                                                    color: iconColor.withValues(
+                                                      alpha: 0.8,
+                                                    ),
+                                                    margin: Margins.zero,
+                                                    padding: HtmlPaddings.zero,
+                                                  ),
+                                                  "p": Style(
+                                                    margin: Margins.only(
+                                                      bottom: 8,
+                                                    ),
+                                                  ),
+                                                  "a": Style(
+                                                    color: Colors
+                                                        .blue, // Biar link kelihatan
+                                                    textDecoration:
+                                                        TextDecoration.none,
+                                                  ),
+                                                },
+                                                // Biar kalau diklik link-nya (misal CC-0) dia buka browser
+                                                onLinkTap: (url, _, __) {
+                                                  if (url != null) {
+                                                    // Pake launchUrl atau copy logic abang yang biasa
+                                                    debugPrint(
+                                                      "Open link: $url",
+                                                    );
+                                                  }
+                                                },
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
