@@ -3361,8 +3361,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                               metadata["langName"],
                                             ),
 
-                                            // 🔥 TAMBAHIN INI: Render Footer HTML (Lisensi)
-                                            if (_htmlFooter.isNotEmpty) ...[
+                                            // 🔥 UPDATE LOGIC: Tampilkan kalau ada footer ATAU kalau Segmented (Default CC0)
+                                            if (_htmlFooter.isNotEmpty ||
+                                                isSegmented) ...[
                                               const SizedBox(height: 16),
                                               const Divider(),
                                               const SizedBox(height: 12),
@@ -3377,7 +3378,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                               const SizedBox(height: 12),
                                               // Render HTML footer (link lisensi, prepared by, dll)
                                               Html(
-                                                data: _htmlFooter,
+                                                // 👇 LOGIC UPDATE: Tambahin teks "Sedapat mungkin..." di bawahnya
+                                                data: _htmlFooter.isNotEmpty
+                                                    ? _htmlFooter
+                                                    : "<p>Teks ini dipublikasikan melalui Creative Commons Zero (CC0 1.0 Universal) Public Domain Dedication.</p>"
+                                                          "<p>Sedapat mungkin berdasarkan hukum, Author telah melepaskan semua hak cipta dan hak terkait karya ini.</p>",
+
                                                 style: {
                                                   "body": Style(
                                                     fontSize: FontSize(13),
@@ -3391,23 +3397,22 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                                     margin: Margins.only(
                                                       bottom: 8,
                                                     ),
+                                                    textAlign: TextAlign
+                                                        .justify, // Opsional: Biar teks hukumnya rata kanan-kiri
                                                   ),
                                                   "a": Style(
-                                                    color: Colors
-                                                        .blue, // Biar link kelihatan
+                                                    color: Colors.blue,
                                                     textDecoration:
                                                         TextDecoration.none,
                                                   ),
                                                 },
-                                                // Biar kalau diklik link-nya (misal CC-0) dia buka browser
-                                                onLinkTap: (url, _, _) {
+                                                /*  onLinkTap: (url, _, _) {
                                                   if (url != null) {
-                                                    // Pake launchUrl atau copy logic abang yang biasa
                                                     debugPrint(
                                                       "Open link: $url",
                                                     );
                                                   }
-                                                },
+                                                },*/
                                               ),
                                             ],
                                           ],
