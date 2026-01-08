@@ -3259,8 +3259,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                         "${metadata['author']}${metadata['pubDate'] != null ? ' (${metadata['pubDate']})' : ''}",
                                         style: TextStyle(
                                           fontSize: 11, // Lebih kecil & tipis
-                                          color: iconColor.withOpacity(
-                                            0.7,
+                                          color: iconColor.withValues(
+                                            alpha: 0.7,
                                           ), // Agak transparan biar gak balapan sama judul
                                           height: 1.2,
                                         ),
