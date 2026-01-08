@@ -3159,7 +3159,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
               ),
 
               // 2. HEADER: Floating Pill Style
-              // 2. HEADER: Floating Pill Style
               Positioned(
                 top: MediaQuery.of(context).padding.top,
                 left: 0,
@@ -3229,18 +3228,49 @@ class _SuttaDetailState extends State<SuttaDetail> {
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: Text(
-                                  widget.textData?["suttaplex"]?["original_title"] ??
-                                      suttaTitle,
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color: iconColor,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize
+                                      .min, // Biar gak makan tempat vertikal
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start, // Rata kiri
+                                  mainAxisAlignment: MainAxisAlignment
+                                      .center, // Tengah secara vertikal
+                                  children: [
+                                    // 1. JUDUL UTAMA
+                                    Text(
+                                      widget.textData?["suttaplex"]?["original_title"] ??
+                                          suttaTitle,
+                                      style: TextStyle(
+                                        fontSize: 16, // Kecilin dikit biar muat
+                                        fontWeight: FontWeight.bold,
+                                        color: iconColor,
+                                        height: 1.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+
+                                    // 2. NAMA PENERJEMAH (TAHUN)
+                                    // Cek dulu datanya ada gak biar gak error/kosong
+                                    if (metadata["author"]
+                                        .toString()
+                                        .isNotEmpty)
+                                      Text(
+                                        "${metadata['author']}${metadata['pubDate'] != null ? ' (${metadata['pubDate']})' : ''}",
+                                        style: TextStyle(
+                                          fontSize: 11, // Lebih kecil & tipis
+                                          color: iconColor.withOpacity(
+                                            0.7,
+                                          ), // Agak transparan biar gak balapan sama judul
+                                          height: 1.2,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
                                 ),
                               ),
+
                               const SizedBox(width: 4),
                               IconButton(
                                 icon: const Icon(
@@ -3296,6 +3326,19 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                                 Icons.person_outline,
                                                 "Author",
                                                 metadata["author"],
+                                              ),
+                                              const SizedBox(height: 10),
+                                            ],
+                                            // 🔥 TAMBAHIN INI:
+                                            if (metadata["pubDate"] != null &&
+                                                metadata["pubDate"]
+                                                    .toString()
+                                                    .isNotEmpty) ...[
+                                              _buildInfoRow(
+                                                Icons
+                                                    .calendar_today_rounded, // Icon kalender
+                                                "Tahun",
+                                                metadata["pubDate"].toString(),
                                               ),
                                               const SizedBox(height: 10),
                                             ],
