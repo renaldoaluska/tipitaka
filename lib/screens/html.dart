@@ -38,6 +38,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   // STATE VARIABLES
   // ============================================
+  bool _isBottomMenuVisible = true;
+
   ReaderTheme _readerTheme = ReaderTheme.light;
   double _horizontalPadding = 12.0; // Default awal
   double _fontSize = 16.0; // Default langsung 16.0
@@ -396,46 +398,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     });
   }
 
-  void _showAudioMessage(
-    String title,
-    String message,
-    IconData icon,
-    Color color,
-  ) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(message, style: const TextStyle(fontSize: 12)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
   // ============================================
   // SCROLL LISTENER
   // ============================================
@@ -460,12 +422,12 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        //  _textZoom = prefs.getDouble('html_text_zoom') ?? 100.0;
         _fontSize = prefs.getDouble('html_font_size_v2') ?? 16.0;
-        // Load padding, default 12.0
         _horizontalPadding = prefs.getDouble('html_horizontal_padding') ?? 12.0;
         _lineHeight = prefs.getDouble('html_line_height') ?? 1.6;
         _fontType = prefs.getString('html_font_type') ?? 'sans';
+        _isBottomMenuVisible =
+            prefs.getBool('html_bottom_menu_visible') ?? true; // ✅ TAMBAH INI
       });
     }
   }
@@ -530,15 +492,17 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
   }
 
-  // ✅ HELPER SAVE BARU BIAR GAMPANG
   Future<void> _savePreferences() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('html_font_size_v2', _fontSize);
-    //  await prefs.setDouble('html_text_zoom', _textZoom);
     await prefs.setDouble('html_horizontal_padding', _horizontalPadding);
     await prefs.setDouble('html_line_height', _lineHeight);
     await prefs.setString('html_font_type', _fontType);
     await prefs.setInt('reader_theme_index', _readerTheme.index);
+    await prefs.setBool(
+      'html_bottom_menu_visible',
+      _isBottomMenuVisible,
+    ); // ✅ TAMBAH INI
   }
 
   // ============================================
@@ -684,18 +648,86 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
   }
 
-  void _scrollToTop() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeOutQuart,
-      );
+  // 🔥 HELPER BARU: Hitung posisi notif biar gak ketutupan menu
+  double _getSnackBarBottomMargin() {
+    // Margin dasar dari bawah layar
+    double margin = 20.0;
+
+    // 1. Cek Tinggi Menu Bawah
+    if (_isBottomMenuVisible) {
+      // Tinggi Menu (Icons + Padding) + Toggle (~75px)
+      margin += 75.0;
+    } else {
+      // Tinggi Toggle doang (Super Ceper 16px)
+      margin += 16.0;
     }
+
+    // 2. Cek Audio Player (kalau lagi nongol)
+    if (_isPlayerVisible) {
+      // Tinggi Player (~80px) + Padding bawah (16px)
+      margin += 96.0;
+    }
+
+    return margin;
   }
 
+  // 🔥 UPDATE 1: AUDIO MESSAGE
+  void _showAudioMessage(
+    String title,
+    String message,
+    IconData icon,
+    Color color,
+  ) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    // Ambil margin dinamis
+    final bottomMargin = _getSnackBarBottomMargin();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(message, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        // 🔥 UPDATE MARGIN DISINI
+        margin: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: bottomMargin, // <-- Ini kuncinya!
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // 🔥 UPDATE 2: NAVIGATION MESSAGE (Mentok Kiri/Kanan)
   void _showNavigationMessage(bool isStart) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    // Ambil margin dinamis
+    final bottomMargin = _getSnackBarBottomMargin();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: RichText(
@@ -725,10 +757,25 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         backgroundColor: Colors.deepOrange.shade400,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
+        // 🔥 UPDATE MARGIN DISINI JUGA
+        margin: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: bottomMargin, // <-- Ini kuncinya!
+        ),
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutQuart,
+      );
+    }
   }
 
   // ============================================
@@ -979,6 +1026,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   // SETTINGS MODAL (WITH SCROLLBAR)
   // ============================================
+
+  // ============================================
+  // SETTINGS MODAL (WITH SCROLLBAR) - HTML.DART
+  // ============================================
   void _showSettingsModal() {
     showModalBottomSheet(
       context: context,
@@ -992,18 +1043,15 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             final colorScheme = Theme.of(context).colorScheme;
-            // Ambil warna tema terbaru (karena _readerTheme mungkin berubah)
+            // Ambil warna tema terbaru
             final readerColors = _themeColors;
 
             // 🔥 1. DETEKSI LAYAR
             final size = MediaQuery.of(context).size;
             final isLandscape = size.width > size.height;
-            final isTablet =
-                size.shortestSide >=
-                600; // Patokan umum tablet (7 inch ke atas)
+            final isTablet = size.shortestSide >= 600;
 
             // Tampilkan preview HANYA JIKA: (Portrait) ATAU (Tablet Landscape)
-            // Kalau HP Landscape -> Sembunyikan (False)
             final bool showPreview = !isLandscape || isTablet;
 
             final ScrollController modalScrollController = ScrollController();
@@ -1043,7 +1091,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             }
 
             return Container(
-              padding: const EdgeInsets.fromLTRB(24, 12, 4, 24),
+              // 🔥 FIX: Padding Bawah dikurangi (24 -> 16) biar gak bolong
+              padding: const EdgeInsets.fromLTRB(24, 12, 4, 0),
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
@@ -1094,7 +1143,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                   const SizedBox(height: 16),
 
                   // ===============================================
-                  // 🔥 LIVE PREVIEW BOX (SUDAH DIPERBAIKI)
+                  // 🔥 LIVE PREVIEW BOX (html.dart version)
                   // ===============================================
                   if (showPreview) ...[
                     Padding(
@@ -1103,8 +1152,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                         width: double.infinity,
                         constraints: const BoxConstraints(maxHeight: 180),
                         decoration: BoxDecoration(
-                          color:
-                              readerColors['bg'], // Warna background ikut tema
+                          color: readerColors['bg'],
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: Colors.grey.withValues(alpha: 0.3),
@@ -1150,15 +1198,13 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      // TEKS PALI (Preview)
+                                      // TEKS PALI
                                       Text(
                                         "Namo Tassa Bhagavato Arahato Sammāsambuddhassa.",
                                         style: TextStyle(
                                           fontFamily: _currentFontFamily,
-                                          // 🔥 FIX: Pake _fontSize langsung (bukan textZoom)
                                           fontSize: _fontSize,
                                           height: _lineHeight,
-                                          // 🔥 FIX: Logic FontWeight disamain sama Main Style
                                           fontWeight: _fontType == 'serif'
                                               ? FontWeight.w400
                                               : FontWeight.w500,
@@ -1167,12 +1213,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                       ),
                                       const SizedBox(height: 8),
 
-                                      // TEKS TERJEMAHAN (Preview)
+                                      // TEKS TERJEMAHAN
                                       Text(
                                         "Terpujilah Sang Bhagavā, Yang Mahasuci, Yang Telah Mencapai Penerangan Sempurna.",
                                         style: TextStyle(
                                           fontFamily: _currentFontFamily,
-                                          // 🔥 FIX: Pake _fontSize langsung (bukan textZoom)
                                           fontSize: _fontSize,
                                           height: _lineHeight,
                                           color: readerColors['text'],
@@ -1188,6 +1233,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                       ),
                     ),
                   ],
+
                   // --- KONTEN SETTINGS ---
                   Flexible(
                     fit: FlexFit.loose,
@@ -1205,7 +1251,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                           children: [
                             // 1. GAYA & WARNA
                             buildSectionHeader("Gaya & Warna"),
-
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
@@ -1557,8 +1602,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   @override
   Widget build(BuildContext context) {
     final colors = _themeColors;
-    final bool isFirst = _currentIndex <= 0;
-    final bool isLast = _currentIndex >= widget.chapterFiles.length - 1;
+    //final bool isFirst = _currentIndex <= 0;
+    //final bool isLast = _currentIndex >= widget.chapterFiles.length - 1;
     // final double topPadding = MediaQuery.of(context).padding.top + 60;
 
     return PopScope(
@@ -1567,182 +1612,268 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         if (didPop) return;
         await _handleBackNavigation();
       },
-
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        // 🔥 WRAP
         value: SystemUIHelper.getStyle(context),
         child: Scaffold(
           key: _scaffoldKey,
           backgroundColor: colors['bg'],
           body: Stack(
             children: [
-              // CONTENT
+              // CONTENT (TIDAK BERUBAH)
               SafeArea(
-                bottom: false, // Biar konten bawah tembus ke navbar/FAB
+                bottom: false,
                 child: _isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
                           color: Colors.deepOrange,
                         ),
                       )
-                    : AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 400),
-                        transitionBuilder: (child, animation) =>
-                            FadeTransition(opacity: animation, child: child),
-                        child: SingleChildScrollView(
-                          key: ValueKey<int>(_currentIndex),
-                          controller: _scrollController,
-                          padding: EdgeInsets.only(
-                            left: _horizontalPadding,
-                            right: _horizontalPadding,
+                    : Scrollbar(
+                        thumbVisibility: false,
+                        thickness: 4,
+                        radius: const Radius.circular(8),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 400),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(opacity: animation, child: child),
+                          child: SingleChildScrollView(
+                            key: ValueKey<int>(_currentIndex),
+                            controller: _scrollController,
+                            padding: EdgeInsets.only(
+                              left: _horizontalPadding,
+                              right: _horizontalPadding,
+                              bottom: _isPlayerVisible
+                                  ? 340
+                                  : (_isSearchActive
+                                        ? 300
+                                        : (_isBottomMenuVisible ? 120 : 50)),
+                            ),
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 80),
+                                SelectionArea(
+                                  child: Html(
+                                    data: _displayHtmlContent,
+                                    style: _getHtmlStyles(),
+                                    extensions: [
+                                      TagExtension(
+                                        tagsToExtend: {"x-highlight"},
+                                        builder: (extensionContext) {
+                                          final attrs =
+                                              extensionContext.attributes;
+                                          final indexStr = attrs['index'];
+                                          final style = extensionContext
+                                              .styledElement
+                                              ?.style;
+                                          double? currentFontSize =
+                                              style?.fontSize?.value;
+                                          currentFontSize ??= _fontSize;
 
-                            // LOGIKA PADDING DINAMIS:
-                            // 1. Audio Priority (340)
-                            // 2. Search Priority (300) -> Biar teks bawah gak ketutup modal
-                            // 3. Normal (120)
-                            bottom: _isPlayerVisible
-                                ? 340
-                                : (_isSearchActive ? 300 : 120),
-                          ),
+                                          if (indexStr != null) {
+                                            final int index =
+                                                int.tryParse(indexStr) ?? 0;
+                                            final key = _searchKeys.putIfAbsent(
+                                              index,
+                                              () => GlobalKey(),
+                                            );
 
-                          child: Column(
-                            // 👈 Tambah Column biar bisa kasih Spacer
-                            children: [
-                              // 👇 SPACER WAJIB (Biar ga ketutupan Header)
-                              const SizedBox(height: 80),
+                                            return ValueListenableBuilder<int>(
+                                              valueListenable:
+                                                  _activeSearchIndex,
+                                              builder: (context, activeIndex, child) {
+                                                final bool isActive =
+                                                    (activeIndex == index);
 
-                              // KONTEN HTML (SelectionArea)
-                              SelectionArea(
-                                child: Html(
-                                  data: _displayHtmlContent,
-                                  style: _getHtmlStyles(),
-                                  extensions: [
-                                    TagExtension(
-                                      tagsToExtend: {"x-highlight"},
-                                      builder: (extensionContext) {
-                                        final attrs =
-                                            extensionContext.attributes;
-                                        final indexStr = attrs['index'];
-
-                                        // Ambil ukuran font induk atau default
-                                        final style = extensionContext
-                                            .styledElement
-                                            ?.style;
-                                        double? currentFontSize =
-                                            style?.fontSize?.value;
-                                        currentFontSize ??= _fontSize;
-
-                                        if (indexStr != null) {
-                                          final int index =
-                                              int.tryParse(indexStr) ?? 0;
-
-                                          // 🔥 LOGIC KEY PINTAR:
-                                          // Gunakan putIfAbsent. Kalau key udah ada (dari render sebelumnya), PAKAI ITU.
-                                          // Jangan bikin GlobalKey() baru terus-terusan, nanti scroll-nya bingung.
-                                          final key = _searchKeys.putIfAbsent(
-                                            index,
-                                            () => GlobalKey(),
-                                          );
-
-                                          // 🔥 PAKAI ValueListenableBuilder
-                                          // Ini yang bikin warna berubah tanpa reload HTML
-                                          return ValueListenableBuilder<int>(
-                                            valueListenable: _activeSearchIndex,
-                                            builder: (context, activeIndex, child) {
-                                              final bool isActive =
-                                                  (activeIndex == index);
-
-                                              return Container(
-                                                key: key, // Tempel Key di sini
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: isActive
-                                                      ? Colors.orange
-                                                      : Colors.yellow,
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                  // Kasih border kalau aktif biar makin jelas (opsional)
-                                                  border: isActive
-                                                      ? Border.all(
-                                                          color:
-                                                              Colors.deepOrange,
-                                                          width: 2,
-                                                        )
-                                                      : null,
-                                                ),
-                                                child: Transform.translate(
-                                                  offset: const Offset(0, 1),
-                                                  child: Text(
-                                                    extensionContext
-                                                        .element!
-                                                        .text,
-                                                    style: TextStyle(
-                                                      color: isActive
-                                                          ? Colors.white
-                                                          : Colors.black,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: currentFontSize,
-                                                      height: 1.0,
+                                                return Container(
+                                                  key: key,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 2,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: isActive
+                                                        ? Colors.orange
+                                                        : Colors.yellow,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          4,
+                                                        ),
+                                                    border: isActive
+                                                        ? Border.all(
+                                                            color: Colors
+                                                                .deepOrange,
+                                                            width: 2,
+                                                          )
+                                                        : null,
+                                                  ),
+                                                  child: Transform.translate(
+                                                    offset: const Offset(0, 1),
+                                                    child: Text(
+                                                      extensionContext
+                                                          .element!
+                                                          .text,
+                                                      style: TextStyle(
+                                                        color: isActive
+                                                            ? Colors.white
+                                                            : Colors.black,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize:
+                                                            currentFontSize,
+                                                        height: 1.0,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                              );
-                                            },
+                                                );
+                                              },
+                                            );
+                                          }
+                                          return Text(
+                                            extensionContext.element!.text,
                                           );
-                                        }
-                                        return Text(
-                                          extensionContext.element!.text,
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                  onLinkTap: (url, attributes, element) {
-                                    if (url != null) _handleLinkTap(url);
-                                  },
+                                        },
+                                      ),
+                                    ],
+                                    onLinkTap: (url, attributes, element) {
+                                      if (url != null) _handleLinkTap(url);
+                                    },
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
               ),
-              // =======================
 
-              // HEADER (Panggil fungsi yang baru diedit tadi)
+              // HEADER (TIDAK BERUBAH)
               _buildHeader(),
-            ],
-          ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerFloat,
+              // 🔥 UPDATE TERBARU: BOTTOM MENU (GLASSMORPHISM)
+              // 🔥 UPDATE TERBARU: AUDIO PLAYER LEBIH NAIK
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // 1. AUDIO PLAYER
+                    if (_isPlayerVisible) ...[
+                      Padding(
+                        // 🔥 UBAH DISINI BANG:
+                        // 'bottom: 16' -> Biar dia kedorong naik, gak nempel menu kaca.
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: AudioHandlerWidget(
+                          audioPath: _currentAudioUrl,
+                          onClose: () =>
+                              setState(() => _isPlayerVisible = false),
+                        ),
+                      ),
+                    ],
 
-          // Di dalam method build()
-          floatingActionButton: Column(
-            mainAxisSize: MainAxisSize.min, // Biar tingginya nyesuain isi
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // 1. KOTAK PEMUTARAN (Muncul cuma kalau _isPlayerVisible == true)
-              if (_isPlayerVisible) ...[
-                Padding(
-                  // Kasih padding biar gak mepet pinggir layar
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                  child: AudioHandlerWidget(
-                    audioPath: _currentAudioUrl,
-                    onClose: () {
-                      // Logic kalau tombol X di player dipencet
-                      setState(() => _isPlayerVisible = false);
-                    },
-                  ),
+                    // 2. WADAH KACA UTAMA (MENU) - (TETAP SAMA KAYAK SEBELUMNYA)
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        // Logic Lebar
+                        width: MediaQuery.of(context).size.width > 600
+                            ? 500
+                            : MediaQuery.of(context).size.width - 48,
+
+                        margin: EdgeInsets.zero, // Napak Tanah
+                        // DEKORASI LUAR (Shadow doang)
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                            bottom: Radius.zero,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, -2),
+                            ),
+                          ],
+                        ),
+
+                        // EFEK KACA (Blur + Transparan)
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                            bottom: Radius.zero,
+                          ),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(
+                              sigmaX: 10.0,
+                              sigmaY: 10.0,
+                            ),
+                            child: Container(
+                              // Warna "Tipis-tipis" (85% opacity)
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surface.withValues(alpha: 0.85),
+
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // A. Tombol Toggle (Transparan)
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(
+                                          () => _isBottomMenuVisible =
+                                              !_isBottomMenuVisible,
+                                        );
+                                        _savePreferences();
+                                      },
+                                      child: Container(
+                                        width: double.infinity,
+                                        height: 16, // Super Ceper
+                                        alignment: Alignment.center,
+                                        child: Icon(
+                                          _isBottomMenuVisible
+                                              ? Icons
+                                                    .keyboard_arrow_down_rounded
+                                              : Icons.keyboard_arrow_up_rounded,
+                                          size: 16,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // B. Menu Navigasi (Content)
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                    height: _isBottomMenuVisible ? null : 0,
+                                    child: SingleChildScrollView(
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      child: SizedBox(
+                                        width: double.infinity,
+                                        child: _buildFloatingActions(
+                                          _currentIndex <= 0,
+                                          _currentIndex >=
+                                              widget.chapterFiles.length - 1,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                // Gak perlu SizedBox lagi karena di AudioHandlerWidget kamu
-                // udah ada margin bawah (margin: const EdgeInsets.fromLTRB(16, 0, 16, 24))
-              ],
-
-              // 2. TOMBOL NAVIGASI (Ikon-ikon bawah)
-              _buildFloatingActions(isFirst, isLast),
+              ),
             ],
           ),
         ),
@@ -2110,30 +2241,22 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   Widget _buildFloatingActions(bool isPrevDisabled, bool isNextDisabled) {
     final systemScheme = Theme.of(context).colorScheme;
-    final containerColor = systemScheme.surface;
+    // final containerColor = systemScheme.surface; // Gak dipake lagi
     final iconColor = systemScheme.onSurface;
     final activeColor = systemScheme.primary;
-    final shadowColor = Colors.black.withValues(alpha: 0.15);
+    // final shadowColor = Colors.black.withValues(alpha: 0.15); // Gak dipake lagi
     final disabledClickableColor = Colors.grey.withValues(alpha: 0.5);
 
-    // 🔧 1. LOGIC DETEKSI HP LANDSCAPE
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
-    // < 600 biasanya HP, >= 600 biasanya Tablet
     final isTablet = size.shortestSide >= 600;
-
-    // Kalo HP dan Landscape, aktifkan mode Compact
     final isPhoneLandscape = isLandscape && !isTablet;
 
-    // 🔧 2. SETTINGAN COMPACT VS NORMAL
-    // Kalau landscape HP: Margin dikitin, Padding dikitin, Icon dikecilin dikit
-    final double verticalMargin = isPhoneLandscape ? 4.0 : 20.0;
     final double internalPaddingH = isPhoneLandscape ? 4.0 : 6.0;
     final double internalPaddingV = isPhoneLandscape ? 2.0 : 4.0;
     final double iconSize = isPhoneLandscape ? 20.0 : 24.0;
     final double separatorHeight = isPhoneLandscape ? 16.0 : 24.0;
 
-    // Logic tombol audio
     final bool showAudioButton = _isParittaPage;
     final bool hasAudioForPage = _hasAudioForCurrentPage();
     final bool isAudioButtonEnabled =
@@ -2163,7 +2286,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           borderRadius: BorderRadius.circular(12),
           splashColor: activeColor.withValues(alpha: 0.1),
           child: Container(
-            // Padding tombol individual juga disesuain
             padding: EdgeInsets.all(isPhoneLandscape ? 8 : 12),
             decoration: isActive
                 ? BoxDecoration(
@@ -2178,34 +2300,25 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
 
     return Container(
-      // Margin bawah dibuat dinamis
-      margin: EdgeInsets.symmetric(horizontal: 24, vertical: verticalMargin),
+      width: double.infinity,
       padding: EdgeInsets.symmetric(
         horizontal: internalPaddingH,
         vertical: internalPaddingV,
       ),
+      // 🔥 UPDATE: Background & Shadow DIHAPUS (Biar transparan ikut induknya)
       decoration: BoxDecoration(
-        color: containerColor.withValues(
-          alpha: isPhoneLandscape ? 0.9 : 1.0,
-        ), // Agak transparan dikit kalo landscape
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: shadowColor,
-            blurRadius: isPhoneLandscape
-                ? 10
-                : 20, // Shadow lebih tipis biar ga makan tempat
-            offset: Offset(0, isPhoneLandscape ? 4 : 8),
-            spreadRadius: 2,
-          ),
-        ],
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1), width: 1),
+        color: Colors.transparent, // Bening
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey.withValues(alpha: 0.1),
+            width: 1,
+          ), // Garis tipis pemisah toggle & menu
+        ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // PREV
           buildBtn(
             icon: Icons.chevron_left_rounded,
             customIconColor: isPrevDisabled ? disabledClickableColor : null,
@@ -2219,10 +2332,9 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                     }
                   },
           ),
-
           Container(
             width: 1,
-            height: separatorHeight, // Separator ngikutin tinggi
+            height: separatorHeight,
             color: Colors.grey.withValues(alpha: 0.2),
           ),
 
@@ -2241,17 +2353,12 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
               widget.tematikChapterIndex != 0)
             buildBtn(icon: Icons.folder_outlined, onTap: _showTematikListModal),
 
-          // SEARCH
           buildBtn(
             icon: Icons.search_rounded,
             onTap: _isLoading ? null : _openSearchModal,
             isActive: _isSearchModalOpen,
           ),
-
-          // SETTINGS
           buildBtn(icon: Icons.text_fields_rounded, onTap: _showSettingsModal),
-
-          // SCROLL TOP
           buildBtn(icon: Icons.vertical_align_top_rounded, onTap: _scrollToTop),
 
           Container(
@@ -2260,7 +2367,6 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             color: Colors.grey.withValues(alpha: 0.2),
           ),
 
-          // NEXT
           buildBtn(
             icon: Icons.chevron_right_rounded,
             customIconColor: isNextDisabled ? disabledClickableColor : null,

@@ -127,7 +127,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   // ✅ Variabel info Footer
-  String _footerInfo = "";
 
   final Map<int, GlobalKey> _searchKeys = {}; // 🔥 SIMPAN KEY DISINI
 
@@ -141,6 +140,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
+
+  // 🔥 AUTO-HIDE UI STATE
+  bool _isBottomMenuVisible = true;
+  //Timer? _autoHideTimer;
 
   // Default awal kita set Light dulu (cuma placeholder)
   // Nanti di _loadPreferences kita timpa sesuai logika kamu
@@ -241,11 +244,35 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     _parseHtmlIfNeeded();
     _initNavigationContext();
-
     _saveToHistory();
+
+    // 🔥 DISABLE AUTO-HIDE (Pakai Tap-to-Toggle aja)
+    // _itemPositionsListener.itemPositions.addListener(_handleScrollChange);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ScaffoldMessenger.of(context).clearMaterialBanners();
+
+      // 🔥 HINT: Tap to hide UI (cuma muncul sekali)
+      /*Future.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.touch_app, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                const Text("Ketuk layar untuk sembunyikan kontrol"),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
+          ),
+        );
+      });*/
     });
   }
 
@@ -285,6 +312,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
       _lineHeight = prefs.getDouble('line_height') ?? 1.6;
       _fontType = prefs.getString('font_type') ?? 'sans';
 
+      // 🔥 LOAD BOTTOM MENU VISIBILITY
+      _isBottomMenuVisible = prefs.getBool('bottom_menu_visible') ?? true;
+
       final savedMode = prefs.getInt('sutta_view_mode');
       if (savedMode != null && savedMode < ViewMode.values.length) {
         _viewMode = ViewMode.values[savedMode];
@@ -304,6 +334,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
     await prefs.setInt('reader_theme_index', _readerTheme.index);
     await prefs.setDouble('line_height', _lineHeight);
     await prefs.setString('font_type', _fontType);
+    // 🔥 SIMPAN BOTTOM MENU STATE
+    await prefs.setBool('bottom_menu_visible', _isBottomMenuVisible);
   }
 
   List<InlineSpan> _parseHtmlToSpansWithHighlight(
@@ -498,7 +530,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   void _parseHtmlAndGenerateTOC(String rawHtml) {
     // ✅ 1. Ekstrak konten <footer> dan HAPUS dari rawHtml
-    _footerInfo = "";
     try {
       final footerRegex = RegExp(
         r'<footer>(.*?)</footer>',
@@ -507,7 +538,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
       );
       final match = footerRegex.firstMatch(rawHtml);
       if (match != null) {
-        _footerInfo = match.group(1)?.trim() ?? "";
         // 🔥 HAPUS FOOTER DARI TEXT UTAMA BIAR GAK NONGOL
         rawHtml = rawHtml.replaceFirst(footerRegex, "");
       }
@@ -1440,13 +1470,24 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       if (targetLang == "en") _showEnFallbackBanner();
     } catch (e) {
-      if (!mounted) return; // ✅ Check sebelum show error
+      if (!mounted) return;
 
       if (e is SocketException || e.toString().contains("SocketException")) {
+        // 🔥 FIX SNACKBAR ERROR KONEKSI
+        final bottomMargin = _getSnackBarBottomMargin();
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Gagal memuat halaman. Periksa koneksi internet."),
+          SnackBar(
+            content: const Text(
+              "Gagal memuat halaman. Periksa koneksi internet.",
+            ),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            // Margin dinamis juga
+            margin: EdgeInsets.only(left: 16, right: 16, bottom: bottomMargin),
           ),
         );
       } else {
@@ -1455,6 +1496,23 @@ class _SuttaDetailState extends State<SuttaDetail> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // 🔥 HELPER BARU: Hitung posisi notif biar gak ketutupan menu
+  double _getSnackBarBottomMargin() {
+    // Margin dasar dari bawah layar
+    double margin = 20.0;
+
+    // Cek Menu Bawah
+    if (_isBottomMenuVisible) {
+      // Tinggi Menu (~60px) + Toggle (16px) + Buffer
+      margin += 80.0;
+    } else {
+      // Tinggi Toggle doang (Super Ceper 16px)
+      margin += 16.0;
+    }
+
+    return margin;
   }
 
   void _showSuttaSnackBar(
@@ -1469,8 +1527,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
     List<InlineSpan> contentSpans = [];
     Color bgColor = Theme.of(context).colorScheme.inverseSurface;
 
-    // ✅ AMBIL AKRONIM (Misal: "DN", "MN", "Dhp", dll)
-    // Kalau gak ada, fallback ke UID atau "kitab ini"
     String acronym =
         widget.textData?["suttaplex"]?["acronym"] ??
         widget.textData?["root_text"]?["acronym"] ??
@@ -1503,14 +1559,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
       case SuttaSnackType.firstText:
         bgColor = Colors.deepOrange.shade400;
         contentSpans = [
-          // ✅ TEXT DENGAN AKRONIM
           TextSpan(text: "Anda berada di awal ($acronym). Gunakan tombol "),
           const WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Icon(
-                Icons.arrow_back_rounded, // Icon Back
+                Icons.arrow_back_rounded,
                 color: Colors.white,
                 size: 18,
               ),
@@ -1523,7 +1578,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
       case SuttaSnackType.lastText:
         bgColor = Colors.deepOrange.shade400;
         contentSpans = [
-          // ✅ TEXT DENGAN AKRONIM
           TextSpan(
             text: "Anda telah mencapai akhir ($acronym). Gunakan tombol ",
           ),
@@ -1532,7 +1586,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Icon(
-                Icons.arrow_back_rounded, // Icon Back
+                Icons.arrow_back_rounded,
                 color: Colors.white,
                 size: 18,
               ),
@@ -1557,6 +1611,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
         break;
     }
 
+    // 🔥 AMBIL MARGIN DINAMIS
+    final bottomMargin = _getSnackBarBottomMargin();
+
     messenger.showSnackBar(
       SnackBar(
         content: RichText(
@@ -1572,7 +1629,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
         backgroundColor: bgColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
+
+        // 🔥 UPDATE MARGIN BIAR GAK KETUTUP MENU
+        margin: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: bottomMargin, // <--- INI KUNCINYA
+        ),
+
         duration: const Duration(seconds: 3),
       ),
     );
@@ -1760,8 +1824,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
   @override
   void dispose() {
     _debounce?.cancel();
+    //_autoHideTimer?.cancel();
     _searchController.dispose();
     _cachedSearchRegex = null;
+    //_itemPositionsListener.itemPositions.removeListener(_handleScrollChange);
     super.dispose();
   }
 
@@ -2489,7 +2555,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
   Widget build(BuildContext context) {
     if (widget.textData == null) {
       return AnnotatedRegion<SystemUiOverlayStyle>(
-        // 🔥 WRAP
         value: SystemUIHelper.getStyle(context),
         child: Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surface,
@@ -2498,20 +2563,15 @@ class _SuttaDetailState extends State<SuttaDetail> {
       );
     }
 
-    // 1. Ambil palet warna dari tema baca saat ini
+    // 1. Ambil palet warna
     final colors = _themeColors;
-
-    // 2. Assign ke variabel (pake ! karena kita yakin datanya ada)
-    final bgColor = colors['bg']!;
+    final bgColor = colors['bg']!; // Ini warna dasar (Putih/Sepia/Hitam)
     final textColor = colors['text']!;
-    // 👉 Buat UI (Header, Card, Drawer) -> PAKSA Pake System Theme (Theme.of(context))
-    // Jadi walaupun Reader-nya Sepia, Header-nya tetep Putih/Hitam standar HP.
-    final cardColor = colors['card']!; // Otomatis ikut System
-    final iconColor = colors['icon']!; // Otomatis ikut System
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final iconColor = Theme.of(context).colorScheme.onSurface;
 
     final metadata = _getMetadata();
 
-    // ... lanjut ke bawah (Scaffold dll)
     final String suttaTitle =
         widget.textData?["root_text"]?["title"] ??
         widget.textData?["translation"]?["title"] ??
@@ -2522,7 +2582,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
         widget.textData?["root_text"]?["acronym"] ??
         "";
     final String acronym = normalizeNikayaAcronym(rawAcronym);
-    debugPrint("🎨 [SuttaDetail] Raw: '$rawAcronym' → Normalized: '$acronym'");
 
     final String rawBlurb = widget.textData?["suttaplex"]?["blurb"] ?? "";
     bool shouldShowBlurb = rawBlurb.isNotEmpty;
@@ -2531,6 +2590,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final bool isSegmented =
         !isError && (widget.textData!["segmented"] == true);
 
+    // --- LOGIC SETUP DATA ---
     final Map<String, String> paliSegs;
     final Map<String, String> translationSegs;
     final List<String> keysOrder;
@@ -2573,7 +2633,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     Widget body;
 
-    // ✅ LOGIC BODY UTAMA
+    // Hitung Padding Atas
+    final double topContentPadding = MediaQuery.of(context).padding.top + 80;
+
+    // ✅ LOGIC BODY BUILDER
     if (_connectionError) {
       body = _buildNoInternetView();
     } else if (isError) {
@@ -2581,52 +2644,52 @@ class _SuttaDetailState extends State<SuttaDetail> {
         child: Text("Teks tidak tersedia", style: TextStyle(color: textColor)),
       );
     } else if (isSegmented) {
-      // ✅ FIX: render segmented item pake keysOrder, bukan _htmlSegments
-      // kita perlu extract commentary juga kalau ada (optional)
       final commentarySegs = (widget.textData!["comment_text"] is Map)
           ? (widget.textData!["comment_text"] as Map).map(
               (k, v) => MapEntry(k.toString(), v.toString()),
             )
           : <String, String>{};
 
-      body = SelectionArea(
-        child: ScrollablePositionedList.builder(
-          itemScrollController: _itemScrollController,
-          itemPositionsListener: _itemPositionsListener,
-
-          // 🔥 UPDATE BAGIAN INI:
-          // Tambahin 'MediaQuery.of(context).viewInsets.bottom' di parameter bottom.
-          // Ini bikin list-nya otomatis nambah panjang ke bawah pas keyboard nongol.
-          padding: EdgeInsets.fromLTRB(
-            _horizontalPadding,
-            16,
-            _horizontalPadding,
-            // LOGIKA SAKTI:
-            // Kalau Search Aktif -> Kasih 250 (Biar teks paling bawah bisa naik ngelewatin kotak search)
-            // Kalau Enggak -> Kasih 80 (Padding standar buat FAB / Tombol Navigasi)
-            (_isSearchActive ? 250 : 80) +
-                MediaQuery.of(context).viewInsets.bottom,
+      body = RepaintBoundary(
+        child: SelectionArea(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) => notification.depth != 0,
+            child: Scrollbar(
+              thumbVisibility: false,
+              thickness: 4,
+              radius: const Radius.circular(8),
+              child: ScrollablePositionedList.builder(
+                physics: const BouncingScrollPhysics(),
+                itemScrollController: _itemScrollController,
+                itemPositionsListener: _itemPositionsListener,
+                padding: EdgeInsets.fromLTRB(
+                  _horizontalPadding,
+                  topContentPadding,
+                  _horizontalPadding,
+                  (_isSearchActive ? 250 : (_isBottomMenuVisible ? 100 : 40)) +
+                      MediaQuery.of(context).viewInsets.bottom,
+                ),
+                itemCount: keysOrder.length,
+                itemBuilder: (context, index) {
+                  return _buildSegmentedItem(
+                    context,
+                    index,
+                    keysOrder[index],
+                    paliSegs,
+                    translationSegs,
+                    commentarySegs,
+                  );
+                },
+              ),
+            ),
           ),
-
-          itemCount: keysOrder.length,
-          itemBuilder: (context, index) {
-            // 🔥 GANTI INI: Panggil _buildSegmentedItem
-            return _buildSegmentedItem(
-              context,
-              index,
-              keysOrder[index],
-              paliSegs,
-              translationSegs,
-              commentarySegs,
-            );
-          },
         ),
       );
     } else if ((widget.textData!["translation_text"] is Map &&
             widget.textData!["translation_text"].containsKey("text")) ||
         (widget.textData!["root_text"] is Map &&
             widget.textData!["root_text"].containsKey("text"))) {
-      // CASE B: NON-SEGMENTED HTML
+      // NON-SEGMENTED HTML
       if (_htmlSegments.isEmpty) {
         String rawHtml = "";
         if (widget.textData!["translation_text"] is Map &&
@@ -2647,153 +2710,153 @@ class _SuttaDetailState extends State<SuttaDetail> {
         }
         if (rawHtml.isNotEmpty) _parseHtmlAndGenerateTOC(rawHtml);
       }
+      body = RepaintBoundary(
+        child: SelectionArea(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) => notification.depth != 0,
+            child: Scrollbar(
+              thumbVisibility: false,
+              thickness: 4,
+              radius: const Radius.circular(8),
+              child: ScrollablePositionedList.builder(
+                physics: const BouncingScrollPhysics(),
+                itemScrollController: _itemScrollController,
+                itemPositionsListener: _itemPositionsListener,
+                padding: EdgeInsets.fromLTRB(
+                  _horizontalPadding,
+                  topContentPadding,
+                  _horizontalPadding,
+                  _isBottomMenuVisible ? 100 : 40,
+                ),
+                itemCount: _htmlSegments.length,
+                itemBuilder: (context, index) {
+                  String content = _injectSearchHighlights(
+                    _htmlSegments[index],
+                    index,
+                    false,
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Html(
+                      data: content,
+                      extensions: [
+                        TagExtension(
+                          tagsToExtend: {"x-highlight"},
+                          builder: (extensionContext) {
+                            final attrs = extensionContext.attributes;
+                            final isGlobalActive =
+                                attrs['data-active'] == 'true';
+                            final key = GlobalKey();
+                            if (isGlobalActive) {
+                              if (_allMatches.isNotEmpty &&
+                                  _currentMatchIndex < _allMatches.length) {
+                                _searchKeys[_currentMatchIndex] = key;
+                              }
+                            }
+                            final style = extensionContext.styledElement?.style;
+                            double? currentFontSize = style?.fontSize?.value;
+                            currentFontSize ??= _fontSize;
 
-      body = SelectionArea(
-        child: ScrollablePositionedList.builder(
-          itemScrollController: _itemScrollController,
-          itemPositionsListener: _itemPositionsListener,
-          padding: EdgeInsets.fromLTRB(
-            _horizontalPadding,
-            16,
-            _horizontalPadding,
-            80,
-          ),
-          itemCount: _htmlSegments.length,
-          itemBuilder: (context, index) {
-            String content = _injectSearchHighlights(
-              _htmlSegments[index],
-              index,
-              false,
-            );
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Html(
-                data: content,
-                extensions: [
-                  TagExtension(
-                    tagsToExtend: {"x-highlight"},
-                    builder: (extensionContext) {
-                      final attrs = extensionContext.attributes;
-                      final isGlobalActive = attrs['data-active'] == 'true';
-
-                      final key = GlobalKey();
-                      if (isGlobalActive) {
-                        if (_allMatches.isNotEmpty &&
-                            _currentMatchIndex < _allMatches.length) {
-                          _searchKeys[_currentMatchIndex] = key;
-                        }
-                      }
-
-                      // 🔥 FIX UTAMA: NYONTEK UKURAN FONT DARI ELEMENT INDUK (H1/H2/P)
-                      // Ini biar pas di judul gede, highlight-nya ikutan gede.
-                      final style = extensionContext.styledElement?.style;
-                      double? currentFontSize = style?.fontSize?.value;
-
-                      // Fallback: Kalau gak nemu, pake ukuran default user
-                      currentFontSize ??= _fontSize;
-
-                      return Container(
-                        key: isGlobalActive ? key : null,
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
-                          color: isGlobalActive ? Colors.orange : Colors.yellow,
-                          borderRadius: BorderRadius.circular(4),
+                            return Container(
+                              key: isGlobalActive ? key : null,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isGlobalActive
+                                    ? Colors.orange
+                                    : Colors.yellow,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Transform.translate(
+                                offset: const Offset(0, 1),
+                                child: Text(
+                                  extensionContext.element!.text,
+                                  style: TextStyle(
+                                    color: isGlobalActive
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: currentFontSize,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        // Pake Transform biar teksnya pas di tengah kotak (opsional, biar rapi)
-                        child: Transform.translate(
-                          offset: const Offset(0, 1),
-                          child: Text(
-                            extensionContext.element!.text,
-                            style: TextStyle(
-                              color: isGlobalActive
-                                  ? Colors.white
-                                  : Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: currentFontSize, // 👈 INI KUNCINYA
-                              height:
-                                  1.0, // Reset line height biar kotaknya gak kegedean
-                            ),
+                      ],
+                      style: {
+                        "body": Style(
+                          fontFamily: _currentFontFamily,
+                          fontSize: FontSize(_fontSize),
+                          lineHeight: LineHeight(_lineHeight),
+                          margin: Margins.only(left: 10, right: 10),
+                          color: textColor,
+                        ),
+                        "h1": Style(
+                          fontSize: FontSize(_fontSize * 1.8),
+                          fontWeight: FontWeight.w900,
+                          margin: Margins.only(top: 24, bottom: 12),
+                          color: textColor,
+                        ),
+                        "h2": Style(
+                          fontSize: FontSize(_fontSize * 1.5),
+                          fontWeight: FontWeight.bold,
+                          margin: Margins.only(top: 20, bottom: 10),
+                          color: textColor,
+                        ),
+                        "h3": Style(
+                          fontSize: FontSize(_fontSize * 1.25),
+                          fontWeight: FontWeight.w700,
+                          margin: Margins.only(top: 16, bottom: 8),
+                          color: textColor,
+                        ),
+                        ".ref": Style(
+                          fontSize: FontSize.smaller,
+                          color: Colors.grey,
+                          textDecoration: TextDecoration.none,
+                          verticalAlign: VerticalAlign.sup,
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.5),
                           ),
+                          margin: Margins.only(right: 4),
+                          padding: HtmlPaddings.symmetric(
+                            horizontal: 2,
+                            vertical: 0,
+                          ),
+                          display: Display.inlineBlock,
                         ),
-                      );
-                    },
-                  ),
-                ],
-
-                style: {
-                  "body": Style(
-                    fontFamily: _currentFontFamily,
-                    fontSize: FontSize(_fontSize),
-                    lineHeight: LineHeight(_lineHeight),
-                    margin: Margins.only(left: 10, right: 10),
-                    color: textColor,
-                  ),
-                  "h1": Style(
-                    fontSize: FontSize(_fontSize * 1.8),
-                    fontWeight: FontWeight.w900,
-                    margin: Margins.only(top: 24, bottom: 12),
-                    color: textColor,
-                  ),
-                  "h2": Style(
-                    fontSize: FontSize(_fontSize * 1.5),
-                    fontWeight: FontWeight.bold,
-                    margin: Margins.only(top: 20, bottom: 10),
-                    color: textColor,
-                  ),
-                  "h3": Style(
-                    fontSize: FontSize(_fontSize * 1.25),
-                    fontWeight: FontWeight.w700,
-                    margin: Margins.only(top: 16, bottom: 8),
-                    color: textColor,
-                  ),
-                  // ✅ FEATURE: Style khusus untuk Referensi Legacy (a class='ref')
-                  ".ref": Style(
-                    fontSize: FontSize.smaller,
-                    color: Colors.grey,
-                    textDecoration: TextDecoration.none,
-                    verticalAlign: VerticalAlign.sup,
-                    border: Border.all(
-                      color: Colors.grey.withValues(alpha: 0.5),
+                        "header": Style(
+                          display: Display.block,
+                          margin: Margins.only(bottom: 20),
+                        ),
+                        "header ul": Style(
+                          listStyleType: ListStyleType.none,
+                          padding: HtmlPaddings.zero,
+                          margin: Margins.zero,
+                        ),
+                        "header li": Style(
+                          textAlign: TextAlign.center,
+                          color: Colors.grey,
+                          fontSize: FontSize.medium,
+                          fontWeight: FontWeight.bold,
+                          display: Display.block,
+                          margin: Margins.only(bottom: 4),
+                        ),
+                        "footer": Style(display: Display.none),
+                      },
                     ),
-                    //margin: Margins.symmetric(horizontal: 4),
-                    margin: Margins.only(right: 4),
-                    padding: HtmlPaddings.symmetric(horizontal: 2, vertical: 0),
-                    display: Display.inlineBlock,
-                  ),
-
-                  // ✅ HEADER LIST ITEM (DIVISION & SUTTA NAME)
-                  "header": Style(
-                    display: Display.block,
-                    margin: Margins.only(bottom: 20),
-                  ),
-                  "header ul": Style(
-                    // Hapus titik & indentasi
-                    listStyleType: ListStyleType.none,
-                    padding: HtmlPaddings.zero,
-                    margin: Margins.zero,
-                  ),
-                  "header li": Style(
-                    // Rata tengah & Abu-abu
-                    textAlign: TextAlign.center,
-                    color: Colors.grey,
-                    fontSize: FontSize.medium,
-                    fontWeight: FontWeight.bold,
-                    display: Display.block,
-                    margin: Margins.only(bottom: 4),
-                  ),
-
-                  // ✅ HIDE FOOTER
-                  "footer": Style(display: Display.none),
+                  );
                 },
               ),
-            );
-          },
+            ),
+          ),
         ),
       );
     } else if (widget.textData!["root_text"] is Map &&
         !(widget.textData!["root_text"] as Map).containsKey("text")) {
-      // CASE C: PALI ONLY
+      // PALI ONLY
       final paliOnlyMap = (widget.textData!["root_text"] as Map).map(
         (k, v) => MapEntry(k.toString(), v.toString()),
       );
@@ -2801,27 +2864,38 @@ class _SuttaDetailState extends State<SuttaDetail> {
           ? List<String>.from(widget.textData!["keys_order"])
           : paliOnlyMap.keys.toList();
 
-      body = SelectionArea(
-        child: ScrollablePositionedList.builder(
-          itemScrollController: _itemScrollController,
-          itemPositionsListener: _itemPositionsListener,
-          padding: EdgeInsets.fromLTRB(
-            _horizontalPadding,
-            16,
-            _horizontalPadding,
-            80,
+      body = RepaintBoundary(
+        child: SelectionArea(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) => notification.depth != 0,
+            child: Scrollbar(
+              thumbVisibility: false,
+              thickness: 4,
+              radius: const Radius.circular(8),
+              child: ScrollablePositionedList.builder(
+                physics: const BouncingScrollPhysics(),
+                itemScrollController: _itemScrollController,
+                itemPositionsListener: _itemPositionsListener,
+                padding: EdgeInsets.fromLTRB(
+                  _horizontalPadding,
+                  topContentPadding,
+                  _horizontalPadding,
+                  _isBottomMenuVisible ? 100 : 40,
+                ),
+                itemCount: paliKeys.length,
+                itemBuilder: (context, index) {
+                  return _buildSegmentedItem(
+                    context,
+                    index,
+                    paliKeys[index],
+                    paliOnlyMap,
+                    {},
+                    {},
+                  );
+                },
+              ),
+            ),
           ),
-          itemCount: paliKeys.length,
-          itemBuilder: (context, index) {
-            return _buildSegmentedItem(
-              context,
-              index,
-              paliKeys[index],
-              paliOnlyMap,
-              {},
-              {},
-            );
-          },
         ),
       );
     } else {
@@ -2836,44 +2910,23 @@ class _SuttaDetailState extends State<SuttaDetail> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) {
-          //MUTATE
-          //if (widget.textData != null) {
-          // widget.textData!.remove("initial_vagga_uid");
-          // }
+        if (didPop) return;
+        if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+          Navigator.of(context).pop();
           return;
         }
-
-        // ✅ LOGIC BARU: CEK DRAWER (DAFTAR ISI) DULU
-        // Kalau Daftar Isi lagi kebuka, tombol Back fungsinya cuma buat nutup drawer
-        if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
-          Navigator.of(context).pop(); // Tutup drawer
-          return; // Stop, jangan lanjut tampilin dialog exit
-        }
-
-        // Kalau Drawer GAK kebuka, baru jalanin logic dialog exit yang lama
         final navigator = Navigator.of(context);
         final allow = await _handleBackReplace();
-
-        //if (allow && widget.textData != null) {
-        //widget.textData!.remove("initial_vagga_uid");
-        // }
         if (allow && mounted) {
           navigator.pop(result);
         }
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        // 🔥 WRAP
         value: SystemUIHelper.getStyle(context),
         child: Scaffold(
           key: _scaffoldKey,
-          // ... sisa kode Scaffold ke bawah gak usah diubah ...
           appBar: null,
           backgroundColor: bgColor,
-          // INI WARNA BODY
-          //backgroundColor: Theme.of(context).brightness == Brightness.dark
-          //  ? Colors.grey[800]
-          //: Colors.grey[100],
           endDrawer: _tocList.isNotEmpty
               ? Drawer(
                   backgroundColor: Theme.of(context).colorScheme.surface,
@@ -2882,17 +2935,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
                       left: Radius.circular(24),
                     ),
                   ),
-                  width:
-                      MediaQuery.of(context).size.width *
-                      0.85, // Lebar proporsional
+                  width: MediaQuery.of(context).size.width * 0.85,
                   child: Column(
                     children: [
-                      // --- HEADER ---
                       Container(
                         padding: EdgeInsets.fromLTRB(
                           24,
-                          MediaQuery.of(context).padding.top +
-                              20, // Aman dari status bar
+                          MediaQuery.of(context).padding.top + 20,
                           16,
                           20,
                         ),
@@ -2923,8 +2972,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                           ],
                         ),
                       ),
-
-                      // --- LIST CONTENT ---
                       Expanded(
                         child: ListView.separated(
                           padding: const EdgeInsets.symmetric(
@@ -2939,8 +2986,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                             final level = item['type'] as int;
                             final isH1 = level == 1;
                             final isH2 = level == 2;
-
-                            // Styling Visual Hirarki
                             final double indent = isH1
                                 ? 4.0
                                 : (isH2 ? 16.0 : 32.0);
@@ -2957,12 +3002,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
                                   Navigator.pop(context);
-
-                                  // --- LOGIC SCROLL ASLI (DIPERTAHANKAN) ---
                                   if (!mounted) return;
                                   final targetIndex = item['index'] as int;
 
-                                  // Revalidate bounds
                                   int maxIndex;
                                   if (isSegmented && keysOrder.isNotEmpty) {
                                     maxIndex = keysOrder.length - 1;
@@ -2972,15 +3014,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     return;
                                   }
 
-                                  if (targetIndex < 0 ||
-                                      targetIndex > maxIndex) {
+                                  if (targetIndex < 0 || targetIndex > maxIndex)
                                     return;
-                                  }
-
                                   if (!mounted ||
-                                      !_itemScrollController.isAttached) {
+                                      !_itemScrollController.isAttached)
                                     return;
-                                  }
 
                                   try {
                                     _itemScrollController.scrollTo(
@@ -3005,7 +3043,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      // Marker bullet kecil buat sub-bab (H2/H3)
                                       if (!isH1)
                                         Padding(
                                           padding: const EdgeInsets.only(
@@ -3024,8 +3061,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                             ),
                                           ),
                                         ),
-
-                                      // Judul Bab
                                       Expanded(
                                         child: Text(
                                           item['title'],
@@ -3052,19 +3087,23 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
           body: Stack(
             children: [
-              Column(
-                children: [
-                  SizedBox(
-                    height: MediaQuery.of(context).padding.top + 70,
-                  ), // Spacing untuk header
-                  Expanded(
-                    child: body,
-                    // ✅ Langsung body tanpa Padding wrapper
-                  ),
-                ],
+              // 1. KONTEN UTAMA (Full Screen)
+              body,
+
+              // 🔥 STATUS BAR COVER (PENUTUP SOLID)
+              // Ini biar teks gak kelihatan "jalan" di belakang jam/baterai.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: MediaQuery.of(context).padding.top,
+                child: Container(
+                  color: bgColor, // Pake warna tema halaman (Sepia/Dark/Light)
+                ),
               ),
 
-              // TRANSPARENT HEADER dengan shadow konsisten
+              // 2. HEADER: Floating Pill Style
+              // 2. HEADER: Floating Pill Style
               Positioned(
                 top: MediaQuery.of(context).padding.top,
                 left: 0,
@@ -3072,21 +3111,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
-                    vertical: 6,
+                    vertical: 0,
                   ),
                   child: Container(
                     decoration: BoxDecoration(
-                      // ✅ FIX 1: Warna langsung ditaruh di sini (SOLID), tanpa transparansi
-                      color: Theme.of(context).colorScheme.surface,
-
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(
-                            alpha: 0.1,
-                          ), // lebih pekat
-                          blurRadius: 4, // lebih besar biar soft
-                          offset: const Offset(0, 2), // geser biar keliatan
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -3095,14 +3129,15 @@ class _SuttaDetailState extends State<SuttaDetail> {
                       child: BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
                         child: Container(
-                          color: cardColor.withValues(alpha: 0.85),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surface.withValues(alpha: 0.85),
                           padding: const EdgeInsets.all(12),
                           child: Row(
                             children: [
-                              // Tombol back dengan shadow kecil
                               Container(
                                 decoration: BoxDecoration(
-                                  color: cardColor,
+                                  color: Theme.of(context).colorScheme.surface,
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
@@ -3114,12 +3149,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     ),
                                   ],
                                 ),
-                                child: IconButton(
-                                  icon: Icon(
-                                    Icons.arrow_back,
-                                    color: iconColor,
-                                  ),
-                                  onPressed: _isLoading
+                                child: InkWell(
+                                  onTap: _isLoading
                                       ? null
                                       : () async {
                                           final navigator = Navigator.of(
@@ -3127,23 +3158,28 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                           );
                                           final allow =
                                               await _handleBackReplace();
-                                          if (allow && mounted) {
-                                            navigator.pop();
-                                          }
+                                          if (allow && mounted) navigator.pop();
                                         },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Icon(
+                                      Icons.arrow_back,
+                                      size: 20,
+                                      color: iconColor,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   widget.textData?["suttaplex"]?["original_title"] ??
                                       suttaTitle,
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight
-                                        .bold, // ✅ FIX 2: Pastikan warna teks kontras
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                     color: iconColor,
-                                    //color: textColor,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -3212,49 +3248,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                               "Bahasa",
                                               metadata["langName"],
                                             ),
-                                            const SizedBox(height: 10),
-                                            if (metadata["pubDate"] != null &&
-                                                metadata["pubDate"]
-                                                    .toString()
-                                                    .isNotEmpty) ...[
-                                              _buildInfoRow(
-                                                Icons.calendar_today_outlined,
-                                                "Tahun Terbit",
-                                                metadata["pubDate"],
-                                              ),
-                                              const SizedBox(height: 10),
-                                            ],
-                                            _buildInfoRow(
-                                              metadata["isSegmented"]
-                                                  ? Icons.format_align_left
-                                                  : Icons.archive_outlined,
-                                              "Format",
-                                              metadata["isSegmented"]
-                                                  ? "Aligned (Segmented JSON)"
-                                                  : "Legacy (HTML)",
-                                            ),
-                                            if (_footerInfo.isNotEmpty) ...[
-                                              const SizedBox(height: 16),
-                                              const Divider(),
-                                              const SizedBox(height: 12),
-                                              Text(
-                                                "Informasi",
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15,
-                                                  color: iconColor,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Html(
-                                                data: _footerInfo,
-                                                style: {
-                                                  "body": Style(
-                                                    color: iconColor,
-                                                  ),
-                                                },
-                                              ),
-                                            ],
                                           ],
                                         ),
                                       ),
@@ -3270,14 +3263,28 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                 },
                               ),
                               if (acronym.isNotEmpty) ...[
-                                const SizedBox(width: 4),
-                                Text(
-                                  rawAcronym,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: getNikayaColor(
-                                      normalizeNikayaAcronym(acronym),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(alpha: 0.5),
+                                    // 🔥 UPDATE DISINI: Dulu 4, sekarang 8 biar melengkung manis
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    rawAcronym,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: getNikayaColor(
+                                        normalizeNikayaAcronym(acronym),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -3296,43 +3303,126 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   color: Colors.black54,
                   child: const Center(child: CircularProgressIndicator()),
                 ),
+
+              // 3. BOTTOM MENU: Integrated Glass Style (Layar - 48)
+              if (!_connectionError && !isError)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      width: MediaQuery.of(context).size.width > 600
+                          ? 500
+                          : MediaQuery.of(context).size.width - 48,
+
+                      margin: EdgeInsets.zero,
+
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                          bottom: Radius.zero,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, -2),
+                          ),
+                        ],
+                      ),
+
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                          bottom: Radius.zero,
+                        ),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: Container(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surface.withValues(alpha: 0.85),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _isBottomMenuVisible =
+                                            !_isBottomMenuVisible;
+                                      });
+                                      _savePreferences();
+                                    },
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: 16,
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        _isBottomMenuVisible
+                                            ? Icons.keyboard_arrow_down_rounded
+                                            : Icons.keyboard_arrow_up_rounded,
+                                        size: 16,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                  height: _isBottomMenuVisible ? null : 0,
+                                  child: SingleChildScrollView(
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      child: _buildFloatingActions(isSegmented),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerFloat,
-          floatingActionButton: _connectionError || isError
-              ? null
-              : _buildFloatingActions(isSegmented),
+          floatingActionButton: null,
         ),
       ),
     );
   }
 
   // ============================================
-  // UPDATED FLOATING ACTIONS (RESPONSIVE)
+  // UPDATED FLOATING ACTIONS (CONSISTENT DISABLED STATE)
   // ============================================
   Widget _buildFloatingActions(bool isSegmented) {
     // 1. Cek Logic Navigasi
     final isTematik = widget.entryPoint == "tematik";
     final showToc = _tocList.isNotEmpty && !_connectionError;
 
-    // 2. Deteksi Layout (HP Landscape vs Tablet vs Portrait)
+    // 2. Deteksi Layout
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
     final isTablet = size.shortestSide >= 600;
-    // Mode Compact aktif cuma kalau di HP dan Landscape
     final isPhoneLandscape = isLandscape && !isTablet;
 
     // 3. Styling Variabel
     final systemScheme = Theme.of(context).colorScheme;
-    final containerColor = systemScheme.surface;
     final iconColor = systemScheme.onSurface;
     final activeColor = systemScheme.primary;
-    final shadowColor = Colors.black.withValues(alpha: 0.15);
     final disabledClickableColor = Colors.grey.withValues(alpha: 0.5);
 
     // Styling Compact vs Normal
-    final double verticalMargin = isPhoneLandscape ? 4.0 : 10.0;
     final double internalPaddingH = isPhoneLandscape ? 4.0 : 6.0;
     final double internalPaddingV = isPhoneLandscape ? 2.0 : 4.0;
     final double iconSize = isPhoneLandscape ? 20.0 : 24.0;
@@ -3346,6 +3436,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       Color? customIconColor,
     }) {
       Color finalColor;
+      // 🔥 LOGIC VISUAL DISABLED: Kalau onTap NULL, warnanya jadi abu pudar
       if (onTap == null) {
         finalColor = Colors.grey.withValues(alpha: 0.3);
       } else if (customIconColor != null) {
@@ -3364,7 +3455,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
           child: Tooltip(
             message: tooltip,
             child: Container(
-              // Padding tombol menyesuaikan mode compact
               padding: EdgeInsets.symmetric(
                 horizontal: isPhoneLandscape ? 8 : 12,
                 vertical: isPhoneLandscape ? 8 : 12,
@@ -3383,28 +3473,19 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
 
     return Container(
-      // Margin bawah dinamis
-      margin: EdgeInsets.symmetric(horizontal: 24, vertical: verticalMargin),
+      width: double.infinity,
       padding: EdgeInsets.symmetric(
         horizontal: internalPaddingH,
         vertical: internalPaddingV,
       ),
       decoration: BoxDecoration(
-        // Agak transparan dikit kalo compact mode biar teks belakangnya ngintip
-        color: containerColor.withValues(alpha: isPhoneLandscape ? 0.9 : 1.0),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: shadowColor,
-            blurRadius: isPhoneLandscape ? 10 : 20,
-            offset: Offset(0, isPhoneLandscape ? 4 : 8),
-            spreadRadius: 2,
-          ),
-        ],
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1), width: 1),
+        color: Colors.transparent,
+        border: Border(
+          top: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1),
+        ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           // --- PREV ---
@@ -3414,6 +3495,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
             customIconColor: (_isFirst || isTematik)
                 ? disabledClickableColor
                 : null,
+            // Logic prev sudah benar (cek _isLoading)
             onTap: _isLoading
                 ? null
                 : () {
@@ -3440,25 +3522,35 @@ class _SuttaDetailState extends State<SuttaDetail> {
           buildBtn(
             icon: Icons.translate_rounded,
             tooltip: "Info Sutta & Terjemahan",
+            // Translate sudah benar
             onTap: _isLoading ? null : _openSuttaplexModal,
           ),
           buildBtn(
             icon: Icons.search_rounded,
             tooltip: "Cari Teks",
+            // Search sudah benar
             onTap: _isLoading ? null : _openSearchModal,
           ),
 
+          // 🔥 FIX: SETTINGS (Tt)
           buildBtn(
             icon: Icons.text_fields_rounded,
             tooltip: "Tampilan",
-            onTap: () => _openViewSettingsModal(isSegmented),
+            // SEKARANG CEK _isLoading JUGA
+            onTap: _isLoading
+                ? null
+                : () => _openViewSettingsModal(isSegmented),
           ),
 
+          // 🔥 FIX: DAFTAR ISI (List)
           if (showToc)
             buildBtn(
               icon: Icons.list_alt_rounded,
               tooltip: "Daftar Isi",
-              onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+              // SEKARANG CEK _isLoading JUGA
+              onTap: _isLoading
+                  ? null
+                  : () => _scaffoldKey.currentState?.openEndDrawer(),
             ),
 
           Container(
@@ -3474,6 +3566,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
             customIconColor: (_isLast || isTematik)
                 ? disabledClickableColor
                 : null,
+            // Logic next sudah benar
             onTap: _isLoading
                 ? null
                 : () {
@@ -3498,7 +3591,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
   // UPDATED SEARCH MODAL (KEYBOARD SAFE)
   // ============================================
   void _openSearchModal() {
-    setState(() => _isSearchActive = true);
+    setState(() {
+      _isSearchActive = true;
+      // 🔥 Paksa show UI saat search
+    });
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // Wajib true buat handle keyboard
@@ -3891,12 +3987,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
             // 🔥 1. DETEKSI LAYAR
             final size = MediaQuery.of(context).size;
             final isLandscape = size.width > size.height;
-            final isTablet =
-                size.shortestSide >=
-                600; // Patokan umum tablet (7 inch ke atas)
+            final isTablet = size.shortestSide >= 600;
 
             // Tampilkan preview HANYA JIKA: (Portrait) ATAU (Tablet Landscape)
-            // Kalau HP Landscape -> Sembunyikan (False)
             final bool showPreview = !isLandscape || isTablet;
 
             final ScrollController modalScrollController = ScrollController();
@@ -3942,7 +4035,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
               final transText =
                   "Terpujilah Sang Bhagavā, Yang Mahasuci, Yang Telah Mencapai Penerangan Sempurna.";
 
-              // Style Pali (Kecil & Berwarna khusus) -> Buat mode Bilingual
               final paliStyle = TextStyle(
                 fontFamily: _currentFontFamily,
                 fontSize: _fontSize * 0.8,
@@ -3951,7 +4043,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 color: readerColors['pali'],
               );
 
-              // Style Teks Utama (Normal & Warna hitam/putih)
               final transStyle = TextStyle(
                 fontFamily: _currentFontFamily,
                 fontSize: _fontSize,
@@ -3959,21 +4050,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 color: readerColors['text'],
               );
 
-              // 1. PALI ONLY (Root Text)
               if (_isRootOnly) {
                 return Text(paliText, style: transStyle);
               }
 
-              // 2. NON-SEGMENTED (HTML Translation Only)
               if (!isSegmented) {
                 return Text(transText, style: transStyle);
               }
 
-              // 3. SEGMENTED BILINGUAL
               switch (_viewMode) {
                 case ViewMode.translationOnly:
                   return Text(transText, style: transStyle);
-
                 case ViewMode.sideBySide:
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -3989,7 +4076,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                       ),
                     ],
                   );
-
                 case ViewMode.lineByLine:
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -4003,9 +4089,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
             }
 
             return Container(
-              padding: const EdgeInsets.fromLTRB(24, 12, 4, 24),
+              // 🔥 FIX: Padding Bawah dikurangi (24 -> 16) biar gak bolong
+              padding: const EdgeInsets.fromLTRB(24, 12, 4, 0),
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.90,
+                // Max height disamain sama html.dart (0.85)
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -4051,9 +4139,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ===============================================
                   // 🔥 STICKY LIVE PREVIEW BOX
-                  // ===============================================
                   if (showPreview) ...[
                     Padding(
                       padding: const EdgeInsets.only(right: 20, bottom: 16),
@@ -4128,9 +4214,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // =============================================
-                            // 1. MODE TAMPILAN (SEGMEN) - PINDAH KE ATAS
-                            // =============================================
+                            // 1. MODE TAMPILAN
                             if (isSegmented && widget.lang != "pli") ...[
                               buildSectionHeader("Segmen Pāli"),
                               LayoutBuilder(
@@ -4143,13 +4227,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     ],
                                     onPressed: (int index) {
                                       setState(() {
-                                        if (index == 0) {
+                                        if (index == 0)
                                           _viewMode = ViewMode.lineByLine;
-                                        } else if (index == 1) {
+                                        else if (index == 1)
                                           _viewMode = ViewMode.sideBySide;
-                                        } else {
+                                        else
                                           _viewMode = ViewMode.translationOnly;
-                                        }
                                       });
                                       _savePreferences();
                                       setModalState(() {});
@@ -4202,14 +4285,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(
-                                height: 16,
-                              ), // Jarak ke section bawah
+                              const SizedBox(height: 16),
                             ],
 
-                            // =============================================
                             // 2. GAYA & WARNA
-                            // =============================================
                             buildSectionHeader("Gaya & Warna"),
                             SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
@@ -4301,9 +4380,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
                             const SizedBox(height: 32),
 
-                            // =============================================
                             // 3. TATA LETAK
-                            // =============================================
                             buildSectionHeader("Tata Letak"),
                             Container(
                               decoration: BoxDecoration(
@@ -4407,8 +4484,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                 ],
                               ),
                             ),
-
-                            //const SizedBox(height: 24),
                           ],
                         ),
                       ),
