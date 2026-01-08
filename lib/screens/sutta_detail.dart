@@ -3400,7 +3400,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                                   ),
                                                 },
                                                 // Biar kalau diklik link-nya (misal CC-0) dia buka browser
-                                                onLinkTap: (url, _, __) {
+                                                onLinkTap: (url, _, _) {
                                                   if (url != null) {
                                                     // Pake launchUrl atau copy logic abang yang biasa
                                                     debugPrint(
