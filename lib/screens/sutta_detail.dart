@@ -3014,11 +3014,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     return;
                                   }
 
-                                  if (targetIndex < 0 || targetIndex > maxIndex)
+                                  if (targetIndex < 0 ||
+                                      targetIndex > maxIndex) {
                                     return;
+                                  }
                                   if (!mounted ||
-                                      !_itemScrollController.isAttached)
+                                      !_itemScrollController.isAttached) {
                                     return;
+                                  }
 
                                   try {
                                     _itemScrollController.scrollTo(
@@ -4227,12 +4230,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     ],
                                     onPressed: (int index) {
                                       setState(() {
-                                        if (index == 0)
+                                        if (index == 0) {
                                           _viewMode = ViewMode.lineByLine;
-                                        else if (index == 1)
+                                        } else if (index == 1) {
                                           _viewMode = ViewMode.sideBySide;
-                                        else
+                                        } else {
                                           _viewMode = ViewMode.translationOnly;
+                                        }
                                       });
                                       _savePreferences();
                                       setModalState(() {});
