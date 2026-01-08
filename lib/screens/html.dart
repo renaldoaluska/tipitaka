@@ -2358,9 +2358,19 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             onTap: _isLoading ? null : _openSearchModal,
             isActive: _isSearchModalOpen,
           ),
-          buildBtn(icon: Icons.text_fields_rounded, onTap: _showSettingsModal),
-          buildBtn(icon: Icons.vertical_align_top_rounded, onTap: _scrollToTop),
+          // SETTINGS
+          buildBtn(
+            icon: Icons.text_fields_rounded,
+            // 🔥 UPDATE: Matikan kalau lagi loading
+            onTap: _isLoading ? null : _showSettingsModal,
+          ),
 
+          // SCROLL TOP
+          buildBtn(
+            icon: Icons.vertical_align_top_rounded,
+            // 🔥 UPDATE: Matikan juga biar konsisten (atau biarin nyala terserah lu)
+            onTap: _isLoading ? null : _scrollToTop,
+          ),
           Container(
             width: 1,
             height: separatorHeight,
