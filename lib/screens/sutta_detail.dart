@@ -350,8 +350,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
   ) {
     if (htmlText.isEmpty) return [];
 
-    // ❌ HAPUS INI: Jangan inject di string mentah lagi
-    // final htmlWithHighlight = _injectSearchHighlights(...)
+    // 🧹 BERSIH-BERSIH TAG KHUSUS SUTTACENTRAL
+    htmlText = htmlText
+        // 1. Enjambment (<j>): Ganti jadi Enter (\n) + hapus spasi nempel
+        .replaceAll(RegExp(r'\s*<j>\s*'), '\n')
+        // 2. Line Break (<br> atau <br/>): Ganti jadi Enter (\n)
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        // 3. Non-breaking space (&nbsp;): Ganti spasi biasa (opsional, jaga2 aja)
+        .replaceAll('&nbsp;', ' ');
 
     // ✅ PAKAI RAW HTML LANGSUNG
     final unescape = HtmlUnescape();
