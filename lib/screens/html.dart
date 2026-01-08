@@ -142,64 +142,72 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final uiCardColor = systemScheme.surface;
     final uiIconColor = systemScheme.onSurface;
 
-    // 🔥 SOLUSI ANTI-CRASH:
-    // Kita gak usah pake _tm.lightTheme atau _tm.darkTheme yang bikin error.
-    // Kita panggil langsung ThemeData.light() / dark() dari Flutter. Aman 100%.
+    // 🔥 SINKRONISASI TOTAL DENGAN SUTTA_DETAIL.DART
+    // Kita Hardcode Hex-nya biar:
+    // 1. Gak Crash (LateInitializationError)
+    // 2. Warnanya persis sama kayak Sutta Detail
 
     switch (_readerTheme) {
+      // --- TERANG 1 (Standard) ---
+      // Sumber: ThemeManager lightTheme
       case ReaderTheme.light:
-        final t = ThemeData.light(); // ✅ Langsung panggil ini
         return {
-          'bg': t.scaffoldBackgroundColor,
-          'text': t.colorScheme.onSurface,
-          'note': t.colorScheme.onSurfaceVariant,
+          'bg': const Color(0xFFFAFAFA), // Colors.grey[50]
+          'text': const Color(0xFF000000), // Colors.black
+          'note': const Color(0xFF757575), // onSurfaceVariant
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFF8B4513),
+          'pali': const Color(
+            0xFF8B4513,
+          ), // Coklat Tua Klasik (Sama kyk SuttaDetail)
         };
 
+      // --- TERANG 2 (Soft) ---
+      // Sumber: SuttaDetail Light 2
       case ReaderTheme.light2:
-        final t = ThemeData.light(); // ✅ Langsung panggil ini
         return {
-          'bg': t.scaffoldBackgroundColor,
-          'text': const Color(0xFF424242),
-          'note': const Color(0xFF9E9E9E),
+          'bg': const Color(0xFFFAFAFA), // Colors.grey[50]
+          'text': const Color(0xFF424242), // Abu Tua Soft
+          'note': const Color(0xFF9E9E9E), // Abu Sedang
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFFA1887F),
+          'pali': const Color(0xFFA1887F), // Coklat Kemerahan Soft
         };
 
+      // --- SEPIA (Custom) ---
+      // Sumber: SuttaDetail Sepia
       case ReaderTheme.sepia:
-        // Sepia emang hardcode, jadi aman sentosa
         return {
-          'bg': const Color(0xFFF4ECD8),
-          'text': const Color(0xFF5D4037),
-          'note': const Color(0xFF8D6E63),
+          'bg': const Color(0xFFF4ECD8), // Krem
+          'text': const Color(0xFF5D4037), // Coklat
+          'note': const Color(0xFF8D6E63), // Coklat Pudar
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFF795548),
+          'pali': const Color(0xFF795548), // Coklat Tanah
         };
 
+      // --- GELAP 1 (Standard) ---
+      // Sumber: ThemeManager darkTheme
       case ReaderTheme.dark:
-        final t = ThemeData.dark(); // ✅ Langsung panggil ini
         return {
-          'bg': t.scaffoldBackgroundColor,
-          'text': t.colorScheme.onSurface,
-          'note': t.colorScheme.onSurfaceVariant,
+          'bg': const Color(0xFF212121), // Colors.grey[900]
+          'text': const Color(0xFFFFFFFF), // Colors.white
+          'note': const Color(0xFFBDBDBD), // onSurfaceVariant
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFFD4A574),
+          'pali': const Color(0xFFD4A574), // Emas Pudar
         };
 
+      // --- GELAP 2 (Soft) ---
+      // Sumber: SuttaDetail Dark 2
       case ReaderTheme.dark2:
-        final t = ThemeData.dark(); // ✅ Langsung panggil ini
         return {
-          'bg': t.scaffoldBackgroundColor,
-          'text': const Color(0xFFB0BEC5),
-          'note': const Color(0xFF757575),
+          'bg': const Color(0xFF212121), // Colors.grey[900]
+          'text': const Color(0xFFB0BEC5), // Abu Kebiruan
+          'note': const Color(0xFF757575), // Abu Gelap
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFFC5B6A6),
+          'pali': const Color(0xFFC5B6A6), // Dusty Sand
         };
     }
   }
