@@ -3180,7 +3180,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                   widget.textData?["suttaplex"]?["original_title"] ??
                                       suttaTitle,
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 17,
                                     fontWeight: FontWeight.bold,
                                     color: iconColor,
                                   ),
