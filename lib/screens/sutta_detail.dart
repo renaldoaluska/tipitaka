@@ -228,10 +228,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
   final List<Map<String, dynamic>> _tocList = [];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  // 🔥 TAMBAH INI: Penampung data suttaplex yang valid (Canonical)
+  Map<String, dynamic>? _canonicalSuttaplex;
 
   @override
   void initState() {
     super.initState();
+    // Inisialisasi awal pake data bawaan dulu (siapa tau ada isinya)
+    _canonicalSuttaplex = widget.textData?["suttaplex"];
     _hasNavigatedBetweenSuttas = widget.isNavigated;
     _loadPreferences();
 
@@ -731,7 +735,35 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
   }
 
+  // ============================================================
+  // 1. HELPER SAKTI: SATU PINTU UNTUK CEK NAVIGASI
+  // Urutan Cek: Translation -> Root -> Suttaplex (The Savior)
+  // ============================================================
+  Map<String, dynamic>? _getNavTarget(String key) {
+    final root = widget.textData?["root_text"];
+    final trans = widget.textData?["translation"];
+
+    bool isValid(dynamic data) {
+      return data is Map &&
+          data["uid"] != null &&
+          data["uid"].toString().isNotEmpty;
+    }
+
+    // 1. Cek Translation
+    if (isValid(trans?[key])) return trans![key];
+
+    // 2. Cek Root
+    if (isValid(root?[key])) return root![key];
+
+    // 3. Cek Suttaplex (Pake variable STATE, bukan widget.textData)
+    // Ini kuncinya biar dapet data yang udah di-fetch ulang
+    if (isValid(_canonicalSuttaplex?[key])) return _canonicalSuttaplex![key];
+
+    return null;
+  }
+
   Future<void> _initNavigationContext() async {
+    // ... Logic Parent Vagga yang lama biarin aja ...
     final root = widget.textData?["root_text"];
     if (root is Map) {
       _parentVaggaId =
@@ -746,27 +778,39 @@ class _SuttaDetailState extends State<SuttaDetail> {
           });
         }
       }
-      final prev = root["previous"];
-      final next = root["next"];
+    }
+    // 🔥 LOGIC BARU: CEK & ISI ULANG SUTTAPLEX KALAU KOPONG
+    // Cek apakah prev & next null semua? (Indikasi data busuk)
+    bool isHollow =
+        (_canonicalSuttaplex?["previous"]?["uid"] == null) &&
+        (_canonicalSuttaplex?["next"]?["uid"] == null);
 
-      _isFirst =
-          prev == null ||
-          (prev is Map &&
-              (prev.isEmpty ||
-                  prev["uid"] == null ||
-                  prev["uid"].toString().trim().isEmpty));
-      _isLast =
-          next == null ||
-          (next is Map &&
-              (next.isEmpty ||
-                  next["uid"] == null ||
-                  next["uid"].toString().trim().isEmpty));
-    } else {
-      _isFirst = true;
-      _isLast = true;
+    // Kalau datanya null/kopong, kita tarik data ASLI dari API
+    if (_canonicalSuttaplex == null || isHollow) {
+      try {
+        // Pake service yang udah ada di sutta.dart
+        final freshData = await SuttaService.fetchSuttaplex(widget.uid);
+
+        if (mounted) {
+          setState(() {
+            // API Suttaplex balikinnya List, jadi ambil index [0]
+            if (freshData is List && freshData.isNotEmpty) {
+              _canonicalSuttaplex = freshData[0];
+            } else if (freshData is Map<String, dynamic>) {
+              _canonicalSuttaplex = freshData;
+            }
+          });
+        }
+      } catch (e) {
+        debugPrint("Gagal fetch canonical suttaplex: $e");
+      }
     }
 
-    setState(() {});
+    // Hitung ulang status tombol pake data baru
+    _isFirst = _getNavTarget("previous") == null;
+    _isLast = _getNavTarget("next") == null;
+
+    if (mounted) setState(() {});
   }
 
   // ✅ HELPER BARU: SATU PINTU UNTUK SEMUA NAVIGASI MENU
@@ -848,7 +892,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     // 🔥 NORMALIZE hasilnya buat konsistensi
     derivedAcronym = normalizeNikayaAcronym(derivedAcronym);
 
-    debugPrint("🚀 [OPEN MENU] UID: $targetUid → ACRONYM: '$derivedAcronym'");
+    //debugPrint("🚀 [OPEN MENU] UID: $targetUid → ACRONYM: '$derivedAcronym'");
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1345,57 +1389,45 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
   }
 
+  // ============================================================
+  // 4. UPDATE NAVIGATE (Anti-Crash & Anti-Pindah Halaman)
+  // ============================================================
   Future<void> _navigateToSutta({required bool isPrevious}) async {
     setState(() {
       _hasNavigatedBetweenSuttas = true;
     });
 
-    final segmented = widget.textData?["segmented"] == true;
     final key = isPrevious ? "previous" : "next";
-
-    Map<String, dynamic>? navTarget;
-    if (segmented) {
-      final root = widget.textData?["root_text"];
-      navTarget = (root is Map) ? root[key] : null;
-    } else {
-      final trans = widget.textData?["translation"];
-      final root = widget.textData?["root_text"];
-      final suttaplex = widget.textData?["suttaplex"];
-
-      if (trans is Map && trans[key] != null) {
-        navTarget = trans[key];
-      } else if (root is Map && root[key] != null) {
-        navTarget = root[key];
-      } else if (suttaplex is Map) {
-        navTarget = suttaplex[key];
-      }
-    }
+    final navTarget = _getNavTarget(key);
 
     if (navTarget == null || navTarget["uid"] == null) return;
+
     final targetUid = navTarget["uid"].toString();
     if (targetUid.trim().isEmpty) return;
 
-    String? authorUid = widget.textData?["author_uid"]?.toString();
-
-    if (authorUid == null) {
-      if (segmented) {
-        authorUid =
-            widget.textData?["translation"]?["author_uid"]?.toString() ??
-            widget.textData?["comment_text"]?["author_uid"]?.toString();
-      } else {
-        authorUid =
-            navTarget["author_uid"]?.toString() ??
-            widget.textData?["translation"]?["author_uid"]?.toString();
-      }
+    // 1. TENTUKAN AUTHOR YANG DIMINTA (TARGET)
+    // 🔥 FIX PENTING: Prioritaskan Author yang lagi dibaca sekarang!
+    // Jangan percaya sama saran 'author_uid' dari tombol next/prev (kadang dia ngawur nyaranin orang lain)
+    String? currentAuthorUid = widget.textData?["author_uid"]?.toString();
+    if (currentAuthorUid == null && widget.textData?["translation"] != null) {
+      currentAuthorUid = widget.textData?["translation"]?["author_uid"]
+          ?.toString();
     }
 
-    if (authorUid == null) return;
+    // Kalau kita lagi baca Bodhi, paksa targetnya Bodhi juga.
+    // Kecuali kita baru masuk (current null), baru pake saran dari navTarget.
+    String? targetAuthorUid =
+        currentAuthorUid ?? navTarget["author_uid"]?.toString();
 
+    // Kalau masih null juga, skip.
+    if (targetAuthorUid == null) return;
+
+    final segmented = widget.textData?["segmented"] == true;
     final targetLang = segmented
         ? widget.lang
         : navTarget["lang"]?.toString() ?? widget.lang;
 
-    if (!mounted) return; // ✅ Check sebelum setState
+    if (!mounted) return;
 
     setState(() {
       _isLoading = true;
@@ -1403,41 +1435,68 @@ class _SuttaDetailState extends State<SuttaDetail> {
     });
 
     try {
+      // 2. TARIK DATA DARI SERVER
       final data = await SuttaService.fetchFullSutta(
         uid: targetUid,
-        authorUid: authorUid,
+        authorUid: targetAuthorUid,
         lang: targetLang,
         segmented: segmented,
         siteLanguage: "id",
       );
 
-      if (!mounted) return; // ✅ CRITICAL: Check after async
+      if (!mounted) return;
 
+      // 3. 🔥 CEK APAKAH SERVER JUJUR? (VALIDASI AUTHOR)
+      // Kita harus bongkar data aslinya. Apakah author_uid di dalamnya SAMA dengan yang kita minta?
+      String? fetchedAuthor;
+
+      if (segmented) {
+        // Cek di translation_text (biasanya author translation ada di sini)
+        if (data["translation_text"] is Map) {
+          fetchedAuthor = data["translation_text"]["author_uid"]?.toString();
+        }
+        // Kalau gak ada translation (baca Root Pali doang), cek root_text
+        else if (data["root_text"] is Map) {
+          fetchedAuthor = data["root_text"]["author_uid"]?.toString();
+        }
+      } else {
+        // Non-segmented (Legacy HTML kayak Bodhi)
+        fetchedAuthor = data["translation"]?["author_uid"]?.toString();
+      }
+
+      // 🛑 SATPAM BERAKSI:
+      // Kalau kita minta 'bodhi' tapi dikasih 'sujato' (dan kita emang request spesifik author), TOLAK!
+      // (Kecuali targetAuthorUid itu 'ms' alias root text, biasanya aman)
+      if (targetAuthorUid != "ms" &&
+          fetchedAuthor != null &&
+          fetchedAuthor != targetAuthorUid) {
+        debugPrint(
+          "⛔ Author Mismatch! Minta: $targetAuthorUid, Dikasih: $fetchedAuthor. BATALKAN.",
+        );
+        throw Exception(
+          "Author mismatch",
+        ); // Lempar ke catch biar muncul snackbar
+      }
+
+      // Cek ketersediaan konten (Basic check)
       final hasTranslation = segmented
           ? (data["translation_text"] != null || data["root_text"] != null)
           : (data["translation"] != null || data["root_text"] != null);
 
       if (!hasTranslation) {
-        _showSuttaSnackBar(
-          SuttaSnackType.translatorFallback,
-          uid: targetUid,
-          lang: targetLang,
-          author: authorUid,
-        );
-        return;
+        throw Exception("Content missing");
       }
 
+      // 4. DATA VALID, LANJUT PINDAH HALAMAN
       final mergedData = {
         ...data,
         "segmented": segmented,
         "suttaplex": data["suttaplex"] ?? widget.textData?["suttaplex"],
       };
 
-      // _navigateToSutta() - Line ~1048
       await _processVaggaTracking(mergedData, targetUid);
 
-      if (!mounted) return; // ✅ ADD THIS
-      if (!context.mounted) return; // ✅ ADD THIS
+      if (!mounted || !context.mounted) return;
 
       Navigator.pushReplacement(
         context,
@@ -1471,30 +1530,28 @@ class _SuttaDetailState extends State<SuttaDetail> {
       if (targetLang == "en") _showEnFallbackBanner();
     } catch (e) {
       if (!mounted) return;
+      setState(() => _isLoading = false);
 
-      if (e is SocketException || e.toString().contains("SocketException")) {
-        // 🔥 FIX SNACKBAR ERROR KONEKSI
+      if (e.toString().contains("SocketException") || e is SocketException) {
         final bottomMargin = _getSnackBarBottomMargin();
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              "Gagal memuat halaman. Periksa koneksi internet.",
-            ),
+            content: const Text("Gagal memuat. Periksa internet."),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            // Margin dinamis juga
             margin: EdgeInsets.only(left: 16, right: 16, bottom: bottomMargin),
           ),
         );
       } else {
-        _replaceToRoute('/suttaplex/$targetUid', slideFromLeft: isPrevious);
+        // 🔥 INI YANG AKAN MUNCUL:
+        // "Teks MN 5 (en) oleh bodhi tak tersedia..."
+        _showSuttaSnackBar(
+          SuttaSnackType.translatorFallback,
+          uid: targetUid,
+          lang: targetLang,
+          author: targetAuthorUid,
+        );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -1662,27 +1719,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
     _navigateToSutta(isPrevious: false);
   }
 
+  // ============================================================
+  // 3. UPDATE ANCHOR SAAT GESER (Konsisten pake helper)
+  // ============================================================
   void _updateParentAnchorOnMove(
     Map<String, dynamic>? root,
     Map<String, dynamic>? suttaplex,
   ) {
-    final prev = root?["previous"] ?? suttaplex?["previous"];
-    final next = root?["next"] ?? suttaplex?["next"];
+    _isFirst = _getNavTarget("previous") == null;
+    _isLast = _getNavTarget("next") == null;
 
-    _isFirst =
-        prev == null ||
-        (prev is Map &&
-            (prev.isEmpty ||
-                prev["uid"] == null ||
-                prev["uid"].toString().trim().isEmpty));
-    _isLast =
-        next == null ||
-        (next is Map &&
-            (next.isEmpty ||
-                next["uid"] == null ||
-                next["uid"].toString().trim().isEmpty));
-
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   void _showEnFallbackBanner() {
@@ -2426,8 +2473,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final normalizedAcronym = normalizeNikayaAcronym(rawAcronym);
 
     // 🔥 DEBUG LOG
-    debugPrint("💾 [SAVE HISTORY] Raw Acronym: '$rawAcronym'");
-    debugPrint("💾 [SAVE HISTORY] Normalized: '$normalizedAcronym'");
+    //debugPrint("💾 [SAVE HISTORY] Raw Acronym: '$rawAcronym'");
+    //debugPrint("💾 [SAVE HISTORY] Normalized: '$normalizedAcronym'");
 
     final historyItem = {
       'uid': widget.uid,
@@ -3316,6 +3363,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   child: Align(
                     alignment: Alignment.bottomCenter,
                     child: Container(
+                      // Lebar container menu
                       width: MediaQuery.of(context).size.width > 600
                           ? 500
                           : MediaQuery.of(context).size.width - 48,
@@ -3324,7 +3372,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
                       decoration: BoxDecoration(
                         borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16),
+                          top: Radius.circular(
+                            20,
+                          ), // Agak buletin dikit biar manis
                           bottom: Radius.zero,
                         ),
                         boxShadow: [
@@ -3338,7 +3388,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
                       child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16),
+                          top: Radius.circular(20),
                           bottom: Radius.zero,
                         ),
                         child: BackdropFilter(
@@ -3350,41 +3400,81 @@ class _SuttaDetailState extends State<SuttaDetail> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        _isBottomMenuVisible =
-                                            !_isBottomMenuVisible;
-                                      });
+                                // ===============================================
+                                // 🔥 DRAG HANDLE (AREA SENTUH ADAPTIF)
+                                // ===============================================
+                                GestureDetector(
+                                  behavior: HitTestBehavior.translucent,
+                                  onVerticalDragEnd: (details) {
+                                    if (details.primaryVelocity! > 0 &&
+                                        _isBottomMenuVisible) {
+                                      setState(
+                                        () => _isBottomMenuVisible = false,
+                                      );
                                       _savePreferences();
-                                    },
-                                    child: Container(
-                                      width: double.infinity,
-                                      height: 16,
-                                      alignment: Alignment.center,
-                                      child: Icon(
-                                        _isBottomMenuVisible
-                                            ? Icons.keyboard_arrow_down_rounded
-                                            : Icons.keyboard_arrow_up_rounded,
-                                        size: 16,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
+                                    } else if (details.primaryVelocity! < 0 &&
+                                        !_isBottomMenuVisible) {
+                                      setState(
+                                        () => _isBottomMenuVisible = true,
+                                      );
+                                      _savePreferences();
+                                    }
+                                  },
+                                  onTap: () {
+                                    setState(
+                                      () => _isBottomMenuVisible =
+                                          !_isBottomMenuVisible,
+                                    );
+                                    _savePreferences();
+                                  },
+                                  // GANTI JADI ANIMATED CONTAINER
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeOutCubic,
+                                    width: double.infinity,
+
+                                    // 🔥 LOGIC PADDING BARU (VERSI DIET)
+                                    // Kalau BUKA: Tipis (8 atas, 4 bawah)
+                                    // Kalau TUTUP: Sedeng (15 rata), gak segede gaban kayak tadi
+                                    padding: _isBottomMenuVisible
+                                        ? const EdgeInsets.fromLTRB(0, 8, 0, 4)
+                                        : const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                          ),
+
+                                    child: Center(
+                                      // VISUAL GARIS (TETAP SAMA)
+                                      child: Container(
+                                        width: 40,
+                                        height: 3,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(
+                                            2,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
+
+                                // ===============================================
+                                // MENU CONTENT
+                                // ===============================================
                                 AnimatedContainer(
                                   duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
+                                  curve: Curves.easeOutCubic,
                                   height: _isBottomMenuVisible ? null : 0,
                                   child: SingleChildScrollView(
                                     physics:
                                         const NeverScrollableScrollPhysics(),
-                                    child: SizedBox(
-                                      width: double.infinity,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 8.0,
+                                      ),
                                       child: _buildFloatingActions(isSegmented),
                                     ),
                                   ),
@@ -3483,9 +3573,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
       ),
       decoration: BoxDecoration(
         color: Colors.transparent,
-        border: Border(
+        /* border: Border(
           top: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1),
-        ),
+        ),*/
       ),
       child: Row(
         mainAxisSize: MainAxisSize.max,

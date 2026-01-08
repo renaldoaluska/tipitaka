@@ -303,7 +303,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
     try {
       final result = await DaftarIsi.loadAudioUrls(forceRefresh: forceRefresh);
-      debugPrint('✅ Audio URLs loaded: ${result.length} items');
+      // debugPrint('✅ Audio URLs loaded: ${result.length} items');
 
       if (result.isNotEmpty) {
         final firstKey = result.keys.first;
@@ -323,7 +323,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     DaftarIsi.setupRealtimeListener(
       onUpdate: (updatedMap) {
         if (mounted) {
-          debugPrint('🔄 Audio URLs auto-updated: ${updatedMap.length} items');
+          // debugPrint('🔄 Audio URLs auto-updated: ${updatedMap.length} items');
 
           // Update UI kalau lagi di halaman yang punya audio
           if (_hasAudioForCurrentPage()) {
@@ -1808,6 +1808,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                               sigmaX: 10.0,
                               sigmaY: 10.0,
                             ),
+                            // ... di dalam BackdropFilter -> Container ...
                             child: Container(
                               // Warna "Tipis-tipis" (85% opacity)
                               color: Theme.of(
@@ -1817,49 +1818,89 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // A. Tombol Toggle (Transparan)
-                                  Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () {
+                                  // ===============================================
+                                  // 🔥 DRAG HANDLE / GARIS (SAMA KAYAK SUTTA DETAIL)
+                                  // ===============================================
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    // Fitur Swipe buat tutup/buka
+                                    onVerticalDragEnd: (details) {
+                                      if (details.primaryVelocity! > 0 &&
+                                          _isBottomMenuVisible) {
                                         setState(
-                                          () => _isBottomMenuVisible =
-                                              !_isBottomMenuVisible,
+                                          () => _isBottomMenuVisible = false,
                                         );
                                         _savePreferences();
-                                      },
-                                      child: Container(
-                                        width: double.infinity,
-                                        height: 16, // Super Ceper
-                                        alignment: Alignment.center,
-                                        child: Icon(
-                                          _isBottomMenuVisible
-                                              ? Icons
-                                                    .keyboard_arrow_down_rounded
-                                              : Icons.keyboard_arrow_up_rounded,
-                                          size: 16,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
+                                      } else if (details.primaryVelocity! < 0 &&
+                                          !_isBottomMenuVisible) {
+                                        setState(
+                                          () => _isBottomMenuVisible = true,
+                                        );
+                                        _savePreferences();
+                                      }
+                                    },
+                                    // Fitur Tap buat toggle
+                                    onTap: () {
+                                      setState(
+                                        () => _isBottomMenuVisible =
+                                            !_isBottomMenuVisible,
+                                      );
+                                      _savePreferences();
+                                    },
+                                    // Container Area Sentuh
+                                    child: Container(
+                                      width: double.infinity,
+                                      // Padding atas dikit aja (8), bawah (4) biar mepet sama tombol
+                                      padding: const EdgeInsets.fromLTRB(
+                                        0,
+                                        8,
+                                        0,
+                                        4,
+                                      ),
+                                      child: Center(
+                                        // Tambahin Center biar pasti di tengah
+                                        // VISUAL GARISNYA (SAMA PERSIS SUTTA DETAIL)
+                                        child: Container(
+                                          width: 40, // Lebar disamain (tadi 48)
+                                          height: 3,
+                                          decoration: BoxDecoration(
+                                            // Warna disamain (pake onSurface + 0.15)
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
 
-                                  // B. Menu Navigasi (Content)
+                                  // ===============================================
+                                  // MENU CONTENT
+                                  // ===============================================
                                   AnimatedContainer(
                                     duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
+                                    curve: Curves
+                                        .easeInOutCubic, // Pakai Cubic biar lebih smooth
                                     height: _isBottomMenuVisible ? null : 0,
                                     child: SingleChildScrollView(
                                       physics:
                                           const NeverScrollableScrollPhysics(),
                                       child: SizedBox(
                                         width: double.infinity,
-                                        child: _buildFloatingActions(
-                                          _currentIndex <= 0,
-                                          _currentIndex >=
-                                              widget.chapterFiles.length - 1,
+                                        // Padding bawah dikit biar gak mepet
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 8.0,
+                                          ),
+                                          child: _buildFloatingActions(
+                                            _currentIndex <= 0,
+                                            _currentIndex >=
+                                                widget.chapterFiles.length - 1,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -2305,15 +2346,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         horizontal: internalPaddingH,
         vertical: internalPaddingV,
       ),
-      // 🔥 UPDATE: Background & Shadow DIHAPUS (Biar transparan ikut induknya)
-      decoration: BoxDecoration(
-        color: Colors.transparent, // Bening
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.withValues(alpha: 0.1),
-            width: 1,
-          ), // Garis tipis pemisah toggle & menu
-        ),
+      // 🔥 UPDATE: Border DIHAPUS total biar nyatu sama kaca
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+        // border: Border(...)  <-- INI DIHAPUS AJA
       ),
       child: Row(
         mainAxisSize: MainAxisSize.max,
