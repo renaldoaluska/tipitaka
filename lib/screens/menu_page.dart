@@ -76,16 +76,16 @@ class _MenuPageState extends State<MenuPage> {
       });
 
       // 🔥 DEBUG LOG (Bisa dihapus kalau udah beres)
-      debugPrint("📋 [MenuPage] UID yang diminta: ${widget.uid}");
-      debugPrint(
-        "📋 [MenuPage] Parent Acronym (Kiriman): '${widget.parentAcronym}'",
-      );
-      debugPrint(
-        "📋 [MenuPage] Root Acronym (Dari API): '${root?["acronym"]}'",
-      );
-      debugPrint("📋 [MenuPage] Root Name: '${root?["root_name"]}'");
-      debugPrint("📋 [MenuPage] Child Range: '${root?["child_range"]}'");
-      debugPrint("📋 [MenuPage] _rootAcronym Akhir: '$_rootAcronym'");
+      // debugPrint("📋 [MenuPage] UID yang diminta: ${widget.uid}");
+      // debugPrint(
+      //   "📋 [MenuPage] Parent Acronym (Kiriman): '${widget.parentAcronym}'",
+      // );
+      // debugPrint(
+      //  "📋 [MenuPage] Root Acronym (Dari API): '${root?["acronym"]}'",
+      // );
+      // debugPrint("📋 [MenuPage] Root Name: '${root?["root_name"]}'");
+      // debugPrint("📋 [MenuPage] Child Range: '${root?["child_range"]}'");
+      // debugPrint("📋 [MenuPage] _rootAcronym Akhir: '$_rootAcronym'");
     } catch (e) {
       debugPrint("Error fetch menu: $e");
       if (mounted) {
