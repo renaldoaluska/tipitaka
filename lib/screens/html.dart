@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../core/theme/theme_manager.dart';
 import '../core/utils/system_ui_helper.dart';
 import '../data/html_data.dart';
 import '../widgets/audio.dart';
@@ -34,7 +33,7 @@ class HtmlReaderPage extends StatefulWidget {
 }
 
 class _HtmlReaderPageState extends State<HtmlReaderPage> {
-  final ThemeManager _tm = ThemeManager();
+  //final ThemeManager _tm = ThemeManager();
   // ============================================
   // STATE VARIABLES
   // ============================================
@@ -142,59 +141,64 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final systemScheme = Theme.of(context).colorScheme;
     final uiCardColor = systemScheme.surface;
     final uiIconColor = systemScheme.onSurface;
-    //  final tm = ThemeManager();
+
+    // 🔥 SOLUSI ANTI-CRASH:
+    // Kita gak usah pake _tm.lightTheme atau _tm.darkTheme yang bikin error.
+    // Kita panggil langsung ThemeData.light() / dark() dari Flutter. Aman 100%.
 
     switch (_readerTheme) {
       case ReaderTheme.light:
-        final t = _tm.lightTheme;
+        final t = ThemeData.light(); // ✅ Langsung panggil ini
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': t.colorScheme.onSurface,
           'note': t.colorScheme.onSurfaceVariant,
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFF8B4513), // Coklat Tua
+          'pali': const Color(0xFF8B4513),
         };
+
       case ReaderTheme.light2:
-        final t = _tm.lightTheme;
+        final t = ThemeData.light(); // ✅ Langsung panggil ini
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': const Color(0xFF424242),
           'note': const Color(0xFF9E9E9E),
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFFA1887F), // Coklat Soft
+          'pali': const Color(0xFFA1887F),
         };
+
       case ReaderTheme.sepia:
+        // Sepia emang hardcode, jadi aman sentosa
         return {
           'bg': const Color(0xFFF4ECD8),
           'text': const Color(0xFF5D4037),
           'note': const Color(0xFF8D6E63),
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFF795548), // Coklat Tanah
+          'pali': const Color(0xFF795548),
         };
+
       case ReaderTheme.dark:
-        final t = _tm.darkTheme;
+        final t = ThemeData.dark(); // ✅ Langsung panggil ini
         return {
           'bg': t.scaffoldBackgroundColor,
           'text': t.colorScheme.onSurface,
           'note': t.colorScheme.onSurfaceVariant,
           'card': uiCardColor,
           'icon': uiIconColor,
-          'pali': const Color(0xFFD4A574), // Emas Pudar
+          'pali': const Color(0xFFD4A574),
         };
+
       case ReaderTheme.dark2:
-        final t = _tm.darkTheme;
+        final t = ThemeData.dark(); // ✅ Langsung panggil ini
         return {
           'bg': t.scaffoldBackgroundColor,
-          'text': const Color(0xFFB0BEC5), // Abu Kebiruan
+          'text': const Color(0xFFB0BEC5),
           'note': const Color(0xFF757575),
           'card': uiCardColor,
           'icon': uiIconColor,
-          // ✅ WARNA BARU: Dusty Sand
-          // Tetap nuansa coklat, tapi kadar saturasi-nya diturunin biar "dingin"
-          // Mirip transisi Light1 -> Light2.
           'pali': const Color(0xFFC5B6A6),
         };
     }
