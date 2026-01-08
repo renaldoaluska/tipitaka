@@ -3180,7 +3180,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                   widget.textData?["suttaplex"]?["original_title"] ??
                                       suttaTitle,
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                     color: iconColor,
                                   ),
@@ -3272,18 +3272,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                     horizontal: 6,
                                     vertical: 2,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest
-                                        .withValues(alpha: 0.5),
-                                    // 🔥 UPDATE DISINI: Dulu 4, sekarang 8 biar melengkung manis
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
+                                  //decoration: BoxDecoration(
+                                  //color: Theme.of(context)
+                                  // .colorScheme
+                                  // .surfaceContainerHighest
+                                  //   .withValues(alpha: 0.5),
+                                  // 🔥 UPDATE DISINI: Dulu 4, sekarang 8 biar melengkung manis
+                                  // borderRadius: BorderRadius.circular(10),
+                                  // ),
                                   child: Text(
                                     rawAcronym,
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                       color: getNikayaColor(
                                         normalizeNikayaAcronym(acronym),
