@@ -1847,28 +1847,20 @@ class _SuttaDetailState extends State<SuttaDetail> {
       // Filter regex angka biar gak error aneh
       if (!RegExp(r'^\d').hasMatch(num)) return;
 
-      // Logic Anti-Spam Error
-      if (_lastErrorTime != null &&
-          DateTime.now().difference(_lastErrorTime!) <
-              const Duration(seconds: 2)) {
-        return;
-      }
-      _lastErrorTime = DateTime.now();
-
+      // 2. Clear snackbar lama BIAR RESPONSIF.
+      // Jadi setiap diklik, yang lama langsung ilang, gak pake nunggu.
       ScaffoldMessenger.of(context).clearSnackBars();
 
-      if (!RegExp(r'^\d').hasMatch(num)) return;
-
-      // 2. Logic Anti-Spam (Tetap ada buat nyatet waktu, tapi jangan nge-block clear)
+      // 3. Logic Anti-Spam: Kalau diklik membabi buta, kita cuma proses
+      // sekali setiap 2 detik supaya sistem gak berat.
       if (_lastErrorTime != null &&
           DateTime.now().difference(_lastErrorTime!) <
               const Duration(seconds: 2)) {
-        // Kita biarkan clear di atas tadi bekerja, tapi jangan buat SnackBar baru
-        // kalau terlalu cepat, biar gak kedap-kedip.
         return;
       }
       _lastErrorTime = DateTime.now();
 
+      // 4. Munculin yang baru dengan durasi 5 detik.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
