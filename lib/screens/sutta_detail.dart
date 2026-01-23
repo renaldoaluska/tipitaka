@@ -1887,7 +1887,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
               left: 16,
               right: 16,
             ),
-            duration: const Duration(seconds: 5), // Tetap set 5 detik
+            duration: const Duration(seconds: 4), // Tetap set 5 detik
             action: SnackBarAction(
               label: 'Kembali',
               textColor: Colors.white,
