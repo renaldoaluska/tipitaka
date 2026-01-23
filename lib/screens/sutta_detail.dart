@@ -4143,7 +4143,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                             child: Transform.translate(
                               offset: const Offset(0, 0),
                               child: Text(
-                                extensionContext.element!.text,
+                                element.text,
                                 style: TextStyle(
                                   color: isGlobalActive
                                       ? Colors.white
@@ -4365,8 +4365,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
                           // D. EVAM (Opening formula - uppercase)
                           if (className == 'evam') {
+                            final text = extensionContext.element?.text ?? "";
                             return Text(
-                              extensionContext.element!.text.toUpperCase(),
+                              text.toUpperCase(),
                               style: TextStyle(
                                 color: textColor,
                                 fontWeight: FontWeight.bold,
