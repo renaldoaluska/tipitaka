@@ -32,6 +32,11 @@ class HtmlReaderPage extends StatefulWidget {
 }
 
 class _HtmlReaderPageState extends State<HtmlReaderPage> {
+  // --- STATE SCROLLBAR (PERSIS SUTTA_DETAIL) ---
+  final ValueNotifier<double> _scrollProgressVN = ValueNotifier(0.0);
+  final ValueNotifier<double> _viewportRatioVN = ValueNotifier(0.1);
+  bool _isUserDragging = false;
+
   //final ThemeManager _tm = ThemeManager();
   // ============================================
   // STATE VARIABLES
@@ -62,7 +67,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         : GoogleFonts.inter().fontFamily;
   }
 
-  // 🔥 TAMBAH INI: Notifier untuk index aktif agar tidak perlu render ulang HTML
+  //  TAMBAH INI: Notifier untuk index aktif agar tidak perlu render ulang HTML
   final ValueNotifier<int> _activeSearchIndex = ValueNotifier<int>(-1);
 
   // 🔧 TAMBAH STATE UNTUK AUDIO
@@ -182,10 +187,62 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         _scrollController.addListener(_onScroll);
       }
     });
+
+    _scrollController.addListener(_updateScrollMetrics); // Tambahkan ini
+    _loadPreferences();
+  }
+
+  void _updateScrollMetrics() {
+    if (!mounted || _isUserDragging || !_scrollController.hasClients) return;
+
+    final pos = _scrollController.positions.last;
+    if (pos.maxScrollExtent <= 0) return;
+
+    // HANYA update progress posisi, jangan update rasionya di sini
+    _scrollProgressVN.value = (pos.pixels / pos.maxScrollExtent).clamp(
+      0.0,
+      1.0,
+    );
+  }
+
+  // 1. Fungsi khusus hitung rasio (Set di awal saja)
+  void _updateViewportRatio() {
+    // Gunakan postFrameCallback agar maxScrollExtent sudah akurat setelah render
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // 🔥 TAMBAHKAN DELAY KECIL (100-200ms)
+      // Memberi waktu bagi widget Html untuk menyelesaikan layouting
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      if (!mounted || !_scrollController.hasClients) return;
+
+      final pos = _scrollController.positions.last;
+
+      // 1. Hitung Rasio (Tinggi Jempol)
+      if (pos.maxScrollExtent > 0) {
+        final double totalContentHeight =
+            pos.maxScrollExtent + pos.viewportDimension;
+        double targetRatio = pos.viewportDimension / totalContentHeight;
+        _viewportRatioVN.value = targetRatio.clamp(0.1, 1.0);
+
+        // 2. 🔥 PAKSA UPDATE PROGRESS (Posisi Jempol)
+        // Agar jempol langsung berada di paling atas (0.0)
+        _scrollProgressVN.value = (pos.pixels / pos.maxScrollExtent).clamp(
+          0.0,
+          1.0,
+        );
+      } else {
+        // Jika konten sangat pendek (tidak bisa discroll)
+        _viewportRatioVN.value = 1.0;
+        _scrollProgressVN.value = 0.0;
+      }
+    });
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_updateScrollMetrics); // Tambahkan ini
+    _scrollController.dispose();
+
     _activeSearchIndex.dispose();
     _debounce?.cancel();
     _debounce = null;
@@ -251,7 +308,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
   }
 
-  // 🔥 LOAD AUDIO URLS DARI FIREBASE/CACHE
+  //  LOAD AUDIO URLS DARI FIREBASE/CACHE
   Future<void> _loadAudioUrls({bool forceRefresh = false}) async {
     if (!mounted) return;
 
@@ -274,7 +331,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
   }
 
-  // 🔥 SETUP REALTIME LISTENER (OPTIONAL - untuk auto-update)
+  //  SETUP REALTIME LISTENER (OPTIONAL - untuk auto-update)
   void _setupRealtimeListener() {
     DaftarIsi.setupRealtimeListener(
       onUpdate: (updatedMap) {
@@ -464,6 +521,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
     if (mounted) {
       setState(() => _isLoading = false);
+      _updateViewportRatio(); //  Tambahkan ini untuk set panjang awal bab
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(0);
       }
@@ -499,7 +557,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   }
 
   // ============================================
-  // 🔥 FIX SEARCH LOGIC: ANTI JEBOL HTML TAG
+  //  FIX SEARCH LOGIC: ANTI JEBOL HTML TAG
   // ============================================
   void _applySearchHighlight(String query) {
     if (query.length < 2) return;
@@ -508,7 +566,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final String pattern = '(<[^>]+>)|(${paliRegExp.pattern})';
     final RegExp combinedRegex = RegExp(pattern, caseSensitive: false);
 
-    // 🔥 Reset Keys di sini (Hanya saat QUERY berubah/search baru)
+    //  Reset Keys di sini (Hanya saat QUERY berubah/search baru)
     _searchKeys.clear();
     int matchCounter = 0;
     final List<String> foundMatches = [];
@@ -524,7 +582,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         final int index = matchCounter++;
         foundMatches.add(fullMatch);
 
-        // 🔥 SIMPELKAN: Cukup kasih index saja. Style & Warna kita atur di Widget Builder nanti.
+        //  SIMPELKAN: Cukup kasih index saja. Style & Warna kita atur di Widget Builder nanti.
         return "<x-highlight index='$index'>$fullMatch</x-highlight>";
       }
       return fullMatch;
@@ -552,15 +610,15 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     if (newIndex < 0) newIndex = _allMatches.length - 1;
     if (newIndex >= _allMatches.length) newIndex = 0;
 
-    // 🔥 UPDATE STATE TANPA RE-RENDER HTML
+    //  UPDATE STATE TANPA RE-RENDER HTML
     setState(() {
       _currentMatchIndex = newIndex;
     });
 
-    // 🔥 Update Notifier biar warnanya berubah (kuning -> oranye)
+    //  Update Notifier biar warnanya berubah (kuning -> oranye)
     _activeSearchIndex.value = newIndex;
 
-    // 🔥 JALANKAN SCROLL
+    //  JALANKAN SCROLL
     // Karena HTML tidak dihancurkan, Key-nya masih ada dan valid!
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final key = _searchKeys[newIndex];
@@ -627,7 +685,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     }
   }
 
-  // 🔥 HELPER BARU: Hitung posisi notif biar gak ketutupan menu
+  //  HELPER BARU: Hitung posisi notif biar gak ketutupan menu
   double _getSnackBarBottomMargin() {
     // Margin dasar dari bawah layar
     double margin = 20.0;
@@ -650,7 +708,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     return margin;
   }
 
-  // 🔥 UPDATE 1: AUDIO MESSAGE
+  //  UPDATE 1: AUDIO MESSAGE
   void _showAudioMessage(
     String title,
     String message,
@@ -689,7 +747,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        // 🔥 UPDATE MARGIN DISINI
+        //  UPDATE MARGIN DISINI
         margin: EdgeInsets.only(
           left: 16,
           right: 16,
@@ -700,7 +758,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     );
   }
 
-  // 🔥 UPDATE 2: NAVIGATION MESSAGE (Mentok Kiri/Kanan)
+  //  UPDATE 2: NAVIGATION MESSAGE (Mentok Kiri/Kanan)
   void _showNavigationMessage(bool isStart) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -736,7 +794,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         backgroundColor: Colors.deepOrange.shade400,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        // 🔥 UPDATE MARGIN DISINI JUGA
+        //  UPDATE MARGIN DISINI JUGA
         margin: EdgeInsets.only(
           left: 16,
           right: 16,
@@ -982,7 +1040,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       Future.microtask(() {
         if (!mounted) return;
 
-        // 🔥 SEMUANYA MASUKIN SINI BIAR RAPI & UI KE-UPDATE BARENGAN
+        //  SEMUANYA MASUKIN SINI BIAR RAPI & UI KE-UPDATE BARENGAN
         setState(() {
           _isSearchModalOpen = false;
           _isSearchActive = false; // ✅ Penting buat padding bawah
@@ -1037,6 +1095,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           onFontSizeChanged: (val) {
             setState(() => _fontSize = val);
             _savePreferences();
+            _updateViewportRatio(); //  Hitung ulang karena teks membesar/mengecil
           },
           onLineHeightChanged: (val) {
             setState(() => _lineHeight = val);
@@ -1093,7 +1152,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           key: _scaffoldKey,
           backgroundColor: colors.bg,
           body: GestureDetector(
-            // 🔥 TAMBAH WRAPPER INI
+            //  TAMBAH WRAPPER INI
             onHorizontalDragStart: (details) {
               setState(() {
                 _dragStartX = details.globalPosition.dx;
@@ -1147,17 +1206,18 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                               color: Colors.deepOrange,
                             ),
                           )
-                        : Scrollbar(
-                            thumbVisibility: false,
-                            thickness: 4,
-                            radius: const Radius.circular(8),
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 400),
-                              transitionBuilder: (child, animation) =>
-                                  FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  ),
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 400),
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                            child: ScrollConfiguration(
+                              behavior: ScrollConfiguration.of(context)
+                                  .copyWith(
+                                    scrollbars: false,
+                                  ), // 👈 MATIIN SCROLLBAR OS
                               child: SingleChildScrollView(
                                 key: ValueKey<int>(_currentIndex),
                                 controller: _scrollController,
@@ -1279,7 +1339,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                   // HEADER (TIDAK BERUBAH)
                   _buildHeader(),
 
-                  // 🔥 INDIKATOR SWIPE VISUAL (PANAH ANIMASI)
+                  //  INDIKATOR SWIPE VISUAL (PANAH ANIMASI)
                   if (_dragStartX != 0.0 && _currentDragX != 0.0)
                     Builder(
                       builder: (context) {
@@ -1354,8 +1414,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                         );
                       },
                     ),
-                  // 🔥 UPDATE TERBARU: BOTTOM MENU (GLASSMORPHISM)
-                  // 🔥 UPDATE TERBARU: AUDIO PLAYER LEBIH NAIK
+                  //  UPDATE TERBARU: BOTTOM MENU (GLASSMORPHISM)
+                  //  UPDATE TERBARU: AUDIO PLAYER LEBIH NAIK
                   Positioned(
                     left: 0,
                     right: 0,
@@ -1370,7 +1430,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                           // 1. AUDIO PLAYER
                           if (_isPlayerVisible) ...[
                             Padding(
-                              // 🔥 UBAH DISINI BANG:
+                              //  UBAH DISINI BANG:
                               // 'bottom: 16' -> Biar dia kedorong naik, gak nempel menu kaca.
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               child: AudioHandlerWidget(
@@ -1429,7 +1489,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       // ===============================================
-                                      // 🔥 DRAG HANDLE / GARIS (SAMA KAYAK SUTTA DETAIL)
+                                      //  DRAG HANDLE / GARIS (SAMA KAYAK SUTTA DETAIL)
                                       // ===============================================
                                       GestureDetector(
                                         behavior: HitTestBehavior.translucent,
@@ -1531,6 +1591,100 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                       ),
                     ),
                   ),
+                  //  REAL DRAGGABLE SCROLLBAR (PERSIS SUTTA_DETAIL)
+                  if (!_isLoading)
+                    ValueListenableBuilder<double>(
+                      valueListenable: _viewportRatioVN,
+                      builder: (context, ratio, _) {
+                        return ValueListenableBuilder<double>(
+                          valueListenable: _scrollProgressVN,
+                          builder: (context, progress, _) {
+                            return Positioned(
+                              right: 0,
+                              top:
+                                  MediaQuery.of(context).padding.top +
+                                  80, // Jarak dari atas
+                              bottom: _isBottomMenuVisible
+                                  ? 100
+                                  : 20, // Jarak dari bawah (adaptif menu)
+                              width: 30,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final double trackHeight =
+                                      constraints.maxHeight;
+                                  final double thumbHeight =
+                                      (trackHeight * ratio).clamp(
+                                        40.0,
+                                        trackHeight,
+                                      );
+                                  final double scrollableArea =
+                                      trackHeight - thumbHeight;
+                                  final double thumbTop =
+                                      (progress * scrollableArea).clamp(
+                                        0.0,
+                                        scrollableArea,
+                                      );
+
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    onVerticalDragStart: (_) =>
+                                        setState(() => _isUserDragging = true),
+                                    onVerticalDragUpdate: (details) {
+                                      final double fingerY =
+                                          details.localPosition.dy;
+                                      final double targetThumbTop =
+                                          fingerY - (thumbHeight / 2);
+                                      final double newProgress =
+                                          (targetThumbTop / scrollableArea)
+                                              .clamp(0.0, 1.0);
+
+                                      // Update UI langsung
+                                      _scrollProgressVN.value = newProgress;
+
+                                      //  Pake positions.last.maxScrollExtent biar nggak crash
+                                      final maxScroll = _scrollController
+                                          .positions
+                                          .last
+                                          .maxScrollExtent;
+                                      _scrollController.jumpTo(
+                                        newProgress * maxScroll,
+                                      );
+                                    },
+                                    onVerticalDragEnd: (_) =>
+                                        setState(() => _isUserDragging = false),
+                                    child: Stack(
+                                      children: [
+                                        Positioned(
+                                          top: thumbTop,
+                                          right: 2,
+                                          child: Container(
+                                            width: 6,
+                                            height: thumbHeight,
+                                            decoration: BoxDecoration(
+                                              color: _isUserDragging
+                                                  ? _currentStyle.pali
+                                                        .withValues(
+                                                          alpha: 0.8,
+                                                        ) // Warna saat ditarik
+                                                  : _currentStyle.text
+                                                        .withValues(
+                                                          alpha: 0.4,
+                                                        ), // Warna diam
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                 ],
               ),
             ),
@@ -1551,7 +1705,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     final textColor = colors.text;
     final paliAccentColor = colors.pali;
 
-    // 🔥 FORMULA WARNA PINTAR (Biar Reader Theme Konsisten)
+    //  FORMULA WARNA PINTAR (Biar Reader Theme Konsisten)
     // Kita gak pake warna sistem (noteColor), tapi nurunin dari textColor.
     // Jadi kalau Sepia -> Abu-nya kecoklatan. Kalau Dark -> Abu-nya keperakan.
     final subtleColor = textColor.withValues(alpha: 0.6); // Buat teks sekunder
@@ -1627,7 +1781,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontWeight: _fontType == 'serif' ? FontWeight.w400 : FontWeight.w500,
         color: paliAccentColor,
 
-        // 🔥 UBAH BAGIAN INI:
+        //  UBAH BAGIAN INI:
         // Tambahin 'top: 16' biar ada jarak dari teks terjemahan di atasnya.
         // 'bottom: 8' tetep ada biar jarak ke terjemahan di bawahnya rapet.
         margin: Margins.only(top: 16, bottom: 8),
@@ -1644,7 +1798,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontWeight: FontWeight.normal,
         color: textColor.withValues(alpha: 0.9),
 
-        // 🔥 UBAH BAGIAN INI:
+        //  UBAH BAGIAN INI:
         // Kasih jarak bawah 12 biar antar paragraf Indo ada napasnya.
         // Kalau ketemu Pali di bawahnya, jaraknya bakal nambah (jadi pemisah ayat yang tegas).
         margin: Margins.only(bottom: 12),
@@ -1686,7 +1840,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         display: Display.block,
       ),
 
-      // 🔥 INI DIA: Tampilan "Bisa Dipencet" tapi Gak Norak
+      //  INI DIA: Tampilan "Bisa Dipencet" tapi Gak Norak
       "div.daftar-child": Style(
         // Background: Warna teks tapi opacity 4% (Soft banget)
         backgroundColor: buttonFillColor,
@@ -1969,7 +2123,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         horizontal: internalPaddingH,
         vertical: internalPaddingV,
       ),
-      // 🔥 UPDATE: Border DIHAPUS total biar nyatu sama kaca
+      //  UPDATE: Border DIHAPUS total biar nyatu sama kaca
       decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         mainAxisSize: MainAxisSize.max,
@@ -2020,7 +2174,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           buildBtn(
             tooltip: "Tampilan",
             icon: Icons.text_fields_rounded,
-            // 🔥 UPDATE: Matikan kalau lagi loading
+            //  UPDATE: Matikan kalau lagi loading
             onTap: _isLoading ? null : _showSettingsModal,
           ),
 
@@ -2028,7 +2182,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           buildBtn(
             tooltip: "Menu Atas",
             icon: Icons.vertical_align_top_rounded,
-            // 🔥 UPDATE: Matikan juga biar konsisten (atau biarin nyala terserah lu)
+            //  UPDATE: Matikan juga biar konsisten (atau biarin nyala terserah lu)
             onTap: _isLoading ? null : _scrollToTop,
           ),
           Container(

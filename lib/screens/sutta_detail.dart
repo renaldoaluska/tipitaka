@@ -2506,6 +2506,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
   // 🚜 ENGINE: FUNGSI PEMUAT HALAMAN (REUSABLE)
   // Dipakai oleh: Next/Prev, Modal Suttaplex, dan Retry Koneksi
   // ============================================================
+  // ============================================================
+  // 🚜 ENGINE: FUNGSI PEMUAT HALAMAN (REUSABLE)
+  // Dipakai oleh: Next/Prev, Modal Suttaplex, dan Retry Koneksi
+  // ============================================================
   Future<void> _replaceToSutta(
     String newUid,
     String lang, {
@@ -2533,7 +2537,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
           );
 
       // 2. Validasi Author (Server kadang bandel)
-      // Kalau request 'bodhi' dikasih 'sujato', kita validasi di sini
       String? fetchedAuthor;
       if (segmented) {
         if (data["translation_text"] is Map) {
@@ -2543,12 +2546,36 @@ class _SuttaDetailState extends State<SuttaDetail> {
         fetchedAuthor = data["translation"]?["author_uid"]?.toString();
       }
 
-      if (authorUid != "ms" &&
-          fetchedAuthor != null &&
-          fetchedAuthor != authorUid) {
-        // Opsional: Throw error atau biarkan (silent fallback)
-        // throw Exception("Author mismatch");
+      // --- 🔥 TAMBAHAN LOGIKA VALIDASI KONTEN (SATPAM) ---
+      // Cek apakah data segmented ada isinya atau data HTML ada "text"-nya
+      final bool hasSegmentedContent =
+          segmented &&
+          (data["root_text"] is Map && (data["root_text"] as Map).isNotEmpty);
+
+      final bool hasHtmlContent =
+          !segmented &&
+          ((data["translation_text"] is Map &&
+                  data["translation_text"].containsKey("text")) ||
+              (data["root_text"] is Map &&
+                  data["root_text"].containsKey("text")));
+
+      // Jika Author tidak sesuai (mismatch) atau konten beneran kosong, munculkan SnackBar
+      if ((authorUid != "ms" &&
+              fetchedAuthor != null &&
+              fetchedAuthor != authorUid) ||
+          (!hasSegmentedContent && !hasHtmlContent)) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showSuttaSnackBar(
+            SuttaSnackType.translatorFallback,
+            uid: newUid,
+            lang: lang,
+            author: authorUid,
+          );
+        }
+        return; // 🛑 BERHENTI DI SINI, jangan lanjut pindah halaman
       }
+      // --------------------------------------------------
 
       // 3. Merge Data
       final Map<String, dynamic> mergedData = {

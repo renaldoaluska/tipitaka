@@ -112,7 +112,7 @@ class _VideoPageState extends State<VideoPage> {
     });
   }
 
-  // ✅ METHOD UTAMA: CEK CACHE DULU
+  //  METHOD UTAMA: CEK CACHE DULU
   Future<ProcessedData> _loadData({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -148,7 +148,7 @@ class _VideoPageState extends State<VideoPage> {
     return _fetchFromFirebase(prefs);
   }
 
-  // ✅ FETCH DARI SERVER & SIMPAN KE CACHE
+  //  FETCH DARI SERVER & SIMPAN KE CACHE
   Future<ProcessedData> _fetchFromFirebase(SharedPreferences prefs) async {
     debugPrint("🌐 Fetching Video from Firebase...");
 
@@ -219,7 +219,7 @@ class _VideoPageState extends State<VideoPage> {
     });
   }
 
-  // ✅ UPDATED: Logika Hapus jika selesai
+  //  UPDATED: Logika Hapus jika selesai
   Future<void> _saveHistory(
     String id,
     String title,
@@ -272,7 +272,7 @@ class _VideoPageState extends State<VideoPage> {
 
   // ==================== UI WIDGETS ====================
 
-  // ✅ UPDATED: AppBar Style Tematik Page
+  //  UPDATED: AppBar Style Tematik Page
   Widget _buildTematikStyleHeader() {
     final isDark = _isDarkMode(context);
 
@@ -750,7 +750,7 @@ class _VideoPageState extends State<VideoPage> {
     //final sectionTitleColor = isDark ? Colors.white : const Color(0xFF212121);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // 🔥 WRAP
+      //  WRAP
       value: SystemUIHelper.getStyle(context),
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -763,7 +763,7 @@ class _VideoPageState extends State<VideoPage> {
                 Column(
                   children: [
                     Expanded(
-                      // ✅ Tambah NotificationListener untuk deteksi scroll
+                      //  Tambah NotificationListener untuk deteksi scroll
                       child: NotificationListener<ScrollNotification>(
                         onNotification: (scrollInfo) {
                           if (scrollInfo.metrics.pixels > 0 && !_isScrolled) {
@@ -967,7 +967,7 @@ class _VideoPageState extends State<VideoPage> {
                     ),
                   ],
                 ),
-              // ✅ Style Tematik Header Overlay
+              //  Style Tematik Header Overlay
               _buildTematikStyleHeader(),
             ],
           ),
@@ -1184,7 +1184,7 @@ class _SeeAllPageState extends State<SeeAllPage> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                       maxCrossAxisExtent: 300,
-                      // ✅ UPDATED: Ganti angka ini buat ngatur tinggi
+                      //  UPDATED: Ganti angka ini buat ngatur tinggi
                       // 1.0 = Persegi
                       // 0.93 = Agak tinggi dikit (mirip layout asli 280x270)
                       // Makin KECIL angkanya, makin TINGGI kotaknya.
@@ -1210,7 +1210,7 @@ class _SeeAllPageState extends State<SeeAllPage> {
     );
   }
 
-  // ✅ CARD STYLE: SAMA PERSIS HALAMAN DEPAN
+  //  CARD STYLE: SAMA PERSIS HALAMAN DEPAN
   Widget _buildGridCard(
     BuildContext context,
     Map<String, dynamic> video,
@@ -1458,9 +1458,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _controller.removeListener(_listener);
     _controller.dispose();
 
-    // ✅ RESET CUMA DI DISPOSE (1x aja)
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    //  UBAH INI JUGA: Kembalikan ke mode manual saat screen ditutup
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
 
     super.dispose();
   }
@@ -1476,9 +1484,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       },
       onExitFullScreen: () {
-        // ✅ RESET ORIENTATION + UI MODE
-        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+        //  UBAH INI: Izinkan landscape juga biar gak tiba-tiba muter ke portrait
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+
+        // Kembalikan UI mode ke manual agar layout tidak "turun" (masalah sebelumnya)
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.manual,
+          overlays: SystemUiOverlay.values,
+        );
       },
       player: YoutubePlayer(
         controller: _controller,
@@ -1492,7 +1509,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white, size: 25),
             onPressed: () {
-              // ✅ GAK USAH SET ORIENTATION (udah di onExitFullScreen)
+              //  GAK USAH SET ORIENTATION (udah di onExitFullScreen)
               Navigator.pop(context);
             },
           ),
@@ -1542,7 +1559,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             color: Colors.white,
                           ),
                           onPressed: () {
-                            // ✅ GAK USAH SET ORIENTATION (udah di dispose)
+                            //  GAK USAH SET ORIENTATION (udah di dispose)
                             Navigator.pop(context);
                           },
                         ),
