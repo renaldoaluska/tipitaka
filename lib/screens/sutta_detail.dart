@@ -1635,7 +1635,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: Theme.of(context).colorScheme.secondary,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -1845,7 +1845,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       if (!RegExp(r'^\d').hasMatch(num)) return;
 
       if (showSnackBar) {
-        // 1. CEK ANTI-SPAM (Taruh paling atas)
+        // 1. CEK ANTI-SPAM
         if (_lastErrorTime != null &&
             DateTime.now().difference(_lastErrorTime!) <
                 const Duration(seconds: 2)) {
@@ -1853,11 +1853,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
         }
         _lastErrorTime = DateTime.now();
 
-        // 2. BERSIHKAN TOTAL
-        ScaffoldMessenger.of(context).clearSnackBars();
+        // 2. PAKSA HILANGKAN YANG LAMA TANPA ANIMASI
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
 
         debugPrint("SnackBar Muncul! - Target: §$num");
 
+        // 3. TAMPILKAN SNACKBAR (DURASI 5 DETIK)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -1886,14 +1887,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
               left: 16,
               right: 16,
             ),
-            duration: const Duration(seconds: 3), // Coba 3 detik dulu
+            duration: const Duration(seconds: 5), // Tetap set 5 detik
             action: SnackBarAction(
               label: 'Kembali',
               textColor: Colors.white,
               onPressed: () {
-                //  KUNCINYA: Hapus dulu sebelum navigasi/ngebentuk ulang isi
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
+                ScaffoldMessenger.of(context).removeCurrentSnackBar();
                 _navigateTafsirInternal(
                   widget.uid,
                   TafsirType.mul,
@@ -1903,6 +1902,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
             ),
           ),
         );
+
+        // 🔥 JALUR KERAS: Paksa tutup manual setelah 5 detik lewat Timer
+        Timer(const Duration(seconds: 5), () {
+          if (mounted) ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        });
       }
     }
   }
@@ -5642,7 +5646,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                                 : (currentType == TafsirType.tik
                                                       ? Theme.of(
                                                           context,
-                                                        ).colorScheme.primary
+                                                        ).colorScheme.secondary
                                                       : Colors.grey),
                                           ),
                                         ),
