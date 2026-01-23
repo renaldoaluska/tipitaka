@@ -834,7 +834,10 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         ),
         child: TematikChapterList(
           chapterIndex: widget.tematikChapterIndex!,
-          onChecklistChanged: () {},
+          onChecklistChanged: () {
+            // Opsional: Refresh UI lokal jika diperlukan
+            setState(() {});
+          },
         ),
       ),
     );

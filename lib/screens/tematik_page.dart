@@ -337,7 +337,7 @@ class _TematikPageState extends State<TematikPage> {
                   tematikChapterIndex: chapterIndex,
                 ),
               ),
-            );
+            ).then((_) => _reloadChecklist());
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
@@ -570,7 +570,7 @@ class _TematikPageState extends State<TematikPage> {
                 tematikChapterIndex: 0,
               ),
             ),
-          );
+          ).then((_) => _reloadChecklist());
           break;
         case 1:
           _launchURL(
@@ -591,7 +591,7 @@ class _TematikPageState extends State<TematikPage> {
               tematikChapterIndex: 0,
             ),
           ),
-        );
+        ).then((_) => _reloadChecklist());
       } else if (index == 1) {
         Navigator.push(
           context,
@@ -603,7 +603,7 @@ class _TematikPageState extends State<TematikPage> {
               tematikChapterIndex: 0,
             ),
           ),
-        );
+        ).then((_) => _reloadChecklist());
       }
     }
   }
