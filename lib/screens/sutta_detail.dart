@@ -1156,8 +1156,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
     });
 
     // ✅ CEK NULL SEBELUM AKSES
-    if (_allMatches.isEmpty || safeIndex >= _allMatches.length)
+    if (_allMatches.isEmpty || safeIndex >= _allMatches.length) {
       return; // ← TAMBAHKAN INI
+    }
 
     final targetRow = _allMatches[safeIndex].listIndex;
     final isSegmented = widget.textData?["segmented"] == true;
@@ -1185,20 +1186,20 @@ class _SuttaDetailState extends State<SuttaDetail> {
         // 2. ADJUST (Geser Halus): Langsung pas-in kata ke tengah layar.
         // Delay dikit banget (50ms) cuma buat nunggu rendering kelar.
         Future.delayed(const Duration(milliseconds: 50), () {
+          // 1. Check mounted DULU sebelum akses apapun
           if (!mounted) return;
-          final key = _searchKeys[safeIndex];
 
-          if (key?.currentContext != null) {
-            final context = key?.currentContext; // 1. Ambil context secara aman
-            if (context != null) {
-              // 2. Cek apakah null?
-              Scrollable.ensureVisible(
-                context, // 3. Masukkan context yang sudah pasti tidak null
-                duration: const Duration(milliseconds: 300),
-                alignment: 0.5,
-                curve: Curves.easeOut,
-              );
-            }
+          // 2. Ambil context dari key (bukan dari widget tree)
+          final targetContext = _searchKeys[safeIndex]?.currentContext;
+
+          // 3. Validasi context masih valid
+          if (targetContext != null && targetContext.mounted) {
+            Scrollable.ensureVisible(
+              targetContext,
+              duration: const Duration(milliseconds: 300),
+              alignment: 0.5,
+              curve: Curves.easeOut,
+            );
           }
         });
       }
@@ -3806,8 +3807,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
   void _updateVisibleParagraph() {
     if (!mounted) return;
 
-    if (_itemPositionsListener.itemPositions.value.isEmpty)
+    if (_itemPositionsListener.itemPositions.value.isEmpty) {
       return; // ← INI PENTING
+    }
 
     if (_isUserDragging) return;
     //  1. THROTTLING LEBIH SANTAI (25ms -> 150ms)
