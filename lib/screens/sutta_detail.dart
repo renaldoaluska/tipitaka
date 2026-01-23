@@ -4044,7 +4044,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
               itemPositionsListener: _itemPositionsListener,
               padding: EdgeInsets.fromLTRB(
                 _horizontalPadding,
-                topContentPadding,
+                topContentPadding + 16,
                 _horizontalPadding,
                 _isBottomMenuVisible ? 100 : 40,
               ),

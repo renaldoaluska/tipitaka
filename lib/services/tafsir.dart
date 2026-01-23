@@ -1939,7 +1939,7 @@ class TafsirService {
         }
 
         String content = vaggaXml.substring(startPos, endPos);
-        return "<h4>(Bagian dari range $startRange-$endRange)</h4>$content";
+        return "<h4>(Bagian dari rentang $startRange-$endRange)</h4>$content";
       }
     }
 
