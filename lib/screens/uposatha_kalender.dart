@@ -6,7 +6,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/utils/system_ui_helper.dart';
+import '../utils/system_ui_helper.dart';
 
 class UposathaKalenderPage extends StatefulWidget {
   final String initialVersion;
@@ -466,7 +466,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
                 Icon(Icons.school_outlined, size: 18, color: _accentColor),
                 const SizedBox(width: 8),
                 Text(
-                  "Versi",
+                  "Tradisi",
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     color: subtextColor,

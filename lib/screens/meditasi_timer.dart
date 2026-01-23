@@ -7,7 +7,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'dart:ui';
 
-import '../core/utils/system_ui_helper.dart';
+import '../utils/system_ui_helper.dart';
 
 class MeditationTimerPage extends StatefulWidget {
   const MeditationTimerPage({super.key});

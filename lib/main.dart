@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
-import 'core/utils/system_ui_helper.dart';
+import 'utils/system_ui_helper.dart';
+//import 'package:tipitaka/services/tafsir.dart';
 import 'data/tematik_data.dart';
 import 'screens/tematik_page.dart';
 import 'data/html_data.dart';
@@ -20,8 +21,6 @@ import 'firebase_options.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 🔥 HAPUS SEMUA SystemChrome di sini, helper yang handle
 
   runApp(
     ChangeNotifierProvider(
@@ -301,8 +300,7 @@ class _RootPageState extends State<RootPage>
     );
   }
 
-  // Layout untuk mobile (sama seperti sebelumnya)
-  // Layout untuk mobile (sama seperti sebelumnya)
+  // Layout untuk mobile
   Widget _buildMobileLayout(List<Widget> pages) {
     return Stack(
       children: [
@@ -858,6 +856,7 @@ class _RootPageState extends State<RootPage>
                 ),
                 const SizedBox(height: 10),
               ],
+
               FloatingActionButton(
                 onPressed: _toggleFab,
                 backgroundColor: Colors.deepOrange,

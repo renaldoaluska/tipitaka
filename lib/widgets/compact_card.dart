@@ -68,7 +68,7 @@ class CompactCard extends StatelessWidget {
                         color: isDarkMode ? Colors.white : Colors.black87,
                         height: 1.2,
                       ),
-                      maxLines: 1,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
                     // Conditional subtitle

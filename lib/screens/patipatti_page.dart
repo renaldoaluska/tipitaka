@@ -2137,7 +2137,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "Versi",
+                            "Tradisi",
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,

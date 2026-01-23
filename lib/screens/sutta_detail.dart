@@ -2,22 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:html_unescape/html_unescape.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tipitaka/screens/menu_page.dart';
 import 'package:tipitaka/screens/suttaplex.dart';
 import 'package:tipitaka/services/sutta.dart';
 import 'package:tipitaka/styles/nikaya_style.dart';
-import '../core/theme/theme_manager.dart';
-import '../core/utils/system_ui_helper.dart';
+import '../utils/system_ui_helper.dart';
 import '../models/sutta_text.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 import '../services/history.dart';
-
-enum ViewMode { translationOnly, lineByLine, sideBySide }
+import '../services/share.dart';
+import '../services/tafsir.dart';
+import '../widgets/dpd_view.dart';
+import '../widgets/ai_translation_sheet.dart';
+import '../utils/sutta_text_helper.dart'; // Import Helper
+import '../widgets/sutta_settings_sheet.dart'; // Import Settings UI
+import '../models/reader_enums.dart';
 
 class SuttaDetail extends StatefulWidget {
   final String uid;
@@ -27,10 +30,12 @@ class SuttaDetail extends StatefulWidget {
   final bool openedFromSuttaDetail;
   final String? originalSuttaUid;
 
-  // ✅ Flag untuk tracking "entry point" (dari mana user masuk pertama kali)
+  // Flag untuk tracking "entry point" (dari mana user masuk pertama kali)
   final String? entryPoint; // "menu_page" | "tematik" | "search" | null
-  // ✅ 1. TAMBAH INI (Parameter pembawa pesan)
+  // Parameter pembawa pesan
   final bool isNavigated;
+
+  final String? targetParaNum;
 
   const SuttaDetail({
     super.key,
@@ -41,6 +46,7 @@ class SuttaDetail extends StatefulWidget {
     this.originalSuttaUid,
     this.entryPoint, // Default null = dari SuttaDetail sendiri (via book button)// ✅ 2. TAMBAH INI (Default false buat yg pertama dibuka)
     this.isNavigated = false,
+    this.targetParaNum,
   });
 
   @override
@@ -51,20 +57,52 @@ enum SuttaSnackType {
   translatorFallback,
   firstText,
   lastText,
-  disabledForTematik, // ✅ TAMBAH INI
+  disabledForTematik,
+  disabledTafsir,
 }
 
-enum ReaderTheme { light, light2, sepia, dark, dark2 }
-
 class _SuttaDetailState extends State<SuttaDetail> {
-  final ThemeManager _tm = ThemeManager();
+  // ✅ CACHE DATABASE PALI & TRANS (Biar Gak Lag)
+  // Format: List of Entries [MapEntry('1.1', 'text...'), ...]
+  List<MapEntry<String, String>>? _cachedPaliList;
+  List<MapEntry<String, String>>? _cachedTransList;
+
+  // --- STATE GESTURE ---
+  double _dragStartX = 0.0;
+  double _currentDragX = 0.0; // Tambah ini buat nyimpen posisi terakhir
+  final double _minDragDistance = 100.0; // Jarak minimal tarik (100px)
+
+  // VALUE NOTIFIER:
+  final ValueNotifier<double> _scrollProgressVN = ValueNotifier(0.0);
+  final ValueNotifier<double> _viewportRatioVN = ValueNotifier(0.1);
+  final ValueNotifier<String?> _visibleParaNumVN = ValueNotifier(null);
+  final ValueNotifier<bool> _showFloatingBtnVN = ValueNotifier(false);
+
+  bool _isUserDragging = false; // Ini tetap dipakai
+  String _currentSelectedText = ''; // Ini tetap dipakai
+  int _lastScrollTime = 0; // Ini throttle baru
+
+  DateTime? _lastErrorTime;
   double _horizontalPadding = 16.0;
-  // 🔥 TAMBAH INI: Penampung konten footer (Lisensi/Copyright)
+  //Penampung konten footer (Lisensi/Copyright)
   String _htmlFooter = "";
+
+  // 🔥 1. DETEKSI TAFSIR MODE
+  bool get _isTafsirMode => widget.textData?["is_tafsir"] == true;
+
+  // 🔥 2. VARIABEL BUAT NYIMPEN DAFTAR PARAGRAF (§)
+  final Map<String, int> _tafsirSectionMap = {};
+  final List<String> _tafsirAvailableSections = [];
+
+  // 🔥 TAMBAHAN BARU: CACHE PINTAR BUAT SCROLL
+  final List<int> _sortedTafsirIndices = []; // Daftar nomor baris yang punya §
+  final Map<int, String> _indexToTafsirLabel =
+      {}; // Kebalikan dari _tafsirSectionMap
+
   // --- NAV CONTEXT & STATE ---
   late bool _hasNavigatedBetweenSuttas; // ✅ 3. Ubah jadi 'late' (hapus = false)
   String? _parentVaggaId;
-  bool _isSearchActive = false; // 🔥 TAMBAH INI BUAT DETEKSI SEARCH
+  bool _isSearchActive = false; //BUAT DETEKSI SEARCH
 
   bool _isFirst = false;
   bool _isLast = false;
@@ -84,48 +122,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
         : GoogleFonts.inter().fontFamily;
   }
 
-  // 🔥 FUNGSI SAKTI BUAT PALI FUZZY SEARCH
-  RegExp _createPaliRegex(String query) {
-    // 🔥 FIX: Hapus simbol < dan > biar user gak bisa search tag HTML
-    final cleanQuery = query.replaceAll(RegExp(r'[<>]'), '');
-
-    final buffer = StringBuffer();
-    for (int i = 0; i < cleanQuery.length; i++) {
-      // Pakai cleanQuery
-      final char = cleanQuery[i].toLowerCase();
-      switch (char) {
-        case 'a':
-          buffer.write('(?:a|ā)');
-          break;
-        case 'i':
-          buffer.write('(?:i|ī)');
-          break;
-        case 'u':
-          buffer.write('(?:u|ū)');
-          break;
-        case 'm':
-          buffer.write('(?:m|ṁ|ṃ)');
-          break;
-        case 'n':
-          buffer.write('(?:n|ṇ|ñ|ṅ)');
-          break;
-        case 't':
-          buffer.write('(?:t|ṭ)');
-          break;
-        case 'd':
-          buffer.write('(?:d|ḍ)');
-          break;
-        case 'l':
-          buffer.write('(?:l|ḷ)');
-          break;
-        default:
-          // 🔥 INI PENYELAMATNYA:
-          // Mengubah simbol regex kayak '(', '[', '*', '?' jadi teks biasa.
-          // Jadi kalau user ketik '(', aplikasi gak crash.
-          buffer.write(RegExp.escape(char));
-      }
-    }
-    return RegExp(buffer.toString(), caseSensitive: false);
+  // 🔥 HELPER: Cek tipe tafsir yang sedang aktif
+  TafsirType _getCurrentTafsirType() {
+    final title =
+        widget.textData?["root_text"]?["title"]?.toString().toLowerCase() ?? "";
+    if (title.contains("aṭṭhakathā")) return TafsirType.att;
+    if (title.contains("ṭīkā")) return TafsirType.tik;
+    return TafsirType.mul; // Default
   }
 
   // ✅ Variabel info Footer
@@ -151,134 +154,759 @@ class _SuttaDetailState extends State<SuttaDetail> {
   // Nanti di _loadPreferences kita timpa sesuai logika kamu
   ReaderTheme _readerTheme = ReaderTheme.light;
 
-  // Helper biar kodingan di build bersih & sinkron sama ThemeManager
-  Map<String, Color> get _themeColors {
-    // 1. Ambil warna System HP (Buat UI App Bar & Drawer biar gak aneh)
-    final systemScheme = Theme.of(context).colorScheme;
-    final uiCardColor = systemScheme.surface;
-    final uiIconColor = systemScheme.onSurface;
+  // 🔥 BARU: Show/Hide Verse Numbers
+  bool _showVerseNumbers = true; // Default: tampil
 
-    // 2. Panggil ThemeManager buat nyontek warna background asli
-    //final tm = ThemeManager();
+  Color _customBgColor = Colors.white;
+  Color _customTextColor = Colors.black;
+  Color _customPaliColor = const Color(
+    0xFF8B4513,
+  ); // Warna Pali default (coklat)
 
-    switch (_readerTheme) {
-      // --- TERANG 1 (Standard: Full ThemeManager) ---
-      case ReaderTheme.light:
-        final t = _tm.lightTheme;
-        return {
-          'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
-          'text': t.colorScheme.onSurface, // ✅ Hitam (Standard)
-          'note': t.colorScheme.onSurfaceVariant,
-          'card': uiCardColor,
-          'icon': uiIconColor, // 👇 WARNA PALI (Coklat Tua Klasik)
-          'pali': const Color(0xFF8B4513),
-        };
+  // Getter pusat (pastikan ReaderThemeStyle.getStyle sudah diupdate terima 3 warna)
+  ReaderThemeStyle get _currentStyle => ReaderThemeStyle.getStyle(
+    _readerTheme,
+    customBg: _customBgColor,
+    customText: _customTextColor,
+    customPali: _customPaliColor,
+  );
 
-      // --- TERANG 2 (Soft: Bg ThemeManager, Teks Abu) ---
-      case ReaderTheme.light2:
-        final t = _tm.lightTheme;
-        return {
-          'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
-          'text': const Color(0xFF424242), // ✨ Custom: Abu Tua Soft
-          'note': const Color(0xFF9E9E9E),
-          'card': uiCardColor,
-          'icon': uiIconColor, // 👇 WARNA PALI (Coklat Kemerahan Soft)
-          'pali': const Color(0xFFA1887F),
-        };
+  void _showShareOptions(String selectedText) {
+    final navigator = Navigator.of(context);
+    final scaffoldContext = context;
 
-      // --- SEPIA (Full Custom) ---
-      case ReaderTheme.sepia:
-        return {
-          'bg': const Color(0xFFF4ECD8), // ✨ Custom: Krem
-          'text': const Color(0xFF5D4037), // ✨ Custom: Coklat
-          'note': const Color(0xFF8D6E63),
-          'card': uiCardColor,
-          'icon': uiIconColor, // 👇 WARNA PALI (Coklat Tanah - Kontras di Krem)
-          'pali': const Color(0xFF795548),
-        };
+    // A. Persiapan Metadata (Judul, Warna, Author)
+    final String rawAcronym =
+        widget.textData?["suttaplex"]?["acronym"] ??
+        widget.textData?["root_text"]?["acronym"] ??
+        "";
 
-      // --- GELAP 1 (Standard: Full ThemeManager) ---
-      case ReaderTheme.dark:
-        final t = _tm.darkTheme;
-        return {
-          'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
-          'text': t.colorScheme.onSurface, // ✅ Putih (Standard)
-          'note': t.colorScheme.onSurfaceVariant,
-          'card': uiCardColor,
-          'icon': uiIconColor, // 👇 WARNA PALI (Emas Pudar - Elegan di Gelap)
-          'pali': const Color(0xFFD4A574),
-        };
+    final Color nikayaColor = getNikayaColor(
+      normalizeNikayaAcronym(rawAcronym),
+    );
 
-      // --- GELAP 2 (Soft: Bg ThemeManager, Teks Abu) ---
-      case ReaderTheme.dark2:
-        final t = _tm.darkTheme;
-        return {
-          'bg': t.scaffoldBackgroundColor, // ✅ Ngikut ThemeManager
-          'text': const Color(0xFFB0BEC5), // ✨ Custom: Abu Kebiruan
-          'note': const Color(0xFF757575),
-          'card': uiCardColor,
-          'icon': uiIconColor,
-          // ✅ WARNA BARU: Dusty Sand
-          // Tetap nuansa coklat, tapi kadar saturasi-nya diturunin biar "dingin"
-          // Mirip transisi Light1 -> Light2.
-          'pali': const Color(0xFFC5B6A6),
-        };
+    final String suttaTitle =
+        widget.textData?["suttaplex"]?["original_title"] ??
+        widget.textData?["root_text"]?["title"] ??
+        widget.uid;
+
+    String typeLabel = "";
+    if (_isTafsirMode) {
+      final rootTitle =
+          widget.textData?["root_text"]?["title"]?.toString().toLowerCase() ??
+          "";
+      if (rootTitle.contains("aṭṭhakathā")) {
+        typeLabel = " Aṭṭhakathā";
+      } else if (rootTitle.contains("ṭīkā")) {
+        typeLabel = " Ṭīkā";
+      }
     }
+    final String displayTitle = "$suttaTitle$typeLabel";
+
+    // B. Cari Translator
+    String? translator;
+    if (_isTafsirMode) {
+      translator = "CSCD VRI";
+    } else if (widget.textData?["segmented"] == true) {
+      final translations =
+          widget.textData?["suttaplex"]?["translations"] as List?;
+      final currentAuthorUid = widget.textData?["author_uid"];
+
+      if (translations != null && currentAuthorUid != null) {
+        try {
+          final trans = translations.firstWhere(
+            (t) =>
+                t["author_uid"] == currentAuthorUid && t["lang"] == widget.lang,
+            orElse: () => null,
+          );
+          translator = trans?["author"]?.toString();
+        } catch (e) {
+          translator = null;
+        }
+      }
+    } else {
+      translator = widget.textData?["translation"]?["author"];
+    }
+
+    // 🔥 UPDATE: Pake logika range baru
+    String? verseNum;
+    final bool isSegmented = widget.textData?["segmented"] == true;
+
+    if (isSegmented && selectedText.isNotEmpty) {
+      verseNum = _calculateSegmentRange(selectedText);
+    }
+
+    // Filter PTS/SC biar bersih (DI-KOMEN AJA KARENA UDAH GAK PERLU)
+    /* if (verseNum != null) {
+      final vLower = verseNum.toLowerCase();
+      if (vLower.contains('pts') || vLower.contains('sc')) {
+        verseNum = null;
+      }
+    } */
+
+    // 🔥 FORMALIN TEKS SEBELUM DIKIRIM
+    // Ini biar enter-nya bener dan Pali-nya ada //
+    final String cleanContent = _getSmartFormattedText(selectedText);
+    // Format Footer
+    final String footer =
+        "\n\n— $displayTitle ($rawAcronym${verseNum ?? ''})${translator != null ? ' - $translator' : ''}";
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+
+        Widget buildShareCard({
+          required IconData icon,
+          required String label,
+          required String subLabel,
+          required Color color,
+          required VoidCallback onTap,
+        }) {
+          return Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: color.withValues(alpha: 0.2),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: color, size: 28),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: colorScheme.onSurface,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Text(
+                  "Bagikan Ayat",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    // KOTAK 1: SHARE TEXT
+                    buildShareCard(
+                      icon: Icons.text_fields_rounded,
+                      label: "Salin Teks",
+                      subLabel: "Bagikan sebagai pesan teks",
+                      color: colorScheme.primary,
+                      onTap: () async {
+                        navigator.pop();
+                        // Share Teks Biasa (Bersih + Footer)
+                        await SharePlus.instance.share(
+                          ShareParams(
+                            text: "$cleanContent$footer - via myDhamma",
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 16),
+
+                    // KOTAK 2: SHARE GAMBAR
+                    buildShareCard(
+                      icon: Icons.image_rounded,
+                      label: "Buat Gambar",
+                      subLabel: "Edit sebagai poster kutipan",
+                      color: Colors.purple,
+                      onTap: () {
+                        navigator.pop();
+                        // Kirim teks yang SUDAH DIFORMAT (cleanContent)
+                        Navigator.of(scaffoldContext).push(
+                          MaterialPageRoute(
+                            builder: (context) => QuoteEditorPage(
+                              text: cleanContent, // <--- PAKE YANG SMART
+                              acronym: rawAcronym,
+                              title: displayTitle,
+                              nikayaColor: nikayaColor,
+                              translator: translator,
+                              verseNum: verseNum
+                                  ?.trim(), // <--- RANGE SEGMEN 1.1-1.2
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Panggil ini SETELAH textData berhasil dimuat (di dalam _processNewTextData)
+  void _buildSearchCache() {
+    if (widget.textData == null) return;
+
+    final RegExp wsRegex = RegExp(r'\s+');
+    String normalize(String s) =>
+        s.trim().toLowerCase().replaceAll(wsRegex, ' ');
+
+    // 1. Build Pali Cache
+    final rootMap = widget.textData?["root_text"] is Map
+        ? widget.textData!["root_text"] as Map
+        : {};
+
+    _cachedPaliList = [];
+    for (var entry in rootMap.entries) {
+      if ([
+        'uid',
+        'lang',
+        'author_uid',
+        'title',
+        'acronym',
+      ].contains(entry.key)) {
+        continue;
+      }
+      String val = entry.value.toString();
+      if (val.length < 2) continue; // Skip yang terlalu pendek
+      _cachedPaliList!.add(MapEntry(entry.key.toString(), normalize(val)));
+    }
+
+    // 2. Build Trans Cache
+    Map transMap = {};
+    if (widget.textData?["translation_text"] is Map) {
+      transMap = widget.textData!["translation_text"] as Map;
+    } else if (widget.textData?["translation"]?["data"] is Map) {
+      transMap = widget.textData!["translation"]["data"] as Map;
+    }
+
+    _cachedTransList = [];
+    for (var entry in transMap.entries) {
+      if ([
+        'uid',
+        'lang',
+        'author_uid',
+        'title',
+        'acronym',
+      ].contains(entry.key)) {
+        continue;
+      }
+      String val = entry.value.toString();
+      if (val.length < 2) continue;
+      _cachedTransList!.add(MapEntry(entry.key.toString(), normalize(val)));
+    }
+  }
+
+  // ✅ HITUNG NOMOR SEGMEN V4: STRICT SEGMENTED ONLY
+  String? _calculateSegmentRange(String selectedText) {
+    if (selectedText.trim().isEmpty) return null;
+
+    // 🔥 KILL SWITCH: Kalau bukan Segmented, matikan fitur ini.
+    // Biar gak maksa nyari koordinat di teks buta (HTML Legacy / Tafsir Blob).
+    if (widget.textData?["segmented"] != true) return null;
+
+    if (_cachedPaliList == null) _buildSearchCache();
+
+    final RegExp wsRegex = RegExp(r'\s+');
+    final String cleanSelect = selectedText.trim().toLowerCase().replaceAll(
+      wsRegex,
+      ' ',
+    );
+
+    int cursor = 0;
+    String? startId;
+    String? endId;
+
+    // ... (Sisa kodenya sama persis kayak V3 / V2 Pac-Man kemarin) ...
+    // ... Copy paste bagian bawahnya dari V3 kemarin ...
+
+    final keys = _cachedKeysOrder;
+    final rootMap = widget.textData?["root_text"] as Map? ?? {};
+    final transMap = widget.textData?["translation_text"] as Map? ?? {};
+    final transMapLegacy =
+        widget.textData?["translation"]?["data"] as Map? ?? {};
+    final tafsirMap = widget.textData?["commentary_text"] as Map? ?? {};
+
+    // Helper Boolean
+    bool tryConsume(String dbText) {
+      if (cursor >= cleanSelect.length) return false;
+      String cleanDb = dbText
+          .replaceAll(SuttaTextHelper.htmlTagRegex, '')
+          .trim();
+      if (cleanDb.isEmpty) return false;
+      String normDb = cleanDb.toLowerCase().replaceAll(wsRegex, ' ');
+      String remainingUser = cleanSelect.substring(cursor).trimLeft();
+
+      if (remainingUser.startsWith(normDb)) {
+        int nextPos = cleanSelect.indexOf(normDb, cursor);
+        cursor = (nextPos != -1)
+            ? nextPos + normDb.length
+            : cursor + normDb.length;
+        return true;
+      }
+      int checkLen = normDb.length;
+      if (checkLen > remainingUser.length) checkLen = remainingUser.length;
+      for (int len = checkLen; len >= 3; len--) {
+        String dbTail = normDb.substring(normDb.length - len);
+        String userHead = remainingUser.substring(0, len);
+        if (dbTail == userHead) {
+          int matchInUser = cleanSelect.indexOf(userHead, cursor);
+          cursor = (matchInUser != -1) ? matchInUser + len : cursor + len;
+          return true;
+        }
+      }
+      if (normDb.contains(remainingUser)) {
+        cursor = cleanSelect.length;
+        return true;
+      }
+      return false;
+    }
+
+    for (String key in keys) {
+      if (cursor >= cleanSelect.length) break;
+
+      String rawPali = rootMap[key]?.toString() ?? "";
+      String rawTrans =
+          transMap[key]?.toString() ?? transMapLegacy[key]?.toString() ?? "";
+      String rawTafsir = tafsirMap[key]?.toString() ?? "";
+
+      bool hitPali = tryConsume(rawPali);
+      bool hitContent = false;
+
+      if (_isTafsirMode) {
+        hitContent = tryConsume(rawTafsir);
+      } else {
+        hitContent = tryConsume(rawTrans);
+      }
+
+      if (hitPali || hitContent) {
+        startId ??= key;
+        endId = key;
+      }
+    }
+
+    if (startId == null) return null;
+    String cleanId(String id) => id.contains(':') ? id.split(':').last : id;
+    final s = cleanId(startId);
+    final e = endId != null ? cleanId(endId) : s;
+
+    // Pake Titik Dua
+    if (s == e) return ":$s";
+    return ":$s–$e";
+  }
+
+  // ✅ FORMATTING FINAL V16: TRIPLE SAFETY (SYNTAX FIXED + LOGIC SAFE)
+  String _getSmartFormattedText(String selectedText) {
+    if (selectedText.trim().isEmpty) return selectedText;
+
+    // 1. DEFINISI RACUN (Hanya Marker Visual)
+    // 🔥 Pake Triple Quote (r'''...''') biar aman dari syntax error
+    // ignore: unused_local_variable
+    final htmlMarkerKiller = RegExp(
+      r'''<span[^>]*class=["']?(pb-marker|para-num)["']?[^>]*>.*?</span>''',
+      caseSensitive: false,
+      dotAll: true,
+    );
+    final markerRegex = RegExp(
+      r'\b(pts|vri|mymr|thai)\s+[\d.-]+\s*',
+      caseSensitive: false,
+    );
+    final segmentRegex = RegExp(r'§\s*[\d.-]+\s*');
+
+    // 2. CUCI TEKS USER (INPUT BERSIH)
+    // Ini teks murni yang dilihat user. Paling aman ya pake ini.
+    String sanitizedText = selectedText
+        .replaceAll(segmentRegex, '')
+        .replaceAll(markerRegex, '')
+        .replaceAll(RegExp(r'\$\$.*?\$\$'), '')
+        .trim();
+
+    // 🔥 CEK TIPE DATA
+    final bool isSegmented = widget.textData?["segmented"] == true;
+
+    // ============================================================
+    // JALUR 1: LEGACY HTML / TAFSIR (MODE AMAN / MANUAL)
+    // ============================================================
+    // Di sini kita MATIKAN total logic Matching Database.
+    // Kita percaya 100% teks seleksi user, cuma kita rapihin enternya.
+    // Risiko kata hilang = 0%.
+    if (!isSegmented) {
+      return sanitizedText
+          .replaceAll(
+            RegExp(r'\n\s*\n'),
+            '\n',
+          ) // Normalin jadi single enter dulu
+          .replaceAll('\n', '\n\n'); // Jadiin double enter biar paragraf jelas
+    }
+
+    // ============================================================
+    // JALUR 2: SEGMENTED / BILARA (MODE CANGGIH)
+    // ============================================================
+    // Kalau Segmented, datanya bersih. Kita tetep pake Pac-Man biar dapet fitur
+    // "Auto Pali" (munculin teks Pali pasangan terjemahannya).
+
+    if (_cachedPaliList == null) _buildSearchCache();
+
+    final RegExp wsRegex = RegExp(r'\s+');
+    final String cleanSelect = sanitizedText.toLowerCase().replaceAll(
+      wsRegex,
+      ' ',
+    );
+
+    StringBuffer buffer = StringBuffer();
+    int cursor = 0;
+    bool hasContent = false;
+    List<String> feedingQueue = [];
+
+    // ... (LOAD DATA SEGMENTED) ...
+    final keys = _cachedKeysOrder;
+    final rootMap = widget.textData?["root_text"] as Map? ?? {};
+    final transMap = widget.textData?["translation_text"] as Map? ?? {};
+    final transMapLegacy =
+        widget.textData?["translation"]?["data"] as Map? ?? {};
+    final tafsirMap = widget.textData?["commentary_text"] as Map? ?? {};
+
+    for (String key in keys) {
+      String rawPali = rootMap[key]?.toString() ?? "";
+      if (rawPali.isNotEmpty) feedingQueue.add("PALI::$rawPali");
+
+      String content = "";
+      if (_isTafsirMode) {
+        content = tafsirMap[key]?.toString() ?? "";
+      } else {
+        content =
+            transMap[key]?.toString() ?? transMapLegacy[key]?.toString() ?? "";
+      }
+      if (content.isNotEmpty) feedingQueue.add("TRANS::$content");
+    }
+
+    // ... (LOGIC KONSUMSI / PAC-MAN) ...
+    String? consumeMatch(String dbText) {
+      if (cursor >= cleanSelect.length) return null;
+
+      String cleanDb = dbText
+          .replaceAll(SuttaTextHelper.htmlTagRegex, '')
+          .replaceAll(segmentRegex, '')
+          .replaceAll(markerRegex, '')
+          .trim();
+
+      if (cleanDb.isEmpty) return null;
+      String normDb = cleanDb.toLowerCase().replaceAll(wsRegex, ' ');
+      String remainingUser = cleanSelect.substring(cursor).trimLeft();
+
+      // 1. HEAD MATCH
+      if (remainingUser.startsWith(normDb)) {
+        int nextPos = cleanSelect.indexOf(normDb, cursor);
+        cursor = (nextPos != -1)
+            ? nextPos + normDb.length
+            : cursor + normDb.length;
+        return cleanDb;
+      }
+      // 2. TAIL / PARTIAL MATCH
+      int checkLen = normDb.length;
+      if (checkLen > remainingUser.length) checkLen = remainingUser.length;
+      for (int len = checkLen; len >= 3; len--) {
+        String dbTail = normDb.substring(normDb.length - len);
+        String userHead = remainingUser.substring(0, len);
+        if (dbTail == userHead) {
+          int matchInUser = cleanSelect.indexOf(userHead, cursor);
+          cursor = (matchInUser != -1) ? matchInUser + len : cursor + len;
+          return cleanDb.substring(cleanDb.length - len);
+        }
+      }
+      if (normDb.contains(remainingUser)) {
+        cursor = cleanSelect.length;
+        int idx = normDb.indexOf(remainingUser);
+        if (idx >= 0 && idx + remainingUser.length <= cleanDb.length) {
+          return cleanDb.substring(idx, idx + remainingUser.length);
+        }
+        return remainingUser;
+      }
+      return null;
+    }
+
+    // JALANKAN QUEUE
+    for (String item in feedingQueue) {
+      if (cursor >= cleanSelect.length) break;
+      bool isPaliItem = item.startsWith("PALI::");
+      String rawContent = item.substring(6);
+      String? matched = consumeMatch(rawContent);
+
+      if (matched != null) {
+        if (hasContent) {
+          bool previousWasPali = buffer.toString().trimRight().endsWith("//");
+          if (isPaliItem) {
+            buffer.write('\n\n');
+          } else {
+            if (previousWasPali) {
+              buffer.write('\n');
+            } else {
+              buffer.write('\n\n');
+            }
+          }
+        }
+        if (isPaliItem && !_isRootOnly) {
+          // Pake kurung kurawal di variabelnya: ${matched}
+          buffer.write('//_${matched}_//');
+        } else {
+          buffer.write(matched);
+        }
+        hasContent = true;
+      }
+    }
+
+    // Fallback Safety buat Segmented
+    if (buffer.isEmpty) return sanitizedText.replaceAll(RegExp(r'\n+'), '\n\n');
+    return buffer.toString();
+  }
+
+  Widget _buildMyContextMenu(
+    BuildContext context,
+    SelectableRegionState selectableRegionState,
+  ) {
+    final List<ContextMenuButtonItem> buttonItems =
+        selectableRegionState.contextMenuButtonItems;
+
+    // Hapus Share bawaan agar tidak redundan
+    buttonItems.removeWhere(
+      (item) =>
+          item.type == ContextMenuButtonType.share ||
+          item.label?.toLowerCase() == 'share',
+    );
+
+    final List<ContextMenuButtonItem> customButtons = [];
+
+    // 1. Tombol Bagikan (Selalu ada & Posisi Pertama)
+    customButtons.add(
+      ContextMenuButtonItem(
+        label: 'Bagikan',
+        onPressed: () {
+          selectableRegionState.hideToolbar();
+          _showShareOptions(_currentSelectedText);
+        },
+      ),
+    );
+
+    // 2. Logika Filter Alat Pāli (Anti-Bocor)
+    final bool isSegmented = widget.textData?["segmented"] == true;
+    final bool isCurrentlyPali = widget.lang == 'pli' || widget.lang == 'pali';
+
+    bool showPaliTools = false;
+
+    if (_isTafsirMode) {
+      showPaliTools = true;
+    } else if (isCurrentlyPali) {
+      showPaliTools = true;
+    } else if (isSegmented && _viewMode != ViewMode.translationOnly) {
+      showPaliTools = true;
+    }
+
+    // Sembunyikan jika teks Indonesia murni dan bukan mode tafsir
+    if (widget.lang == 'id' && !isSegmented && !_isTafsirMode) {
+      showPaliTools = false;
+    }
+
+    if (showPaliTools) {
+      customButtons.add(
+        ContextMenuButtonItem(
+          label: 'Kamus',
+          onPressed: () {
+            selectableRegionState.hideToolbar();
+            _handleWordLookup(_currentSelectedText);
+          },
+        ),
+      );
+      customButtons.add(
+        ContextMenuButtonItem(
+          label: 'Terjemah AI',
+          onPressed: () {
+            selectableRegionState.hideToolbar();
+            _handleAiTranslation(_currentSelectedText);
+          },
+        ),
+      );
+    }
+
+    buttonItems.insertAll(0, customButtons);
+
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: selectableRegionState.contextMenuAnchors,
+      buttonItems: buttonItems,
+    );
+  }
+
+  String _normalizeTeiTags(String rawHtml) {
+    final isTafsir = widget.textData?["is_tafsir"] == true;
+    if (!isTafsir) return rawHtml;
+
+    // 1. NIKAYA -> HIDE/HAPUS (Double Protection)
+    rawHtml = rawHtml.replaceAll(
+      RegExp(
+        r'<p[^>]*rend="nikaya"[^>]*>.*?</p>',
+        dotAll: true,
+        caseSensitive: false,
+      ),
+      '',
+    );
+
+    // 2. BOOK/VAGGA -> HIDE JUGA (Sesuai update terakhir)
+    rawHtml = rawHtml.replaceAll(
+      RegExp(
+        r'<head[^>]*>.*?<book[^>]*>.*?</book>.*?</head>',
+        dotAll: true,
+        caseSensitive: false,
+      ),
+      '',
+    );
+
+    // 3. SUTTA TITLE -> H2 (HANYA DARI READUNIT)
+    // Ambil isi <readunit>, buang pembungkus luarnya
+    rawHtml = rawHtml.replaceAllMapped(
+      RegExp(
+        r'<((?:head|p))[^>]*>.*?<readunit[^>]*>(.*?)</readunit>.*?</\1>',
+        dotAll: true,
+        caseSensitive: false,
+      ),
+      (m) => '<h2>${m.group(2)}</h2>',
+    );
+
+    // 4. SUBHEAD LAINNYA -> H3
+    rawHtml = rawHtml.replaceAllMapped(
+      RegExp(
+        r'<p[^>]*rend="subhead"[^>]*>(.*?)</p>',
+        dotAll: true,
+        caseSensitive: false,
+      ),
+      (m) => '<h3>${m.group(1)}</h3>',
+    );
+
+    // 5. BERSIH-BERSIH SISA TAG
+    rawHtml = rawHtml.replaceAll(
+      RegExp(r'<\/?(nikaya|book|pgroup|readunit)[^>]*>', caseSensitive: false),
+      '',
+    );
+
+    return rawHtml;
   }
 
   // --- DAFTAR ISI ---
   final List<Map<String, dynamic>> _tocList = [];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  // 🔥 TAMBAH INI: Penampung data suttaplex yang valid (Canonical)
+
+  // 🔥 CACHE DATA (Biar Scroll Enteng)
+  Map<String, String> _cachedPaliSegs = {};
+  Map<String, String> _cachedTransSegs = {};
+  Map<String, String> _cachedCommentSegs = {};
+  List<String> _cachedKeysOrder = [];
+
+  // Penampung data suttaplex yang valid (Canonical)
   Map<String, dynamic>? _canonicalSuttaplex;
 
   @override
   void initState() {
     super.initState();
-    // Inisialisasi awal pake data bawaan dulu (siapa tau ada isinya)
+
+    // 1. Inisialisasi Data & Prefs
     _canonicalSuttaplex = widget.textData?["suttaplex"];
     _hasNavigatedBetweenSuttas = widget.isNavigated;
     _loadPreferences();
 
-    final bool isSegmented = widget.textData?["segmented"] == true;
-    if (isSegmented &&
-        widget.textData != null &&
-        widget.textData!["keys_order"] is List) {
-      _generateTOC();
-    }
+    // 2. 🔥 PROSES DATA (SATU PINTU)
+    _processNewTextData();
 
-    _parseHtmlIfNeeded();
+    // 3. Background Services
     _initNavigationContext();
     _saveToHistory();
 
-    // 🔥 DISABLE AUTO-HIDE (Pakai Tap-to-Toggle aja)
-    // _itemPositionsListener.itemPositions.addListener(_handleScrollChange);
-
+    // 4. UI Cleanups & Auto-Scroll
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).clearMaterialBanners();
+      if (widget.targetParaNum != null) {
+        _handleInitialJump(widget.targetParaNum!);
+      }
+    });
 
-      // 🔥 HINT: Tap to hide UI (cuma muncul sekali)
-      /*Future.delayed(const Duration(milliseconds: 500), () {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.touch_app, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                const Text("Ketuk layar untuk sembunyikan kontrol"),
-              ],
-            ),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
-          ),
-        );
-      });*/
+    // 5. Scroll Listener
+    _itemPositionsListener.itemPositions.addListener(_updateVisibleParagraph);
+  }
+
+  // Helper biar initState gak kepanjangan
+  void _handleInitialJump(String paraNum) {
+    bool hasShownNotif = false;
+
+    // Percobaan 1: Cepat (300ms)
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      final bool shouldNotify = _isTafsirMode && !hasShownNotif;
+      _scrollToParagraph(paraNum, showSnackBar: shouldNotify);
+      if (shouldNotify) hasShownNotif = true;
+    });
+
+    // Percobaan 2: Backup (800ms) buat HP yang agak lambat render
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      _scrollToParagraph(paraNum, showSnackBar: false); // Silent jump
     });
   }
 
@@ -312,6 +940,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
 
     setState(() {
+      // Gunakan key universal tanpa prefix biar sinkron
+      _customBgColor = Color(
+        prefs.getInt('custom_bg_color') ?? Colors.white.toARGB32(),
+      );
+      _customTextColor = Color(
+        prefs.getInt('custom_text_color') ?? Colors.black.toARGB32(),
+      );
+      _customPaliColor = Color(
+        prefs.getInt('custom_pali_color') ?? const Color(0xFF8B4513).toARGB32(),
+      );
+
       _fontSize = prefs.getDouble('sutta_font_size') ?? 16.0;
       _horizontalPadding = prefs.getDouble('horizontal_padding') ?? 16.0;
       // ✅ 3. LOAD LINE HEIGHT & FONT
@@ -328,11 +967,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       // Update tema baca
       _readerTheme = targetTheme;
+
+      _showVerseNumbers = prefs.getBool('show_verse_numbers') ?? true;
     });
   }
 
   Future<void> _savePreferences() async {
     final prefs = await SharedPreferences.getInstance();
+    // pake .toARGB32() kalo flutter baru, atau .value kalo .toARGB32() merah
+    await prefs.setInt('custom_bg_color', _customBgColor.toARGB32());
+    await prefs.setInt('custom_text_color', _customTextColor.toARGB32());
+    await prefs.setInt('custom_pali_color', _customPaliColor.toARGB32());
+
     await prefs.setDouble('sutta_font_size', _fontSize);
     await prefs.setInt('sutta_view_mode', _viewMode.index);
     await prefs.setDouble('horizontal_padding', _horizontalPadding);
@@ -342,105 +988,118 @@ class _SuttaDetailState extends State<SuttaDetail> {
     await prefs.setString('font_type', _fontType);
     // 🔥 SIMPAN BOTTOM MENU STATE
     await prefs.setBool('bottom_menu_visible', _isBottomMenuVisible);
+    await prefs.setBool('show_verse_numbers', _showVerseNumbers);
   }
 
-  List<InlineSpan> _parseHtmlToSpansWithHighlight(
-    String htmlText,
-    TextStyle baseStyle,
-    int listIndex,
-    bool isPali,
-  ) {
-    if (htmlText.isEmpty) return [];
+  // ============================================================
+  // ⚙️ DATA PROCESSOR (Inisialisasi Ulang)
+  // Dipanggil saat pertama buka (initState) ATAU saat data berubah (didUpdateWidget)
+  // ============================================================
+  // ============================================================
+  // ⚙️ DATA PROCESSOR (Inisialisasi Ulang)
+  // ============================================================
+  void _processNewTextData() {
+    // Di awal fungsi _processNewTextData & _parseHtmlAndGenerateTOC:
+    _sortedTafsirIndices.clear();
+    _indexToTafsirLabel.clear();
 
-    // 🧹 BERSIH-BERSIH TAG KHUSUS SUTTACENTRAL
-    htmlText = htmlText
-        // 1. Enjambment (<j>): Ganti jadi Enter (\n) + hapus spasi nempel
-        .replaceAll(RegExp(r'\s*<j>\s*'), '\n')
-        // 2. Line Break (<br> atau <br/>): Ganti jadi Enter (\n)
-        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-        // 3. Non-breaking space (&nbsp;): Ganti spasi biasa (opsional, jaga2 aja)
-        .replaceAll('&nbsp;', ' ');
+    if (widget.textData == null) return;
 
-    // ✅ PAKAI RAW HTML LANGSUNG
-    final unescape = HtmlUnescape();
-    final spans = <InlineSpan>[];
+    // 1. Reset Data Lama
+    _htmlSegments.clear();
+    _tocList.clear();
 
-    // Regex Tag (Sama kayak tadi)
-    final tagRegex = RegExp(
-      r'<(/)?(em|i|b|strong|span)([^>]*)>', // Note: x-highlight udah gak perlu dideteksi di sini
-      caseSensitive: false,
-    );
+    // 🔥 RESET MAP REFERENSI (PENTING!)
+    _tafsirSectionMap.clear();
+    _tafsirAvailableSections.clear();
 
-    int lastIndex = 0;
-    List<TextStyle> styleStack = [baseStyle];
+    // 🔥 Reset Cache Baru
+    _cachedPaliSegs.clear();
+    _cachedTransSegs.clear();
+    _cachedCommentSegs.clear();
+    _cachedKeysOrder.clear();
 
-    // Kita butuh counter lokal untuk sinkronisasi dengan SearchMatch
-    int localMatchCounter = 0;
+    _isHtmlParsed = false;
 
-    for (final match in tagRegex.allMatches(htmlText)) {
-      if (match.start > lastIndex) {
-        final plainText = htmlText.substring(lastIndex, match.start);
+    // 2. Cek Tipe Data
+    final bool isSegmented = widget.textData!["segmented"] == true;
 
-        // 🔥 DISINI MAGIC-NYA:
-        // Kita decode dulu teksnya, BARU kita cari highlight-nya
-        if (plainText.isNotEmpty) {
-          final decodedText = unescape.convert(plainText);
+    if (isSegmented) {
+      // --- LOGIC SEGMENTED (OPTIMIZED) ---
 
-          // Helper function buat mecah teks jadi (Normal - Highlight - Normal)
-          final highlightedSpans = _buildHighlightedSpans(
-            decodedText,
-            styleStack.last, // Pakai style tumpukan saat ini (misal lagi Bold)
-            listIndex,
-            isPali,
-            localMatchCounter, // Oper counter saat ini
-          );
-
-          spans.addAll(highlightedSpans.spans);
-          localMatchCounter = highlightedSpans.newCounter; // Update counter
-        }
-      }
-
-      // --- LOGIC PARSING TAG (Sama kayak sebelumnya) ---
-      final isClosing = match.group(1) == '/';
-      final tagName = match.group(2)?.toLowerCase();
-
-      if (!isClosing) {
-        final parentStyle = styleStack.last;
-        TextStyle newStyle = parentStyle;
-
-        if (tagName == 'b' || tagName == 'strong') {
-          newStyle = parentStyle.copyWith(fontWeight: FontWeight.bold);
-        } else if (tagName == 'em' || tagName == 'i') {
-          newStyle = parentStyle.copyWith(fontStyle: FontStyle.italic);
-        }
-        // Note: span/color logic bisa ditambah disini kalau perlu
-
-        styleStack.add(newStyle);
+      // A. Siapkan Keys Order
+      if (widget.textData!["keys_order"] is List) {
+        _cachedKeysOrder = List<String>.from(widget.textData!["keys_order"]);
+        _generateTOC();
       } else {
-        if (styleStack.length > 1) {
-          styleStack.removeLast();
-        }
+        // Fallback logic
+        final rawPali = widget.textData!["root_text"] as Map? ?? {};
+        final rawTrans = widget.textData!["translation_text"] as Map? ?? {};
+        final metadataKeys = {
+          'previous',
+          'next',
+          'author_uid',
+          'vagga_uid',
+          'lang',
+          'title',
+          'acronym',
+          'text',
+        };
+        final source = rawTrans.isNotEmpty ? rawTrans : rawPali;
+
+        _cachedKeysOrder = source.keys
+            .where((k) => !metadataKeys.contains(k))
+            .map((e) => e.toString())
+            .toList();
       }
 
-      lastIndex = match.end;
+      // ============================================================
+      // 🔥🔥🔥 GENERATE INDEKS REFERENSI (SEGMENTED) 🔥🔥🔥
+      // ============================================================
+      for (int i = 0; i < _cachedKeysOrder.length; i++) {
+        final rawKey = _cachedKeysOrder[i];
+
+        // 1. Bersihkan Key (misal: "dn1:1.1" -> "1.1")
+        String label = rawKey.contains(':') ? rawKey.split(':').last : rawKey;
+        label = label.trim();
+
+        // 2. Filter: Jangan masukin Header (0.1, 0.2) ke grid referensi
+        // Karena Header udah ada di Daftar Isi (TOC)
+        if (label.startsWith('0.')) continue;
+
+        // 3. Masukin ke Map
+        // Kunci: Label ("1.1") -> Value: Index List (i)
+        _tafsirSectionMap[label] = i;
+        _tafsirAvailableSections.add(label);
+
+        // 🔥 TAMBAHAN BARU: ISI REVERSE MAP
+        _sortedTafsirIndices.add(i);
+        _indexToTafsirLabel[i] = label;
+      }
+      // 🔥 PENTING: SORT BIAR PENCARIAN CEPAT
+      _sortedTafsirIndices.sort();
+      // ============================================================
+
+      // B. Siapkan Data Maps (Pali, Trans, Comment)
+      if (widget.textData!["root_text"] is Map) {
+        _cachedPaliSegs = (widget.textData!["root_text"] as Map).map(
+          (k, v) => MapEntry(k.toString(), v.toString()),
+        );
+      }
+      if (widget.textData!["translation_text"] is Map) {
+        _cachedTransSegs = (widget.textData!["translation_text"] as Map).map(
+          (k, v) => MapEntry(k.toString(), v.toString()),
+        );
+      }
+      if (widget.textData!["comment_text"] is Map) {
+        _cachedCommentSegs = (widget.textData!["comment_text"] as Map).map(
+          (k, v) => MapEntry(k.toString(), v.toString()),
+        );
+      }
+    } else {
+      // --- LOGIC HTML / NON-SEGMENTED ---
+      _parseHtmlIfNeeded(force: true);
     }
-
-    // Render sisa teks
-    if (lastIndex < htmlText.length) {
-      final remainingText = htmlText.substring(lastIndex);
-      final decodedText = unescape.convert(remainingText);
-
-      final highlightedSpans = _buildHighlightedSpans(
-        decodedText,
-        styleStack.last,
-        listIndex,
-        isPali,
-        localMatchCounter,
-      );
-      spans.addAll(highlightedSpans.spans);
-    }
-
-    return spans;
   }
 
   bool get _isRootOnly {
@@ -475,7 +1134,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       if (isH1 || isH2 || isH3) {
         String title =
             transSegs[key]?.toString() ?? rootSegs[key]?.toString() ?? "";
-        title = title.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+        title = title.replaceAll(SuttaTextHelper.htmlTagRegex, '').trim();
 
         if (title.isEmpty) title = "Bagian $verseNum";
 
@@ -540,7 +1199,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   final List<String> _htmlSegments = [];
   void _parseHtmlAndGenerateTOC(String rawHtml) {
-    // ✅ 1. Ekstrak konten <footer> dan HAPUS dari rawHtml
+    // Di awal fungsi _processNewTextData & _parseHtmlAndGenerateTOC:
+    _sortedTafsirIndices.clear();
+    _indexToTafsirLabel.clear();
+
+    // 1. Ekstrak Footer
     try {
       final footerRegex = RegExp(
         r'<footer>(.*?)</footer>',
@@ -548,28 +1211,56 @@ class _SuttaDetailState extends State<SuttaDetail> {
         dotAll: true,
       );
       final match = footerRegex.firstMatch(rawHtml);
-
       if (match != null) {
-        // 🔥 SIMPAN DULU ISINYA KE VARIABEL STATE
         _htmlFooter = match.group(1) ?? "";
-
-        // BARU HAPUS DARI TEXT UTAMA
         rawHtml = rawHtml.replaceFirst(footerRegex, "");
       }
     } catch (e) {
       debugPrint("Gagal ekstrak footer: $e");
     }
 
-    // 2. Parsing HTML "Pintar" (Memecah h1-6 DAN p)
-    try {
-      _tocList.clear();
-      _htmlSegments.clear();
-      if (rawHtml.trim().isEmpty) return;
-
-      final RegExp blockRegex = RegExp(
-        r'''<(h[1-6]|p)[^>]*>(.*?)<\/\1>''',
+    // 🔥 [FIX SCROLL] FLATTEN BLOCKQUOTE
+    // Bongkar <blockquote> biar isinya (paragraf) jadi segmen terpisah.
+    // Tapi kita suntik class 'gatha-segment' biar nanti bisa distyle nyambung.
+    rawHtml = rawHtml.replaceAllMapped(
+      RegExp(
+        r"<blockquote class=['|]gatha['|]>(.*?)</blockquote>",
         caseSensitive: false,
         dotAll: true,
+      ),
+      (match) {
+        String content = match.group(1) ?? "";
+        // Ubah <p> biasa jadi <p class='gatha-segment'>
+        // Ganti margin bawaan p biar nempel
+        content = content.replaceAll('<p>', "<p class='gatha-segment'>");
+        return content; // Balikin isinya doang, bungkus blockquote DIBUANG.
+      },
+    );
+
+    // 2. Normalisasi Tag
+    rawHtml = _normalizeTeiTags(rawHtml);
+
+    // 3. Reset Data
+    _tocList.clear();
+    _htmlSegments.clear();
+    _tafsirSectionMap.clear();
+    _tafsirAvailableSections.clear();
+
+    if (rawHtml.trim().isEmpty) return;
+
+    try {
+      // REGEX UTAMA (Blockquote udah ga perlu dicari lagi karena udah dibongkar)
+      final RegExp blockRegex = RegExp(
+        r'''<(h[1-6]|p|div)[^>]*>(.*?)<\/\1>''',
+        caseSensitive: false,
+        dotAll: true,
+      );
+
+      final RegExp paraNumRegex = RegExp(r'data-num="([^"]+)"');
+      // Regex Ref Aman (Triple Quote)
+      final RegExp refRegex = RegExp(
+        r"""<a\s+[^>]*class=["'][^"']*\bref\b[^"']*["'][^>]*>(.*?)</a>""",
+        caseSensitive: false,
       );
 
       final matches = blockRegex.allMatches(rawHtml);
@@ -579,7 +1270,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
         try {
           if (match.start > lastIndex) {
             String gap = rawHtml.substring(lastIndex, match.start);
-            if (gap.trim().isNotEmpty) _htmlSegments.add(gap);
+            if (gap.trim().isNotEmpty) {
+              _htmlSegments.add(gap);
+              if (_isTafsirMode) {
+                final numMatch = paraNumRegex.firstMatch(gap);
+                if (numMatch != null) {
+                  String num = numMatch.group(1)!;
+                  _tafsirSectionMap[num] = _htmlSegments.length - 1;
+                  _tafsirAvailableSections.add(num);
+                }
+              }
+            }
           }
 
           String fullTag = match.group(0) ?? "";
@@ -587,20 +1288,49 @@ class _SuttaDetailState extends State<SuttaDetail> {
           String content = match.group(2) ?? "";
 
           _htmlSegments.add(fullTag);
+          int currentIndex = _htmlSegments.length - 1;
+
+          // LOGIC REF / NOMOR PARAGRAF
+          final numMatch = paraNumRegex.firstMatch(fullTag);
+          if (numMatch != null) {
+            String num = numMatch.group(1)!;
+            _tafsirSectionMap[num] = currentIndex;
+            _tafsirAvailableSections.add(num);
+
+            // ✅ AMAN: Para Num pasti ada isinya
+            _sortedTafsirIndices.add(currentIndex);
+            _indexToTafsirLabel[currentIndex] = num;
+          } else {
+            final refMatches = refRegex.allMatches(fullTag);
+            for (final refMatch in refMatches) {
+              String label = refMatch.group(1) ?? "";
+              label = label.trim();
+
+              // 🔥 PERBAIKAN DI SINI:
+              // Pastikan cuma dimasukin kalau labelnya valid (Gak kosong)
+              if (label.isNotEmpty) {
+                _tafsirSectionMap[label] = currentIndex;
+                _tafsirAvailableSections.add(label);
+
+                // ✅ PINDAHIN KE DALAM SINI BANG
+                // Biar index cuma nambah kalau labelnya beneran ada
+                _sortedTafsirIndices.add(currentIndex);
+                _indexToTafsirLabel[currentIndex] = label;
+              }
+            }
+          }
 
           if (tagName.startsWith("h")) {
             String levelStr = tagName.substring(1);
             String cleanTitle = content
-                .replaceAll(RegExp(r'<[^>]*>'), '')
+                .replaceAll(SuttaTextHelper.htmlTagRegex, '')
                 .trim();
-
             _tocList.add({
               "title": cleanTitle.isEmpty ? "Bagian" : cleanTitle,
-              "index": _htmlSegments.length - 1,
+              "index": currentIndex,
               "type": int.tryParse(levelStr) ?? 3,
             });
           }
-
           lastIndex = match.end;
         } catch (e) {
           continue;
@@ -611,10 +1341,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         String tail = rawHtml.substring(lastIndex);
         if (tail.trim().isNotEmpty) _htmlSegments.add(tail);
       }
-
-      if (_htmlSegments.isEmpty) {
-        _htmlSegments.add(rawHtml);
-      }
+      if (_htmlSegments.isEmpty) _htmlSegments.add(rawHtml);
     } catch (e) {
       _htmlSegments.clear();
       _htmlSegments.add(rawHtml);
@@ -622,108 +1349,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
   }
 
-  // 🔥 FINAL FIX: Handle "melihat</span> Dhamma" (tags di tengah search phrase)
-  String _injectSearchHighlights(
-    String content,
-    int listIndex,
-    bool isPaliTarget,
-  ) {
-    if (_searchController.text.length < 2) return content;
-    final searchRegex = _cachedSearchRegex;
-    if (searchRegex == null) return content;
-
-    try {
-      // 1. Decode HTML entities (& nbsp; → spasi, & amp; → &, dll)
-      final unescape = HtmlUnescape();
-      final decoded = unescape.convert(content);
-
-      // 2. Strip tags untuk matching
-      final cleanText = decoded.replaceAll(RegExp(r'<[^>]+>'), '');
-
-      // 3. Find all matches di clean text
-      final matches = searchRegex.allMatches(cleanText).toList();
-      if (matches.isEmpty) return content;
-
-      // 4. Build position map: clean index → original index
-      final Map<int, int> cleanToOriginal = {};
-      int cleanIdx = 0;
-      bool insideTag = false;
-
-      for (int i = 0; i < decoded.length; i++) {
-        if (decoded[i] == '<') {
-          insideTag = true;
-        } else if (decoded[i] == '>') {
-          insideTag = false;
-          continue;
-        }
-
-        if (!insideTag) {
-          cleanToOriginal[cleanIdx] = i;
-          cleanIdx++;
-        }
-      }
-
-      // 🔥 ADD: Map untuk end position (next character after last match char)
-      // Ini biar kita bisa akurat ambil sampai akhir match
-      cleanToOriginal[cleanIdx] = decoded.length;
-
-      // 5. Inject highlights (dari belakang agar posisi tidak bergeser)
-      String result = decoded;
-
-      for (int i = matches.length - 1; i >= 0; i--) {
-        final match = matches[i];
-
-        // Check if active
-        bool isActive = false;
-        if (_allMatches.isNotEmpty && _currentMatchIndex < _allMatches.length) {
-          final activeMatch = _allMatches[_currentMatchIndex];
-          if (activeMatch.listIndex == listIndex &&
-              activeMatch.isPali == isPaliTarget &&
-              activeMatch.localIndex == i) {
-            isActive = true;
-          }
-        }
-
-        // Map clean positions ke original positions
-        final origStart = cleanToOriginal[match.start] ?? 0;
-        // 🔥 FIX: match.end sudah exclusive, jadi langsung ambil posisi tersebut
-        final origEnd = cleanToOriginal[match.end] ?? decoded.length;
-
-        // Extract segment (termasuk tag HTML di dalamnya jika ada)
-        final segment = result.substring(origStart, origEnd);
-
-        // Build highlight wrapper
-        final bgColor = isActive ? "#FF8C00" : "#FFFF00";
-        final color = isActive ? "white" : "black";
-        final activeAttr = isActive ? 'data-active="true"' : '';
-
-        final wrapper =
-            "<x-highlight style='background-color: $bgColor; "
-            "color: $color; font-weight: bold; border-radius: 4px; "
-            "padding: 0 2px;' $activeAttr>$segment</x-highlight>";
-
-        // Replace (inject dari belakang jadi posisi depan tidak berubah)
-        result =
-            result.substring(0, origStart) +
-            wrapper +
-            result.substring(origEnd);
-      }
-
-      return result;
-    } catch (e) {
-      debugPrint("❌ Highlight error: $e");
-      return content; // Fallback: return original
-    }
-  }
-
-  void _parseHtmlIfNeeded() {
+  void _parseHtmlIfNeeded({bool force = false}) {
     final isHtmlFormat =
         (widget.textData!["translation_text"] is Map &&
             widget.textData!["translation_text"].containsKey("text")) ||
         (widget.textData!["root_text"] is Map &&
             widget.textData!["root_text"].containsKey("text"));
-
-    if (!isHtmlFormat || _isHtmlParsed) return;
+    // Cek: Kalau bukan HTML, atau sudah diparse DAN tidak dipaksa -> STOP
+    if (!isHtmlFormat || (_isHtmlParsed && !force)) return;
 
     String rawHtml = "";
     if (widget.textData!["translation_text"] is Map &&
@@ -732,13 +1365,37 @@ class _SuttaDetailState extends State<SuttaDetail> {
         widget.textData!["translation_text"],
       );
       final sutta = NonSegmentedSutta.fromJson(transMap);
-      rawHtml = HtmlUnescape().convert(sutta.text);
+      //  rawHtml = HtmlUnescape().convert(sutta.text);
+
+      rawHtml = SuttaTextHelper.unescape.convert(sutta.text);
     } else if (widget.textData!["root_text"] is Map &&
         widget.textData!["root_text"].containsKey("text")) {
       final root = Map<String, dynamic>.from(widget.textData!["root_text"]);
       final sutta = NonSegmentedSutta.fromJson(root);
-      rawHtml = HtmlUnescape().convert(sutta.text);
+      // rawHtml = HtmlUnescape().convert(sutta.text);
+      rawHtml = SuttaTextHelper.unescape.convert(sutta.text);
     }
+
+    // 🔥 DEBUG AMAN - NO SUBSTRING!
+    if (rawHtml.contains('blockquote')) {
+      //   debugPrint("✅ BLOCKQUOTE FOUND!");
+
+      // Cari blockquote dan print FULL ISI (tanpa substring yang error)
+      RegExp(
+        r'<blockquote[^>]*>(.*?)</blockquote>',
+        caseSensitive: false,
+        dotAll: true,
+      ).firstMatch(rawHtml);
+
+      //if (blockquoteMatch != null) {
+      // final fullContent = blockquoteMatch.group(1) ?? "";
+      //   debugPrint("📦 FULL BLOCKQUOTE CONTENT:");
+      //  debugPrint(fullContent); // ✅ Print semuanya tanpa potong
+      //   debugPrint("📏 LENGTH: ${fullContent.length}");
+      //  }
+    } //else {
+    // debugPrint("❌ NO BLOCKQUOTE FOUND!");
+    //}
 
     if (rawHtml.isNotEmpty) {
       _parseHtmlAndGenerateTOC(rawHtml);
@@ -822,6 +1479,547 @@ class _SuttaDetailState extends State<SuttaDetail> {
     _isLast = _getNavTarget("next") == null;
 
     if (mounted) setState(() {});
+  }
+
+  void _openTafsirGridModal() {
+    // 1. Tentukan Tipe Tafsir (Cuma buat pewarnaan aja kalau di Sutta biasa)
+    TafsirType currentType = TafsirType.mul;
+    if (_isTafsirMode) {
+      final title =
+          widget.textData?["root_text"]?["title"]?.toString().toLowerCase() ??
+          "";
+      if (title.contains("aṭṭhakathā")) {
+        currentType = TafsirType.att;
+      } else if (title.contains("ṭīkā")) {
+        currentType = TafsirType.tik;
+      }
+    }
+
+    final bool showTikaButton = TafsirService().hasTika(widget.uid); // Cek dulu
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        Widget buildSwitchBtn(String lbl, TafsirType type, bool isActive) {
+          // ... (Fungsi buildSwitchBtn biarin sama persis kayak sebelumnya) ...
+          final colorScheme = Theme.of(ctx).colorScheme;
+          return SizedBox(
+            width: 36,
+            height: 36,
+            child: FilledButton(
+              onPressed: isActive
+                  ? null
+                  : () {
+                      Navigator.pop(ctx);
+                      _navigateTafsirInternal(widget.uid, type);
+                    },
+              style: FilledButton.styleFrom(
+                padding: EdgeInsets.zero,
+                backgroundColor: isActive
+                    ? colorScheme.primary
+                    : colorScheme.surfaceContainerHighest,
+                foregroundColor: isActive
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                lbl,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          height: MediaQuery.of(context).size.height * 0.55,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    // Ubah judul dikit biar enak
+                    // _isTafsirMode ? "Lompat ke Bagian (§)" : "Indeks Referensi",
+                    "Indeks Referensi",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+
+                  // 🔥 HANYA TAMPILKAN SWITCHER M/A/T KALAU MODENYA TAFSIR
+                  if (_isTafsirMode)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        buildSwitchBtn(
+                          "M",
+                          TafsirType.mul,
+                          currentType == TafsirType.mul,
+                        ),
+                        const SizedBox(width: 8),
+                        buildSwitchBtn(
+                          "A",
+                          TafsirType.att,
+                          currentType == TafsirType.att,
+                        ),
+                        if (showTikaButton) const SizedBox(width: 8),
+                        if (showTikaButton)
+                          buildSwitchBtn(
+                            "Ṭ",
+                            TafsirType.tik,
+                            currentType == TafsirType.tik,
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 100,
+                    childAspectRatio: 1.8,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: _tafsirAvailableSections.length,
+                  itemBuilder: (context, index) {
+                    final num = _tafsirAvailableSections[index];
+                    return InkWell(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await Future.delayed(const Duration(milliseconds: 300));
+                        if (!mounted) return;
+                        _scrollToParagraph(num);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.3),
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          // Kalau bukan tafsir (biasanya SC 1, Verse 2), tampilkan apa adanya
+                          _isTafsirMode ? "§$num" : num,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // 🎮 CONTROLLER: LOGIKA NAVIGASI TERPUSAT
+  // ============================================================
+
+  void _goToPrevSutta() => _handleNavigation(isNext: false);
+  void _goToNextSutta() => _handleNavigation(isNext: true);
+
+  Future<void> _handleNavigation({required bool isNext}) async {
+    // 1. Cek Blokir Tematik
+    if (widget.entryPoint == "tematik") {
+      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
+      return;
+    }
+
+    // 2. Ambil Target
+    final key = isNext ? "next" : "previous";
+    final navTarget = _getNavTarget(key);
+
+    // 3. Cek Mentok
+    if (navTarget == null || navTarget["uid"] == null) {
+      _showSuttaSnackBar(
+        isNext ? SuttaSnackType.lastText : SuttaSnackType.firstText,
+        uid: widget.uid,
+      );
+      return;
+    }
+
+    final String targetUid = navTarget["uid"].toString();
+
+    // 4. Cabang Logika
+    if (_isTafsirMode) {
+      // --- TAFSIR ---
+      await _handleTafsirNavigation(targetUid, isNext: isNext);
+    } else {
+      // --- SUTTA BIASA ---
+      await _handleStandardNavigation(targetUid, navTarget, isNext: isNext);
+    }
+  }
+
+  // Logic Tafsir (Tetap pakai logic khusus karena strukturnya beda)
+  Future<void> _handleTafsirNavigation(
+    String targetUid, {
+    required bool isNext,
+  }) async {
+    setState(() => _isLoading = true);
+    try {
+      final currentType = _getCurrentTafsirType();
+
+      // Update suttaplex context
+      final freshData = await SuttaService.fetchSuttaplex(targetUid);
+      if (freshData is List && freshData.isNotEmpty) {
+        _canonicalSuttaplex = freshData[0];
+      }
+
+      await _navigateTafsirInternal(
+        targetUid,
+        currentType,
+        isNextPrevAction: true,
+      );
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Logic Standard (Sekarang jauh lebih bersih karena pake Engine _replaceToSutta)
+  Future<void> _handleStandardNavigation(
+    String targetUid,
+    Map<String, dynamic> navTarget, {
+    required bool isNext,
+  }) async {
+    // A. Tentukan Author (Priority: Author sekarang -> Author saran -> 'ms')
+    String? currentAuthorUid = widget.textData?["author_uid"]?.toString();
+    if (currentAuthorUid == null && widget.textData?["translation"] != null) {
+      currentAuthorUid = widget.textData?["translation"]?["author_uid"]
+          ?.toString();
+    }
+    final String targetAuthorUid =
+        currentAuthorUid ?? navTarget["author_uid"]?.toString() ?? "ms";
+
+    // B. Tentukan Bahasa & Segmented
+    final segmented = widget.textData?["segmented"] == true;
+    final targetLang = segmented
+        ? widget.lang
+        : navTarget["lang"]?.toString() ?? widget.lang;
+
+    // C. PANGGIL ENGINE 🔥
+    await _replaceToSutta(
+      targetUid,
+      targetLang,
+      authorUid: targetAuthorUid,
+      segmented: segmented,
+      isNext: isNext, // Ngatur arah animasi
+      isNavigatedAction: true, // Ngasih tau ini hasil navigasi Next/Prev
+    );
+  }
+
+  // ============================================================
+  // 🔥 FUNGSI SCROLL PARAGRAF (WAJIB ADA)
+  // ============================================================
+
+  // 1. Logic Cari Index (Support Range kayak 101-103)
+  int? _findTafsirSectionIndex(String targetNum) {
+    if (_tafsirSectionMap.containsKey(targetNum)) {
+      return _tafsirSectionMap[targetNum];
+    }
+
+    // Parse input user (misal "101")
+    int? inputStart;
+    if (targetNum.contains('-')) {
+      final parts = targetNum.split('-');
+      if (parts.isNotEmpty) inputStart = int.tryParse(parts[0]);
+    } else {
+      inputStart = int.tryParse(targetNum);
+    }
+
+    if (inputStart == null) return null;
+
+    // Cari di map
+    for (final key in _tafsirSectionMap.keys) {
+      int? keyStart;
+      int? keyEnd;
+
+      if (key.contains('-')) {
+        final parts = key.split('-');
+        if (parts.length == 2) {
+          final startStr = parts[0];
+          final endStr = parts[1];
+          keyStart = int.tryParse(startStr);
+
+          // Handle range pendek (101-3 -> 101-103)
+          if (endStr.length < startStr.length) {
+            final prefix = startStr.substring(
+              0,
+              startStr.length - endStr.length,
+            );
+            keyEnd = int.tryParse(prefix + endStr);
+          } else {
+            keyEnd = int.tryParse(endStr);
+          }
+        }
+      } else {
+        keyStart = int.tryParse(key);
+        keyEnd = keyStart;
+      }
+
+      if (keyStart != null && keyEnd != null) {
+        // Cek apakah input ada di dalam range key
+        if (inputStart >= keyStart && inputStart <= keyEnd) {
+          return _tafsirSectionMap[key];
+        }
+        // Cek sebaliknya (Key ada di dalam input range)
+        if (targetNum.contains('-') && keyStart == inputStart) {
+          return _tafsirSectionMap[key];
+        }
+      }
+    }
+    return null;
+  }
+
+  // 2. Fungsi Eksekusi Scroll
+  void _scrollToParagraph(String num, {bool showSnackBar = true}) {
+    if (!_itemScrollController.isAttached) return;
+
+    final index = _findTafsirSectionIndex(num);
+    //final colors = _currentStyle;
+    final colors = _currentStyle;
+
+    if (index != null) {
+      // ✅ 1. KASUS KETEMU (SUKSES)
+      _itemScrollController.jumpTo(index: index, alignment: 0.15);
+
+      if (showSnackBar) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Melompat ke bagian §$num",
+              style: TextStyle(color: colors.bg),
+            ),
+            duration: const Duration(milliseconds: 800),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: colors.text,
+            margin: EdgeInsets.only(
+              bottom: _getSnackBarBottomMargin(),
+              left: 16,
+              right: 16,
+            ),
+          ),
+        );
+      }
+    } else {
+      // ❌ 2. KASUS GAK KETEMU (ERROR)
+
+      // Filter regex angka biar gak error aneh
+      if (!RegExp(r'^\d').hasMatch(num)) return;
+
+      // Logic Anti-Spam Error
+      if (_lastErrorTime != null &&
+          DateTime.now().difference(_lastErrorTime!) <
+              const Duration(seconds: 2)) {
+        return;
+      }
+      _lastErrorTime = DateTime.now();
+
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.info_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Tak ada penjelas spesifik untuk bagian §$num",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: _getSnackBarBottomMargin(),
+            left: 16,
+            right: 16,
+          ),
+          duration: const Duration(seconds: 4), // Lama dikit biar sempet mencet
+          // 🔥 TOMBOL KEMBALI DI UJUNG KANAN
+          action: SnackBarAction(
+            label: 'Kembali',
+            textColor: Colors.white,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            onPressed: () {
+              // 🔥 NAVIGASI BALIK DENGAN MEMBAWA NOMOR PARAGRAF
+              // "Bang, anterin balik ke Mula, terus langsung scroll ke nomor ini ya!"
+              _navigateTafsirInternal(
+                widget.uid,
+                TafsirType.mul,
+                targetParamNum: num, // <--- Kirim nomor '115'-nya ke sini
+              );
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  // A. Dialog Switcher (Muncul pas klik nomor paragraf di teks)
+  // 🔥 UI BARU: Dialog Ganti Versi (Tampilan Tafsir Style)
+  void _showTafsirSwitcherDialog(String num) {
+    final bool showTikaButton = TafsirService().hasTika(widget.uid); // Cek dulu
+
+    // Tentukan tipe sekarang (default Mula kalau gak kedeteksi)
+    TafsirType currentType = TafsirType.mul;
+    final titleLower =
+        widget.textData?["root_text"]?["title"]?.toString().toLowerCase() ?? "";
+    if (titleLower.contains("aṭṭhakathā")) {
+      currentType = TafsirType.att;
+    } else if (titleLower.contains("ṭīkā")) {
+      currentType = TafsirType.tik;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          scrollable: true,
+          backgroundColor: colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Bagian §$num',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Jika ada, buka penjelas/komentar bagian ini di kitab:',
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 16),
+              _buildNavButton(
+                ctx,
+                icon: Icons.book_outlined,
+                label: 'Mūla',
+                subtitle: 'Kitab Induk',
+                isActive: currentType == TafsirType.mul,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _navigateTafsirInternal(
+                    widget.uid,
+                    TafsirType.mul,
+                    targetParamNum: num,
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildNavButton(
+                ctx,
+                icon: Icons.comment_outlined,
+                label: 'Aṭṭhakathā',
+                subtitle: 'Kitab Komentar',
+                isActive: currentType == TafsirType.att,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _navigateTafsirInternal(
+                    widget.uid,
+                    TafsirType.att,
+                    targetParamNum: num,
+                  );
+                },
+              ),
+              if (showTikaButton) const SizedBox(height: 8),
+              if (showTikaButton)
+                _buildNavButton(
+                  ctx,
+                  icon: Icons.layers_outlined,
+                  label: 'Ṭīkā',
+                  subtitle: 'Kitab Subkomentar',
+                  isActive: currentType == TafsirType.tik,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _navigateTafsirInternal(
+                      widget.uid,
+                      TafsirType.tik,
+                      targetParamNum: num,
+                    );
+                  },
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Tutup'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _handleWordLookup(String text) {
+    if (text.isEmpty) return;
+
+    // 🔥 Cuma butuh context sama text doang
+    PaliDictionaryManager.show(context, text: text);
+  }
+
+  // 2. Replace fungsi _handleAiTranslation
+  void _handleAiTranslation(String text) {
+    if (text.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AITranslationSheet(text: text),
+    );
   }
 
   // ✅ HELPER BARU: SATU PINTU UNTUK SEMUA NAVIGASI MENU
@@ -913,6 +2111,106 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
+  // ============================================================
+  // 📖 ENGINE KHUSUS TAFSIR (CSCD VRI)
+  // Dipanggil kalau user lagi baca Mula/Att/Tik
+  // ============================================================
+  Future<void> _navigateTafsirInternal(
+    String targetUid,
+    TafsirType type, {
+    String? targetParamNum,
+    bool isNextPrevAction = false, // Parameter penting buat Back Button
+  }) async {
+    setState(() => _isLoading = true);
+
+    try {
+      String titlePrefix = type == TafsirType.mul
+          ? "Mūla"
+          : (type == TafsirType.att ? "Aṭṭhakathā" : "Ṭīkā");
+
+      // Tarik konten HTML tafsir
+      final html = await TafsirService().getContent2(targetUid, type: type);
+
+      if (html == null || html.trim().isEmpty || html.length < 50) {
+        throw Exception("Konten tafsir kosong");
+      }
+
+      // Bikin data palsu (Mock Data) biar SuttaDetail bisa baca
+      final fakeData = {
+        "uid": targetUid,
+        "is_tafsir": true,
+        "segmented": false,
+        "root_text": {
+          "title": "$titlePrefix (Tafsir)",
+          "text": html,
+          "lang": "pli",
+        },
+        "suttaplex": _canonicalSuttaplex,
+        "target_paragraph": targetParamNum,
+      };
+
+      if (!mounted) return;
+
+      // Push halaman baru
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, _, _) => SuttaDetail(
+            uid: targetUid,
+            lang: 'pli',
+            textData: fakeData,
+
+            // 🔥 LOGIC BACK BUTTON:
+            // Kalau ini aksi Next/Prev, paksa true biar History nyambung.
+            // Kalau cuma ganti Tab (M/A/T), ikut status sebelumnya.
+            isNavigated: isNextPrevAction || widget.isNavigated,
+
+            entryPoint: widget.entryPoint,
+            targetParaNum: targetParamNum,
+          ),
+          transitionsBuilder: (_, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      );
+    } catch (e) {
+      debugPrint("Gagal load tafsir: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+        final typeName = type == TafsirType.att
+            ? "Aṭṭhakathā"
+            : (type == TafsirType.tik ? "Ṭīkā" : "Mūla");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Maaf, $typeName untuk $targetUid tidak tersedia."),
+            backgroundColor: Colors.grey[800],
+            behavior: SnackBarBehavior.floating,
+            // Pake helper margin biar gak ketutup menu
+            margin: EdgeInsets.only(
+              bottom: _getSnackBarBottomMargin(),
+              left: 16,
+              right: 16,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  // Wrapper buat tombol Back di UI
+  Future<void> _onBackPressed() async {
+    if (_isLoading) return;
+    final navigator = Navigator.of(context);
+
+    // Panggil logic pengecekan (dialog konfirmasi, reset stack, dll)
+    final allow = await _handleBackReplace();
+
+    // Kalau diizinkan (allow == true), baru pop
+    if (allow && mounted) {
+      navigator.pop();
+    }
+  }
+
   Future<bool> _handleBackReplace() async {
     // 1. Resolve Parent Vagga (Logika Backend)
     if (_parentVaggaId == null) {
@@ -933,6 +2231,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
       builder: (ctx) {
         // ✅ Use 'ctx' NOT 'context'
         final colorScheme = Theme.of(ctx).colorScheme; // ✅ FIXED
+
+        final bool showTikaButton = TafsirService().hasTika(
+          widget.uid,
+        ); // Cek dulu
 
         return AlertDialog(
           backgroundColor: colorScheme.surface,
@@ -993,28 +2295,55 @@ class _SuttaDetailState extends State<SuttaDetail> {
                             color: colorScheme.onSurface,
                             height: 1.4,
                           ),
-                          children: [
-                            const TextSpan(
-                              text: "Ingin ganti versi teks? Gunakan ",
-                            ),
-                            WidgetSpan(
-                              alignment: PlaceholderAlignment.middle,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
-                                ),
-                                child: Icon(
-                                  Icons.translate_rounded, // Icon Buku
-                                  size: 16,
-                                  // ✅ WARNA OTOMATIS (Hitam di Light, Putih di Dark)
-                                  color: colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                            const TextSpan(
-                              text: " di menu bawah tanpa perlu keluar.",
-                            ),
-                          ],
+                          children: _isTafsirMode
+                              ? [
+                                  // 🔥 TIPS KHUSUS TAFSIR / CSCD
+                                  const TextSpan(
+                                    text:
+                                        "Ingin lompat ke bagian tertentu? Gunakan ",
+                                  ),
+                                  WidgetSpan(
+                                    alignment: PlaceholderAlignment.middle,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: Icon(
+                                        Icons.link, // Ikon Rantai
+                                        size: 16,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    // Hapus 'const' di sini karena teksnya sekarang dinamis
+                                    text:
+                                        " di menu bawah. Ketuk §# atau M|A${showTikaButton ? '|Ṭ' : ''} di atas untuk akses cepat.",
+                                  ),
+                                ]
+                              : [
+                                  // 🔥 TIPS STANDARD (SUTTA BIASA)
+                                  const TextSpan(
+                                    text:
+                                        "Ingin ganti versi atau tandai teks? Gunakan ",
+                                  ),
+                                  WidgetSpan(
+                                    alignment: PlaceholderAlignment.middle,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: Icon(
+                                        Icons.translate_rounded,
+                                        size: 16,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: " di menu bawah tanpa perlu keluar.",
+                                  ),
+                                ],
                         ),
                       ),
                     ),
@@ -1152,7 +2481,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     return false; // Kita handle navigasi manual, jadi return false
   }
 
-  void _replaceToRoute(String route, {bool slideFromLeft = false}) {
+  void _replaceToRoute(String route) {
     Widget targetPage;
 
     if (route.startsWith('/vagga/')) {
@@ -1173,13 +2502,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
+  // ============================================================
+  // 🚜 ENGINE: FUNGSI PEMUAT HALAMAN (REUSABLE)
+  // Dipakai oleh: Next/Prev, Modal Suttaplex, dan Retry Koneksi
+  // ============================================================
   Future<void> _replaceToSutta(
     String newUid,
     String lang, {
     required String authorUid,
     required bool segmented,
     Map<String, dynamic>? textData,
-    bool slideFromLeft = false,
+    bool isNext = true, // Default animasi slide dari kanan (Next)
+    bool isNavigatedAction = false, // Flag kalau ini hasil pencetan Next/Prev
   }) async {
     setState(() {
       _isLoading = true;
@@ -1187,6 +2521,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     });
 
     try {
+      // 1. Fetch Data (Kalau belum ada textData)
       final data =
           textData ??
           await SuttaService.fetchFullSutta(
@@ -1197,18 +2532,37 @@ class _SuttaDetailState extends State<SuttaDetail> {
             siteLanguage: "id",
           );
 
-      final Map<String, dynamic> mergedData;
-
-      if (textData != null) {
-        mergedData = data;
+      // 2. Validasi Author (Server kadang bandel)
+      // Kalau request 'bodhi' dikasih 'sujato', kita validasi di sini
+      String? fetchedAuthor;
+      if (segmented) {
+        if (data["translation_text"] is Map) {
+          fetchedAuthor = data["translation_text"]["author_uid"]?.toString();
+        }
       } else {
-        mergedData = {...data, "suttaplex": widget.textData?["suttaplex"]};
+        fetchedAuthor = data["translation"]?["author_uid"]?.toString();
       }
 
+      if (authorUid != "ms" &&
+          fetchedAuthor != null &&
+          fetchedAuthor != authorUid) {
+        // Opsional: Throw error atau biarkan (silent fallback)
+        // throw Exception("Author mismatch");
+      }
+
+      // 3. Merge Data
+      final Map<String, dynamic> mergedData = {
+        ...data,
+        "segmented": segmented,
+        "suttaplex": data["suttaplex"] ?? widget.textData?["suttaplex"],
+      };
+
+      // 4. Update Tracking Vagga
       await _processVaggaTracking(mergedData, newUid);
 
       if (!mounted) return;
 
+      // 5. Push Route
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -1219,12 +2573,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
             textData: mergedData,
             openedFromSuttaDetail: true,
             originalSuttaUid: null,
-            entryPoint: widget.entryPoint, // ✅ Forward entry point
+            entryPoint: widget.entryPoint,
+            // 🔥 PENTING: Flag ini biar tombol Back tau history-nya
+            isNavigated: isNavigatedAction || widget.isNavigated,
           ),
           transitionsBuilder: (_, animation, _, child) {
-            final offsetBegin = slideFromLeft
-                ? const Offset(-1, 0)
-                : const Offset(1, 0);
+            // Logic Animasi:
+            // Next -> Slide dari Kanan (Offset 1,0)
+            // Prev -> Slide dari Kiri (Offset -1,0)
+            final offsetBegin = isNext
+                ? const Offset(1, 0)
+                : const Offset(-1, 0);
             final tween = Tween(
               begin: offsetBegin,
               end: Offset.zero,
@@ -1236,22 +2595,27 @@ class _SuttaDetailState extends State<SuttaDetail> {
           },
         ),
       );
+
+      if (lang == "en") _showEnFallbackBanner();
     } catch (e) {
       debugPrint("❌ Error _replaceToSutta: $e");
-      if (e is SocketException || e.toString().contains("SocketException")) {
-        if (mounted) setState(() => _connectionError = true);
-      } else {
-        _replaceToRoute('/suttaplex/$newUid', slideFromLeft: slideFromLeft);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (e.toString().contains("SocketException")) {
+          setState(() => _connectionError = true);
+        } else {
+          // Fallback ke suttaplex kalau gagal total
+          _replaceToRoute('/suttaplex/$newUid');
+        }
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<String?> _resolveVaggaUid(String suttaUid) async {
     try {
-      final regex = RegExp(r'^([a-z]+(?:-[a-z]+)?)(\d+)(?:\.(\d+))?');
-      final match = regex.firstMatch(suttaUid.toLowerCase());
+      final match = SuttaTextHelper.vaggaUidRegex.firstMatch(
+        suttaUid.toLowerCase(),
+      );
 
       if (match == null) {
         return null;
@@ -1400,172 +2764,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
   }
 
-  // ============================================================
-  // 4. UPDATE NAVIGATE (Anti-Crash & Anti-Pindah Halaman)
-  // ============================================================
-  Future<void> _navigateToSutta({required bool isPrevious}) async {
-    setState(() {
-      _hasNavigatedBetweenSuttas = true;
-    });
-
-    final key = isPrevious ? "previous" : "next";
-    final navTarget = _getNavTarget(key);
-
-    if (navTarget == null || navTarget["uid"] == null) return;
-
-    final targetUid = navTarget["uid"].toString();
-    if (targetUid.trim().isEmpty) return;
-
-    // 1. TENTUKAN AUTHOR YANG DIMINTA (TARGET)
-    // 🔥 FIX PENTING: Prioritaskan Author yang lagi dibaca sekarang!
-    // Jangan percaya sama saran 'author_uid' dari tombol next/prev (kadang dia ngawur nyaranin orang lain)
-    String? currentAuthorUid = widget.textData?["author_uid"]?.toString();
-    if (currentAuthorUid == null && widget.textData?["translation"] != null) {
-      currentAuthorUid = widget.textData?["translation"]?["author_uid"]
-          ?.toString();
-    }
-
-    // Kalau kita lagi baca Bodhi, paksa targetnya Bodhi juga.
-    // Kecuali kita baru masuk (current null), baru pake saran dari navTarget.
-    String? targetAuthorUid =
-        currentAuthorUid ?? navTarget["author_uid"]?.toString();
-
-    // Kalau masih null juga, skip.
-    if (targetAuthorUid == null) return;
-
-    final segmented = widget.textData?["segmented"] == true;
-    final targetLang = segmented
-        ? widget.lang
-        : navTarget["lang"]?.toString() ?? widget.lang;
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = true;
-      _connectionError = false;
-    });
-
-    try {
-      // 2. TARIK DATA DARI SERVER
-      final data = await SuttaService.fetchFullSutta(
-        uid: targetUid,
-        authorUid: targetAuthorUid,
-        lang: targetLang,
-        segmented: segmented,
-        siteLanguage: "id",
-      );
-
-      if (!mounted) return;
-
-      // 3. 🔥 CEK APAKAH SERVER JUJUR? (VALIDASI AUTHOR)
-      // Kita harus bongkar data aslinya. Apakah author_uid di dalamnya SAMA dengan yang kita minta?
-      String? fetchedAuthor;
-
-      if (segmented) {
-        // Cek di translation_text (biasanya author translation ada di sini)
-        if (data["translation_text"] is Map) {
-          fetchedAuthor = data["translation_text"]["author_uid"]?.toString();
-        }
-        // Kalau gak ada translation (baca Root Pali doang), cek root_text
-        else if (data["root_text"] is Map) {
-          fetchedAuthor = data["root_text"]["author_uid"]?.toString();
-        }
-      } else {
-        // Non-segmented (Legacy HTML kayak Bodhi)
-        fetchedAuthor = data["translation"]?["author_uid"]?.toString();
-      }
-
-      // 🛑 SATPAM BERAKSI:
-      // Kalau kita minta 'bodhi' tapi dikasih 'sujato' (dan kita emang request spesifik author), TOLAK!
-      // (Kecuali targetAuthorUid itu 'ms' alias root text, biasanya aman)
-      if (targetAuthorUid != "ms" &&
-          fetchedAuthor != null &&
-          fetchedAuthor != targetAuthorUid) {
-        debugPrint(
-          "⛔ Author Mismatch! Minta: $targetAuthorUid, Dikasih: $fetchedAuthor. BATALKAN.",
-        );
-        throw Exception(
-          "Author mismatch",
-        ); // Lempar ke catch biar muncul snackbar
-      }
-
-      // Cek ketersediaan konten (Basic check)
-      final hasTranslation = segmented
-          ? (data["translation_text"] != null || data["root_text"] != null)
-          : (data["translation"] != null || data["root_text"] != null);
-
-      if (!hasTranslation) {
-        throw Exception("Content missing");
-      }
-
-      // 4. DATA VALID, LANJUT PINDAH HALAMAN
-      final mergedData = {
-        ...data,
-        "segmented": segmented,
-        "suttaplex": data["suttaplex"] ?? widget.textData?["suttaplex"],
-      };
-
-      await _processVaggaTracking(mergedData, targetUid);
-
-      if (!mounted || !context.mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          settings: RouteSettings(name: '/sutta/$targetUid'),
-          pageBuilder: (_, _, _) => SuttaDetail(
-            uid: targetUid,
-            lang: targetLang,
-            textData: mergedData,
-            openedFromSuttaDetail: true,
-            originalSuttaUid: null,
-            entryPoint: widget.entryPoint,
-            isNavigated: true,
-          ),
-          transitionsBuilder: (_, animation, _, child) {
-            final offsetBegin = isPrevious
-                ? const Offset(-1, 0)
-                : const Offset(1, 0);
-            final tween = Tween(
-              begin: offsetBegin,
-              end: Offset.zero,
-            ).chain(CurveTween(curve: Curves.easeInOut));
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-        ),
-      );
-
-      if (targetLang == "en") _showEnFallbackBanner();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      if (e.toString().contains("SocketException") || e is SocketException) {
-        final bottomMargin = _getSnackBarBottomMargin();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Gagal memuat. Periksa internet."),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.only(left: 16, right: 16, bottom: bottomMargin),
-          ),
-        );
-      } else {
-        // 🔥 INI YANG AKAN MUNCUL:
-        // "Teks MN 5 (en) oleh bodhi tak tersedia..."
-        _showSuttaSnackBar(
-          SuttaSnackType.translatorFallback,
-          uid: targetUid,
-          lang: targetLang,
-          author: targetAuthorUid,
-        );
-      }
-    }
-  }
-
   // 🔥 HELPER BARU: Hitung posisi notif biar gak ketutupan menu
   double _getSnackBarBottomMargin() {
     // Margin dasar dari bawah layar
@@ -1677,6 +2875,21 @@ class _SuttaDetailState extends State<SuttaDetail> {
           const TextSpan(text: "Navigasi dimatikan pada mode Tematik."),
         ];
         break;
+
+      // TAMBAHIN CASE INI:
+      case SuttaSnackType.disabledTafsir:
+        bgColor = Colors.grey.shade800;
+        contentSpans = [
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(Icons.info_outline, color: Colors.white, size: 18),
+            ),
+          ),
+          const TextSpan(text: "Navigasi dimatikan pada mode CSCD VRI."),
+        ];
+        break;
     }
 
     // 🔥 AMBIL MARGIN DINAMIS
@@ -1708,26 +2921,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
         duration: const Duration(seconds: 3),
       ),
     );
-  }
-
-  void _goToPrevSutta() {
-    // _hasNavigatedBetweenSuttas = true; // ← Set true
-    // Cek kalau dari Tematik
-    if (widget.entryPoint == "tematik") {
-      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
-      return;
-    }
-    _navigateToSutta(isPrevious: true);
-  }
-
-  void _goToNextSutta() {
-    //_hasNavigatedBetweenSuttas = true; // ← Set true
-    // Cek kalau dari Tematik
-    if (widget.entryPoint == "tematik") {
-      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
-      return;
-    }
-    _navigateToSutta(isPrevious: false);
   }
 
   // ============================================================
@@ -1765,42 +2958,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
   void didUpdateWidget(covariant SuttaDetail oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // Kalau data teks berubah (misal ganti bahasa di modal suttaplex)
     if (widget.textData != oldWidget.textData) {
       setState(() {
-        _htmlSegments.clear();
-        _tocList.clear();
-
-        final hasTranslationMap =
-            widget.textData?["translation_text"] is Map &&
-            (widget.textData!["translation_text"] as Map).isNotEmpty;
-        final keysOrder = widget.textData?["keys_order"] is List
-            ? List<String>.from(widget.textData!["keys_order"])
-            : (widget.textData?["segments"] as Map?)?.keys.toList() ?? [];
-
-        final isSegmented = hasTranslationMap && keysOrder.isNotEmpty;
-
-        if (!isSegmented) {
-          String rawHtml = "";
-          if (widget.textData?["translation_text"] is Map &&
-              widget.textData!["translation_text"].containsKey("text")) {
-            final transMap = Map<String, dynamic>.from(
-              widget.textData!["translation_text"],
-            );
-            final sutta = NonSegmentedSutta.fromJson(transMap);
-            rawHtml = HtmlUnescape().convert(sutta.text);
-          } else if (widget.textData?["root_text"] is Map &&
-              widget.textData!["root_text"].containsKey("text")) {
-            final root = Map<String, dynamic>.from(
-              widget.textData!["root_text"],
-            );
-            final sutta = NonSegmentedSutta.fromJson(root);
-            rawHtml = HtmlUnescape().convert(sutta.text);
-          }
-
-          if (rawHtml.isNotEmpty) {
-            _parseHtmlAndGenerateTOC(rawHtml);
-          }
-        }
+        // 🔥 CUKUP PANGGIL INI AJA:
+        _processNewTextData();
       });
     }
   }
@@ -1812,12 +2974,15 @@ class _SuttaDetailState extends State<SuttaDetail> {
     String comm,
     double fontSize,
   ) {
+    // ✅ VALIDASI: Kalau comm null/kosong, return widget kosong
+    if (comm.isEmpty) {
+      return const WidgetSpan(child: SizedBox.shrink());
+    }
+
     // Format baris baru di komentar
     final formattedComm = comm.replaceAll('|', '<br><br>');
-    // final bool isLandscape =
-    //    MediaQuery.orientationOf(context) == Orientation.landscape;
+
     return WidgetSpan(
-      // Alignment middle biar widget-nya dianggap sebaris dulu
       alignment: PlaceholderAlignment.middle,
       child: GestureDetector(
         onTap: () {
@@ -1856,22 +3021,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
         },
         child: SelectionContainer.disabled(
           child: Padding(
-            // Padding kiri dikit aja (2.0) biar ga nempel banget sama huruf terakhir,
-            // tapi tetep keliatan "nyatu"
             padding: const EdgeInsets.only(left: 0.1),
-            //  child:
-            // Transform.translate(
-            // ✅ INI DIA: Geser ke atas (Superscript)
-            //  offset: const Offset(0, -1),
             child: Text(
               "[note]",
               style: TextStyle(
                 color: Colors.red,
                 fontWeight: FontWeight.w100,
-                // Ukuran font kecil (60% dari font utama)
                 fontSize: fontSize * 0.6,
               ),
-              //),
             ),
           ),
         ),
@@ -1882,10 +3039,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
   @override
   void dispose() {
     _debounce?.cancel();
-    //_autoHideTimer?.cancel();
     _searchController.dispose();
     _cachedSearchRegex = null;
-    //_itemPositionsListener.itemPositions.removeListener(_handleScrollChange);
+
+    _itemPositionsListener.itemPositions.removeListener(
+      _updateVisibleParagraph,
+    );
+
+    _scrollProgressVN.dispose();
+    _viewportRatioVN.dispose();
+    _visibleParaNumVN.dispose();
+    _showFloatingBtnVN.dispose();
+
     super.dispose();
   }
 
@@ -1899,11 +3064,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final isHeader = headerRegex.hasMatch(verseNum);
     final isH3 = isHeader && !isH1 && !isH2;
 
-    final colors = _themeColors;
-    final mainTextColor = colors['text']!;
+    final colors = _currentStyle;
+    final mainTextColor = colors.text;
 
     // 🔥 INI KUNCINYA: Ambil warna Pali dari tema
-    final paliThemeColor = colors['pali']!;
+    final paliThemeColor = colors.pali;
 
     // Logic: Kalau mode Pali Only, judul pake warna teks biasa biar tegas.
     // Tapi kalau ada terjemahan (segmented), judul Pali pake warna Pali.
@@ -2008,15 +3173,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final isTransEmpty = trans.trim().isEmpty;
     final comm = commentarySegs[key] ?? "";
 
-    final query = _searchController.text.trim();
-    final int paliMatchCount = (query.length >= 2 && _cachedSearchRegex != null)
-        ? _cachedSearchRegex!
-              .allMatches(pali.replaceAll(RegExp(r'<[^>]*>'), '').toLowerCase())
-              .length
-        : 0;
-
-    // ✅ FIX: Kalau Teks Pali Only tapi user pilih Translation Only,
-    // Paksa pindah ke LineByLine biar tetep kebaca
     ViewMode effectiveViewMode = _viewMode;
     if (_isRootOnly) {
       effectiveViewMode = ViewMode.lineByLine;
@@ -2033,7 +3189,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
           trans,
           isTransEmpty,
           comm,
-          paliMatchCount,
         );
       case ViewMode.sideBySide:
         return _buildLayoutSideBySide(
@@ -2043,128 +3198,11 @@ class _SuttaDetailState extends State<SuttaDetail> {
           trans,
           isTransEmpty,
           comm,
-          paliMatchCount,
         );
     }
   }
 
   // ✅ HELPER RENDER HTML DENGAN HIGHLIGHT
-  Widget _buildHtmlText(
-    String text,
-    TextStyle baseStyle,
-    int listIndex,
-    bool isPali, // ✅ Pastikan parameternya bool isPali
-  ) {
-    // 1. Inject tag <x-highlight>
-    final contentWithHighlight = _injectSearchHighlights(
-      text,
-      listIndex,
-      isPali,
-    );
-
-    return Html(
-      data: contentWithHighlight,
-
-      // 2. Extension buat render <x-highlight> jadi kotak warna
-      extensions: [
-        TagExtension(
-          tagsToExtend: {"x-highlight"},
-          builder: (extensionContext) {
-            final attrs = extensionContext.attributes;
-            final isGlobalActive = attrs['data-active'] == 'true';
-
-            final key = GlobalKey();
-            if (isGlobalActive) {
-              if (_allMatches.isNotEmpty &&
-                  _currentMatchIndex < _allMatches.length) {
-                _searchKeys[_currentMatchIndex] = key;
-              }
-            }
-
-            // 🔥 FIX: AMBIL UKURAN FONT DARI ELEMENT INDUKNYA (H1/H2/P)
-            // Biar gak mengecil pas di-highlight di judul
-            final style = extensionContext.styledElement?.style;
-            double? currentFontSize = style?.fontSize?.value;
-
-            // Fallback kalau null, pake ukuran default body
-            currentFontSize ??= _fontSize;
-
-            return Container(
-              key: isGlobalActive ? key : null,
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              decoration: BoxDecoration(
-                color: isGlobalActive ? Colors.orange : Colors.yellow,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              // Gunakan Transform buat benerin posisi teks yang kadang agak turun
-              child: Transform.translate(
-                offset: const Offset(0, 1),
-                child: Text(
-                  extensionContext.element!.text,
-                  style: TextStyle(
-                    color: isGlobalActive ? Colors.white : Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize:
-                        currentFontSize, // 👈 PENTING: Ikutin ukuran induk
-                    height: 1.0, // Reset line height biar kotaknya pas
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-
-      // 3. Style standar (Header, Body, dll)
-      style: {
-        "body": Style(
-          fontFamily: _currentFontFamily,
-          fontSize: FontSize(baseStyle.fontSize ?? _fontSize),
-          fontWeight: baseStyle.fontWeight,
-          color: baseStyle.color,
-          margin: Margins.zero,
-          padding: HtmlPaddings.zero,
-          lineHeight: LineHeight(_lineHeight),
-          fontStyle: baseStyle.fontStyle,
-        ),
-        ".ref": Style(
-          fontSize: FontSize.smaller,
-          color: Colors.grey,
-          textDecoration: TextDecoration.none,
-          verticalAlign: VerticalAlign.sup,
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-          margin: Margins.only(right: 4),
-          padding: HtmlPaddings.symmetric(horizontal: 2, vertical: 0),
-          display: Display.inlineBlock,
-        ),
-        "header": Style(
-          display: Display.block,
-          margin: Margins.only(bottom: 20),
-        ),
-        "header ul": Style(
-          listStyleType: ListStyleType.none,
-          padding: HtmlPaddings.zero,
-          margin: Margins.zero,
-        ),
-        "header li": Style(
-          textAlign: TextAlign.center,
-          color: Colors.grey,
-          fontSize: FontSize.medium,
-          fontWeight: FontWeight.bold,
-          display: Display.block,
-          margin: Margins.only(bottom: 4),
-        ),
-        ".division": Style(
-          textAlign: TextAlign.center,
-          color: Colors.grey,
-          fontWeight: FontWeight.bold,
-          display: Display.block,
-          margin: Margins.symmetric(vertical: 12),
-        ),
-        "footer": Style(display: Display.none),
-      },
-    );
-  }
 
   Widget _buildLayoutTransOnly(
     SuttaHeaderConfig config,
@@ -2182,43 +3220,36 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: 8, top: config.topPadding),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildVerseNumber(config),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text.rich(
-                  TextSpan(
-                    style: baseStyle,
-                    children: [
-                      // ✅ FIX: Gunakan helper baru
-                      if (isTransEmpty)
-                        TextSpan(text: "...", style: baseStyle)
-                      else
-                        ..._parseHtmlToSpansWithHighlight(
-                          trans,
-                          baseStyle,
-                          index,
-                          false, // Translation only, jadi start dari 0
-                        ),
+      child: Text.rich(
+        TextSpan(
+          style: baseStyle,
+          children: [
+            // 👇 NOMOR PARAGRAF (INLINE SPAN)
+            _buildVerseNumberSpan(config),
 
-                      if (comm.isNotEmpty)
-                        _buildCommentSpan(
-                          context,
-                          comm,
-                          config.transStyle.fontSize ?? _fontSize,
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+            // 👇 TEKS TERJEMAHAN
+            if (isTransEmpty)
+              TextSpan(text: "...", style: baseStyle)
+            else
+              ...SuttaTextHelper.parseHtmlToSpansWithHighlight(
+                trans,
+                baseStyle,
+                index,
+                false,
+                _cachedSearchRegex,
+                _allMatches,
+                _currentMatchIndex,
+              ),
+
+            // ✅ PENTING: Validasi comm sebelum panggil _buildCommentSpan
+            if (comm.isNotEmpty)
+              _buildCommentSpan(
+                context,
+                comm,
+                config.transStyle.fontSize ?? _fontSize,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -2230,71 +3261,87 @@ class _SuttaDetailState extends State<SuttaDetail> {
     String trans,
     bool isTransEmpty,
     String comm,
-    int paliMatchCount,
   ) {
     final isPe = pali == "..." && !config.isH1 && !config.isH2 && !config.isH3;
     final finalPaliStyle = config.paliStyle.copyWith(
       fontStyle: isPe ? FontStyle.italic : FontStyle.normal,
-      color: isPe ? Colors.grey : config.paliStyle.color,
+      color: isPe
+          ? _currentStyle.text.withValues(alpha: 0.3)
+          : config.paliStyle.color,
     );
 
     final baseTransStyle = isTransEmpty
         ? config.transStyle.copyWith(
-            color: Colors.grey,
+            color: _currentStyle.text.withValues(alpha: 0.3),
             fontStyle: FontStyle.italic,
           )
         : config.transStyle;
 
     return Padding(
       padding: EdgeInsets.only(bottom: 12, top: config.topPadding),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildVerseNumber(config),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Pali text (sudah OK)
-                _buildHtmlText(pali, finalPaliStyle, index, true),
-                const SizedBox(height: 4),
+          // 👇 PALI TEXT (DENGAN NOMOR INLINE)
+          // Kita gabung nomor + pali di sini pake parseHtmlToSpansWithHighlight
+          // TAPI kita inject nomornya di awal children
+          Builder(
+            builder: (context) {
+              // Parse Pali jadi spans dulu
+              final paliSpans = SuttaTextHelper.parseHtmlToSpansWithHighlight(
+                pali,
+                finalPaliStyle,
+                index,
+                true,
+                _cachedSearchRegex,
+                _allMatches,
+                _currentMatchIndex,
+              );
 
-                // Translation text
-                if (!_isRootOnly)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text.rich(
-                        TextSpan(
-                          style: baseTransStyle,
-                          children: [
-                            // ✅ FIX: Gunakan helper baru yang support highlight
-                            if (isTransEmpty)
-                              TextSpan(text: "...", style: baseTransStyle)
-                            else
-                              ..._parseHtmlToSpansWithHighlight(
-                                trans,
-                                baseTransStyle,
-                                index,
-                                false, // ✅ Offset dari pali matches
-                              ),
-
-                            // Comment span (tidak berubah)
-                            if (comm.isNotEmpty)
-                              _buildCommentSpan(
-                                context,
-                                comm,
-                                config.transStyle.fontSize ?? _fontSize,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
+              return Text.rich(
+                TextSpan(
+                  style: finalPaliStyle,
+                  children: [
+                    // 👇 NOMOR DI DEPAN
+                    _buildVerseNumberSpan(config),
+                    // 👇 TEKS PALI
+                    ...paliSpans,
+                  ],
+                ),
+              );
+            },
           ),
+
+          const SizedBox(height: 4),
+
+          // 👇 TERJEMAHAN (TANPA NOMOR)
+          if (!_isRootOnly)
+            Text.rich(
+              TextSpan(
+                style: baseTransStyle,
+                children: [
+                  if (isTransEmpty)
+                    TextSpan(text: "...", style: baseTransStyle)
+                  else
+                    ...SuttaTextHelper.parseHtmlToSpansWithHighlight(
+                      trans,
+                      baseTransStyle,
+                      index,
+                      false,
+                      _cachedSearchRegex,
+                      _allMatches,
+                      _currentMatchIndex,
+                    ),
+
+                  if (comm.isNotEmpty)
+                    _buildCommentSpan(
+                      context,
+                      comm,
+                      config.transStyle.fontSize ?? _fontSize,
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -2307,12 +3354,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
     String trans,
     bool isTransEmpty,
     String comm,
-    int paliMatchCount,
   ) {
     final isPe = pali == "..." && !config.isH1 && !config.isH2 && !config.isH3;
     final finalPaliStyle = config.paliStyle.copyWith(
       fontStyle: isPe ? FontStyle.italic : FontStyle.normal,
-      color: isPe ? Colors.grey : config.paliStyle.color,
+      color: isPe
+          ? _currentStyle.text.withValues(alpha: 0.3)
+          : config.paliStyle.color,
     );
 
     if (_isRootOnly || config.isH1 || config.isH2 || config.isH3) {
@@ -2323,20 +3371,15 @@ class _SuttaDetailState extends State<SuttaDetail> {
         trans,
         isTransEmpty,
         comm,
-        paliMatchCount,
       );
     }
-    // 1. CEK ORIENTASI
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
 
-    // 2. TENTUKAN FLEX
     final int paliFlex = 1;
-    final int transFlex = isLandscape ? 1 : 2; // Landscape 50-50, Portrait 1:2
+    final int transFlex = 1;
 
     final baseTransStyle = isTransEmpty
         ? config.transStyle.copyWith(
-            color: Colors.grey,
+            color: _currentStyle.text.withValues(alpha: 0.3),
             fontStyle: FontStyle.italic,
           )
         : config.transStyle;
@@ -2348,50 +3391,74 @@ class _SuttaDetailState extends State<SuttaDetail> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 👇 KOLOM PALI (DENGAN NOMOR INLINE)
               Expanded(
                 flex: paliFlex,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildVerseNumber(config),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: _buildHtmlText(pali, finalPaliStyle, index, true),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: transFlex,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text.rich(
-                      TextSpan(
-                        style: baseTransStyle,
-                        children: [
-                          // ✅ FIX: Gunakan helper baru
-                          if (isTransEmpty)
-                            TextSpan(text: "...", style: baseTransStyle)
-                          else
-                            ..._parseHtmlToSpansWithHighlight(
-                              trans,
-                              baseTransStyle,
-                              index,
-                              true, // ✅ Offset dari pali matches
-                            ),
+                child: Builder(
+                  builder: (context) {
+                    // 🔥 EXTRACT TEXT DARI HTML DULU
+                    String cleanPali = pali
+                        .replaceAll(SuttaTextHelper.htmlTagRegex, '')
+                        .trim();
 
-                          if (comm.isNotEmpty)
-                            _buildCommentSpan(
-                              context,
-                              comm,
-                              config.transStyle.fontSize ?? _fontSize,
-                            ),
+                    // Parse jadi TextSpan dengan highlight
+                    final paliSpans =
+                        SuttaTextHelper.parseHtmlToSpansWithHighlight(
+                          cleanPali,
+                          finalPaliStyle,
+                          index,
+                          true,
+                          _cachedSearchRegex,
+                          _allMatches,
+                          _currentMatchIndex,
+                        );
+
+                    return Text.rich(
+                      TextSpan(
+                        style: finalPaliStyle,
+                        children: [
+                          // 👇 NOMOR INLINE (PAKE HELPER BARU)
+                          _buildVerseNumberSpan(config),
+
+                          // 👇 TEKS PALI
+                          ...paliSpans,
                         ],
                       ),
-                    ),
-                  ],
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // 👇 KOLOM TERJEMAHAN (TANPA NOMOR)
+              Expanded(
+                flex: transFlex,
+                child: Text.rich(
+                  TextSpan(
+                    style: baseTransStyle,
+                    children: [
+                      if (isTransEmpty)
+                        TextSpan(text: "...", style: baseTransStyle)
+                      else
+                        ...SuttaTextHelper.parseHtmlToSpansWithHighlight(
+                          trans,
+                          baseTransStyle,
+                          index,
+                          true,
+                          _cachedSearchRegex,
+                          _allMatches,
+                          _currentMatchIndex,
+                        ),
+
+                      if (comm.isNotEmpty)
+                        _buildCommentSpan(
+                          context,
+                          comm,
+                          config.transStyle.fontSize ?? _fontSize,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -2402,27 +3469,57 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
-  Widget _buildVerseNumber(SuttaHeaderConfig config) {
-    // ✅ FIX: Ambil warna note/nomor dari tema
-    final noteColor = _themeColors['note'];
+  InlineSpan _buildVerseNumberSpan(SuttaHeaderConfig config) {
+    // 🔥 KALAU USER MATIIN, RETURN KOSONG
+    if (!_showVerseNumbers) {
+      return const TextSpan(text: ''); // Kosong (invisible)
+    }
 
-    return SelectionContainer.disabled(
-      child: Padding(
-        padding: EdgeInsets.only(top: config.isH1 || config.isH2 ? 6.0 : 0.0),
-        child: Text(
-          config.verseNum,
-          style: TextStyle(
-            fontSize: 12,
-            //color: Theme.of(context).colorScheme.onSurfaceVariant,
-            color: noteColor, // ✅ Pake warna yang bener
-            height: 1.5,
+    final colors = _currentStyle;
+
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: SelectionContainer.disabled(
+        child: Container(
+          margin: const EdgeInsets.only(right: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0.5),
+          decoration: BoxDecoration(
+            color: colors.text.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(
+              color: colors.text.withValues(alpha: 0.3),
+              width: 0.8,
+            ),
+          ),
+          child: Text(
+            config.verseNum,
+            style: TextStyle(
+              fontSize: _fontSize * 0.50,
+              color: colors.text.withValues(alpha: 0.5),
+              fontWeight: FontWeight.w600,
+              height: 1,
+              letterSpacing: -0.2,
+            ),
           ),
         ),
       ),
     );
   }
 
+  // 🔥 VERSI BARU: INLINE DENGAN TEKS (UNSELECTABLE)
+
   Map<String, dynamic> _getMetadata() {
+    // 🔥 1. LOGIC KHUSUS TAFSIR (CSCD VRI)
+    if (_isTafsirMode) {
+      return {
+        "isSegmented": false,
+        "author": "CSCD VRI", // <--- INI HASILNYA NANTI
+        "langName": "Pāli",
+        "pubDate": null, // Gak perlu tahun
+      };
+    }
+    // 🔥 2. LOGIC SUTTA BIASA (EXISTING - Gak Diubah)
     final isSegmented = widget.textData?["segmented"] == true;
     final translations =
         widget.textData?["suttaplex"]?["translations"] as List?;
@@ -2483,6 +3580,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   Future<void> _saveToHistory() async {
+    // Ambil metadata bawaan (buat Sutta biasa)
     final metadata = _getMetadata();
 
     final rawAcronym =
@@ -2491,24 +3589,64 @@ class _SuttaDetailState extends State<SuttaDetail> {
         "";
     final normalizedAcronym = normalizeNikayaAcronym(rawAcronym);
 
-    // 🔥 DEBUG LOG
-    //debugPrint("💾 [SAVE HISTORY] Raw Acronym: '$rawAcronym'");
-    //debugPrint("💾 [SAVE HISTORY] Normalized: '$normalizedAcronym'");
+    // Variabel penampung hasil akhir
+    String finalTitle;
+    String finalAuthor;
+    String finalLang;
 
-    final historyItem = {
-      'uid': widget.uid,
-      'title':
+    // 🔥 LOGIC PENENTUAN JUDUL & AUTHOR
+    if (_isTafsirMode) {
+      // ----------------------------------------------------
+      // A. KHUSUS TAFSIR (CSCD)
+      // ----------------------------------------------------
+      // 1. JUDUL: Pake Nama Sutta Asli (Pali)
+      finalTitle =
+          widget.textData?["suttaplex"]?["original_title"] ??
+          widget.textData?["root_text"]?["title"] ??
+          widget.uid;
+
+      // 2. AUTHOR: Pake Format "Tipe (CSCD VRI)"
+      var rootTitle =
+          widget.textData?["root_text"]?["title"]?.toString().toLowerCase() ??
+          "";
+      String typeLabel = "Mūla";
+      if (rootTitle.contains("aṭṭhakathā")) {
+        typeLabel = "Aṭṭhakathā";
+      } else if (rootTitle.contains("ṭīkā")) {
+        typeLabel = "Ṭīkā";
+      }
+      finalAuthor = "CSCD VRI";
+      //  if (!rootTitle.contains("mūla")) {
+      //  finalTitle = "$typeLabel dari $finalTitle";
+      //  }
+      //  rootTitle = "$typeLabel: $rootTitle";
+
+      // 3. BAHASA: Pali
+      finalLang = typeLabel;
+    } else {
+      // ----------------------------------------------------
+      // B. SUTTA BIASA (LOGIK LAMA - Gak diotak-atik)
+      // ----------------------------------------------------
+      // 1. JUDUL: Prioritas Terjemahan (Indo/Inggris) -> Baru Pali
+      finalTitle =
           widget.textData?["suttaplex"]?["translated_title"] ??
           widget.textData?["suttaplex"]?["original_title"] ??
           widget.textData?["root_text"]?["title"] ??
-          widget.uid,
-      'original_title':
-          widget.textData?["suttaplex"]?["original_title"] ??
-          widget.textData?["root_text"]?["title"] ??
-          "",
+          widget.uid;
+
+      // 2. AUTHOR & LANG: Ambil dari metadata biasa
+      finalAuthor = metadata["author"];
+      finalLang = metadata["langName"];
+    }
+
+    final historyItem = {
+      'uid': widget.uid,
+      'title': finalTitle, // <--- Sesuai logic di atas (Judul Sutta)
+      'original_title': widget.textData?["suttaplex"]?["original_title"] ?? "",
       'acronym': normalizedAcronym,
-      'author': metadata["author"],
-      'lang_name': metadata["langName"],
+      'author':
+          finalAuthor, // <--- Sesuai logic di atas (Nama Penerjemah / Tipe Tafsir)
+      'lang_name': finalLang,
       'timestamp': DateTime.now().toIso8601String(),
     };
 
@@ -2517,10 +3655,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     // ✅ FIX: Ambil warna dari tema baca, bukan System HP
-    final colors = _themeColors;
-    //final mainColor = colors['text']!;
+    // final colors = _currentStyle;
+    //final mainColor = colors.text;
     //final subColor = colors['note']!; // atau colors['icon']
-    final iconColor = colors['icon']!; // atau colors['icon']
+    final iconColor = Theme.of(
+      context,
+    ).colorScheme.onSurface; // atau colors['icon']
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2617,6 +3757,143 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
+  void _updateVisibleParagraph() {
+    if (!mounted) return;
+    if (_isUserDragging) return;
+    // 🔥 1. THROTTLING LEBIH SANTAI (25ms -> 150ms)
+    // Biar CPU gak engap dipaksa kerja rodi tiap milidetik
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastScrollTime < 150) return;
+    _lastScrollTime = now;
+
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isEmpty) return;
+
+    // Sort posisi
+    final sortedRawPositions = positions.toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    final firstVisible = sortedRawPositions.first;
+    final lastVisible = sortedRawPositions.last;
+
+    // 2. Hitung Total Item
+    int totalItems = 1;
+    if (_htmlSegments.isNotEmpty) {
+      totalItems = _htmlSegments.length;
+    } else if (widget.textData != null &&
+        widget.textData!["keys_order"] is List) {
+      totalItems = (widget.textData!["keys_order"] as List).length;
+    }
+
+    // ==========================================================
+    // 🔥 LOGIC BARU: ESTIMASI STABIL (BEST PRACTICE)
+    // ==========================================================
+
+    // Kita asumsikan 1 layar rata-rata muat 12 item/paragraf.
+    // Angka ini bikin jempol "pas": Gak kegedean di teks panjang, gak kekecilan di teks pendek.
+    const double itemsPerScreen = 12.0;
+
+    // Rumus: Viewport = Kapasitas Layar / Total Item
+    double targetRatio = (itemsPerScreen / totalItems);
+
+    // Clamp: Minimal 10% (biar gak ilang), Maksimal 100% (Full layar)
+    targetRatio = targetRatio.clamp(0.1, 1.0);
+
+    // Update Ratio LANGSUNG (Gak perlu smoothing karena nilainya KONSTAN)
+    // Ini bikin scrollbar diem anteng gak memanjang-mendek sendiri.
+    if ((_viewportRatioVN.value - targetRatio).abs() > 0.001) {
+      _viewportRatioVN.value = targetRatio;
+    }
+
+    // ==========================================================
+    // LOGIC SNAP TO BOTTOM (ANTI GANTUNG)
+    // ==========================================================
+    double progress = 0.0;
+    bool isLastItemVisible = lastVisible.index >= totalItems - 1;
+    bool isBottomReached =
+        isLastItemVisible && lastVisible.itemTrailingEdge <= 1.05;
+
+    if (isBottomReached) {
+      progress = 1.0;
+    } else {
+      progress = totalItems > 1
+          ? (firstVisible.index / (totalItems - 1)).clamp(0.0, 1.0)
+          : 0.0;
+    }
+
+    // ==========================================================
+    // LOGIC TAFSIR (Tetap Sama)
+    // ==========================================================
+    String? foundNum;
+    bool shouldShow = false;
+    // 🔥 UBAH BARIS INI: Jangan cuma cek _isTafsirMode
+    // Tapi cek juga kalau _tafsirSectionMap ada isinya (berarti ada Ref SC/Verse tadi)
+
+    // ==========================================================
+    // 🔥 LOGIC PENCARIAN TAFSIR (VERSI TURBO O(1))
+    // ==========================================================
+
+    if (_isTafsirMode || _tafsirSectionMap.isNotEmpty) {
+      final double statusBarHeight = MediaQuery.of(context).padding.top;
+      final double triggerPixel = statusBarHeight + 95.0;
+      final double detectionLine =
+          triggerPixel / MediaQuery.of(context).size.height;
+
+      final visibleItems = positions.where((pos) {
+        return pos.itemTrailingEdge > detectionLine;
+      }).toList();
+
+      if (visibleItems.isNotEmpty) {
+        visibleItems.sort((a, b) => a.index.compareTo(b.index));
+        final topItem = visibleItems.first;
+        final int currentReadingIndex = topItem.index;
+
+        // 🔥 INI DIA PERUBAHANNYA: GAK PAKE LOOPING MAP LAGI!
+        // Kita cari index section terbesar yang <= index bacaan sekarang
+        // Karena listnya udah urut, ini cepet banget.
+
+        if (_sortedTafsirIndices.isNotEmpty) {
+          // Cari index section terakhir yang sudah kita lewati
+          final int lastSectionIdx = _sortedTafsirIndices.lastWhere(
+            (idx) => idx <= currentReadingIndex,
+            orElse: () => -1,
+          );
+
+          if (lastSectionIdx != -1) {
+            foundNum = _indexToTafsirLabel[lastSectionIdx];
+          }
+        }
+
+        shouldShow = foundNum != null && foundNum.isNotEmpty;
+      }
+    } else {
+      foundNum = _visibleParaNumVN.value;
+      shouldShow = _showFloatingBtnVN.value;
+    }
+
+    // ==========================================================
+    // UPDATE UI (PROGRESS & BUTTON)
+    // ==========================================================
+
+    // Update Progress (Posisi scroll tetep responsif)
+    // Kita kasih smoothing dikit disini biar pergerakan jempolnya enak
+    double currentProg = _scrollProgressVN.value;
+    if ((currentProg - progress).abs() > 0.001) {
+      // Smoothing factor 0.5 (Cepat tapi smooth)
+      _scrollProgressVN.value = currentProg + (progress - currentProg) * 0.5;
+    }
+
+    // Update Tafsir UI (Logika ini juga bakal nge-update tombolnya)
+    if (_isTafsirMode || _tafsirSectionMap.isNotEmpty) {
+      // 🔥 Update juga kondisi if di sini
+      if (_visibleParaNumVN.value != foundNum) {
+        _visibleParaNumVN.value = foundNum;
+      }
+      if (_showFloatingBtnVN.value != shouldShow) {
+        _showFloatingBtnVN.value = shouldShow;
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.textData == null) {
@@ -2630,9 +3907,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
 
     // 1. Ambil palet warna
-    final colors = _themeColors;
-    final bgColor = colors['bg']!; // Ini warna dasar (Putih/Sepia/Hitam)
-    final textColor = colors['text']!;
+    final colors = _currentStyle;
+    final bgColor = colors.bg; // Ini warna dasar (Putih/Sepia/Hitam)
+    final textColor = colors.text;
+    final accentColor = colors.pali;
     final cardColor = Theme.of(context).colorScheme.surface;
     final iconColor = Theme.of(context).colorScheme.onSurface;
 
@@ -2656,46 +3934,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final bool isSegmented =
         !isError && (widget.textData!["segmented"] == true);
 
-    // --- LOGIC SETUP DATA ---
-    final Map<String, String> paliSegs;
-    final Map<String, String> translationSegs;
-    final List<String> keysOrder;
-
-    if (!isError && isSegmented) {
-      paliSegs = (widget.textData!["root_text"] is Map)
-          ? (widget.textData!["root_text"] as Map).map(
-              (k, v) => MapEntry(k.toString(), v.toString()),
-            )
-          : {};
-      translationSegs = (widget.textData!["translation_text"] is Map)
-          ? (widget.textData!["translation_text"] as Map).map(
-              (k, v) => MapEntry(k.toString(), v.toString()),
-            )
-          : {};
-
-      if (widget.textData!["keys_order"] is List) {
-        keysOrder = List<String>.from(widget.textData!["keys_order"]);
-      } else {
-        final metadataKeys = {
-          'previous',
-          'next',
-          'author_uid',
-          'vagga_uid',
-          'lang',
-          'title',
-          'acronym',
-          'text',
-        };
-        final source = translationSegs.isNotEmpty ? translationSegs : paliSegs;
-        keysOrder = source.keys
-            .where((k) => !metadataKeys.contains(k))
-            .toList();
-      }
-    } else {
-      paliSegs = {};
-      translationSegs = {};
-      keysOrder = [];
-    }
+    // --- LOGIC SETUP DATA (OPTIMIZED) ---
+    // Langsung ambil dari cache yang udah disiapin _processNewTextData
+    final paliSegs = _cachedPaliSegs;
+    final translationSegs = _cachedTransSegs;
+    final keysOrder = _cachedKeysOrder;
+    // commentarySegs nanti langsung pake _cachedCommentSegs di bawah
 
     Widget body;
 
@@ -2710,45 +3954,43 @@ class _SuttaDetailState extends State<SuttaDetail> {
         child: Text("Teks tidak tersedia", style: TextStyle(color: textColor)),
       );
     } else if (isSegmented) {
-      final commentarySegs = (widget.textData!["comment_text"] is Map)
-          ? (widget.textData!["comment_text"] as Map).map(
-              (k, v) => MapEntry(k.toString(), v.toString()),
-            )
-          : <String, String>{};
-
       body = RepaintBoundary(
         child: SelectionArea(
+          onSelectionChanged: (content) =>
+              _currentSelectedText = content?.plainText ?? '',
+          contextMenuBuilder: _buildMyContextMenu, // <--- sebaris juga!
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) => notification.depth != 0,
-            child: Scrollbar(
-              thumbVisibility: false,
-              thickness: 4,
-              radius: const Radius.circular(8),
-              child: ScrollablePositionedList.builder(
-                physics: const BouncingScrollPhysics(),
-                itemScrollController: _itemScrollController,
-                itemPositionsListener: _itemPositionsListener,
-                padding: EdgeInsets.fromLTRB(
-                  _horizontalPadding,
-                  topContentPadding,
-                  _horizontalPadding,
-                  (_isSearchActive ? 250 : (_isBottomMenuVisible ? 100 : 40)) +
-                      MediaQuery.of(context).viewInsets.bottom,
-                ),
-                itemCount: keysOrder.length,
-                itemBuilder: (context, index) {
-                  return _buildSegmentedItem(
-                    context,
-                    index,
-                    keysOrder[index],
-                    paliSegs,
-                    translationSegs,
-                    commentarySegs,
-                  );
-                },
+            // child:
+            // Scrollbar(
+            //  thumbVisibility: false,
+            // thickness: 4,
+            //  radius: const Radius.circular(8),
+            child: ScrollablePositionedList.builder(
+              physics: const BouncingScrollPhysics(),
+              itemScrollController: _itemScrollController,
+              itemPositionsListener: _itemPositionsListener,
+              padding: EdgeInsets.fromLTRB(
+                _horizontalPadding,
+                topContentPadding,
+                _horizontalPadding,
+                (_isSearchActive ? 250 : (_isBottomMenuVisible ? 100 : 40)) +
+                    MediaQuery.of(context).viewInsets.bottom,
               ),
+              itemCount: keysOrder.length,
+              itemBuilder: (context, index) {
+                return _buildSegmentedItem(
+                  context,
+                  index,
+                  keysOrder[index],
+                  paliSegs,
+                  translationSegs,
+                  _cachedCommentSegs,
+                );
+              },
             ),
           ),
+          //  ),
         ),
       );
     } else if ((widget.textData!["translation_text"] is Map &&
@@ -2763,161 +4005,519 @@ class _SuttaDetailState extends State<SuttaDetail> {
           final transMap = Map<String, dynamic>.from(
             widget.textData!["translation_text"],
           );
-          rawHtml = HtmlUnescape().convert(
+
+          rawHtml = SuttaTextHelper.unescape.convert(
             NonSegmentedSutta.fromJson(transMap).text,
           );
+          //   rawHtml = HtmlUnescape().convert(
+          //     NonSegmentedSutta.fromJson(transMap).text,
+          //   );
         } else if (widget.textData!["root_text"] is Map) {
           final rootMap = Map<String, dynamic>.from(
             widget.textData!["root_text"],
           );
-          rawHtml = HtmlUnescape().convert(
+
+          rawHtml = SuttaTextHelper.unescape.convert(
             NonSegmentedSutta.fromJson(rootMap).text,
           );
+
+          // rawHtml = HtmlUnescape().convert(
+          //    NonSegmentedSutta.fromJson(rootMap).text,
+          //  );
         }
         if (rawHtml.isNotEmpty) _parseHtmlAndGenerateTOC(rawHtml);
       }
       body = RepaintBoundary(
         child: SelectionArea(
+          onSelectionChanged: (content) =>
+              _currentSelectedText = content?.plainText ?? '',
+          contextMenuBuilder: _buildMyContextMenu, // <--- cuma sebaris!
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) => notification.depth != 0,
-            child: Scrollbar(
-              thumbVisibility: false,
-              thickness: 4,
-              radius: const Radius.circular(8),
-              child: ScrollablePositionedList.builder(
-                physics: const BouncingScrollPhysics(),
-                itemScrollController: _itemScrollController,
-                itemPositionsListener: _itemPositionsListener,
-                padding: EdgeInsets.fromLTRB(
-                  _horizontalPadding,
-                  topContentPadding,
-                  _horizontalPadding,
-                  _isBottomMenuVisible ? 100 : 40,
-                ),
-                itemCount: _htmlSegments.length,
-                itemBuilder: (context, index) {
-                  String content = _injectSearchHighlights(
-                    _htmlSegments[index],
-                    index,
-                    false,
-                  );
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Html(
-                      data: content,
-                      extensions: [
-                        TagExtension(
-                          tagsToExtend: {"x-highlight"},
-                          builder: (extensionContext) {
-                            final attrs = extensionContext.attributes;
-                            final isGlobalActive =
-                                attrs['data-active'] == 'true';
-                            final key = GlobalKey();
-                            if (isGlobalActive) {
-                              if (_allMatches.isNotEmpty &&
-                                  _currentMatchIndex < _allMatches.length) {
-                                _searchKeys[_currentMatchIndex] = key;
-                              }
-                            }
-                            final style = extensionContext.styledElement?.style;
-                            double? currentFontSize = style?.fontSize?.value;
-                            currentFontSize ??= _fontSize;
+            //  child: Scrollbar(
+            //   thumbVisibility: false,
+            //   thickness: 4,
+            //   radius: const Radius.circular(8),
+            child: ScrollablePositionedList.builder(
+              physics: const BouncingScrollPhysics(),
+              itemScrollController: _itemScrollController,
+              itemPositionsListener: _itemPositionsListener,
+              padding: EdgeInsets.fromLTRB(
+                _horizontalPadding,
+                topContentPadding,
+                _horizontalPadding,
+                _isBottomMenuVisible ? 100 : 40,
+              ),
+              itemCount: _htmlSegments.length,
+              itemBuilder: (context, index) {
+                String content = SuttaTextHelper.injectSearchHighlights(
+                  _htmlSegments[index],
+                  index,
+                  false,
+                  _cachedSearchRegex,
+                  _allMatches,
+                  _currentMatchIndex,
+                );
 
-                            return Container(
-                              key: isGlobalActive ? key : null,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 2,
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Html(
+                    data: content,
+                    extensions: [
+                      // =============================================
+                      // 1. EXTENSION HIGHLIGHT SEARCH
+                      // =============================================
+                      TagExtension(
+                        tagsToExtend: {"x-highlight"},
+                        builder: (extensionContext) {
+                          // ✅ VALIDASI: Pastikan element tidak null
+                          final element = extensionContext.element;
+                          if (element == null) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final attrs = extensionContext.attributes;
+                          final isGlobalActive = attrs['data-active'] == 'true';
+
+                          // ✅ VALIDASI: Pastikan text tidak null
+                          final text = element.text.trim();
+                          if (text.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final key = GlobalKey();
+                          if (isGlobalActive) {
+                            if (_allMatches.isNotEmpty &&
+                                _currentMatchIndex < _allMatches.length) {
+                              _searchKeys[_currentMatchIndex] = key;
+                            }
+                          }
+
+                          // ✅ VALIDASI: fontSize bisa null
+                          final style = extensionContext.styledElement?.style;
+                          double currentFontSize =
+                              style?.fontSize?.value ?? _fontSize;
+
+                          return Container(
+                            key: isGlobalActive ? key : null,
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: isGlobalActive
+                                  ? Colors.orange
+                                  : Colors.yellow,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Transform.translate(
+                              offset: const Offset(0, 0),
+                              child: Text(
+                                extensionContext.element!.text,
+                                style: TextStyle(
+                                  color: isGlobalActive
+                                      ? Colors.white
+                                      : Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: currentFontSize,
+                                  height: _lineHeight,
+                                ),
                               ),
-                              decoration: BoxDecoration(
-                                color: isGlobalActive
-                                    ? Colors.orange
-                                    : Colors.yellow,
-                                borderRadius: BorderRadius.circular(4),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // =============================================
+                      // 2. EXTENSION HR (GARIS PEMISAH TENGAH)
+                      // =============================================
+                      TagExtension(
+                        tagsToExtend: {"hr"},
+                        builder: (ctx) {
+                          return Container(
+                            width: double.infinity,
+                            alignment: Alignment.center,
+                            margin: const EdgeInsets.symmetric(vertical: 24),
+                            child: SizedBox(
+                              width: MediaQuery.of(context).size.width * 0.6,
+                              child: Divider(
+                                height: 1,
+                                thickness: 1.5,
+                                color: colors.text.withValues(alpha: 0.3),
                               ),
-                              child: Transform.translate(
-                                offset: const Offset(0, 1),
+                            ),
+                          );
+                        },
+                      ),
+                      // =============================================
+                      // 4. EXTENSION SPAN (PARA-NUM, PB-MARKER, EVAM)
+                      // =============================================
+                      // 🔥 UPDATE EXTENSION SPAN & A (SEPKEET FIX LINE-HEIGHT)
+                      TagExtension(
+                        tagsToExtend: {"span", "a"},
+                        builder: (extensionContext) {
+                          final attrs = extensionContext.attributes;
+                          final className = attrs['class'] ?? '';
+
+                          // A. REF (SC 1, Verse, dll) - STYLE ALA PB-MARKER
+                          if (className.contains('ref')) {
+                            // 🔥 KALAU USER MATIIN, JANGAN RENDER
+                            if (!_showVerseNumbers) {
+                              return const SizedBox.shrink(); // Invisible
+                            }
+
+                            final text = extensionContext.element?.text ?? '';
+
+                            return SelectionContainer.disabled(
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  // Warna Abu Transparan (Mirip PB Marker)
+                                  color: colors.text.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: colors.text.withValues(alpha: 0.3),
+                                  ),
+                                ),
                                 child: Text(
-                                  extensionContext.element!.text,
+                                  text,
                                   style: TextStyle(
-                                    color: isGlobalActive
-                                        ? Colors.white
-                                        : Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: currentFontSize,
-                                    height: 1.0,
+                                    fontSize: _fontSize * 0.60, // Kecil
+                                    color: colors.text.withValues(
+                                      alpha: 0.5,
+                                    ), // Abu tua
+                                    fontWeight: FontWeight.w600,
+                                    height:
+                                        1.0, // Paksa tinggi 1 biar nggak ngerusak baris
                                   ),
                                 ),
                               ),
                             );
-                          },
+                          }
+
+                          // B. Para Number (§) - Untuk tafsir
+                          if (className == 'para-num') {
+                            // 🔥 KALAU USER MATIIN, JANGAN RENDER
+                            if (!_showVerseNumbers) {
+                              return const SizedBox.shrink(); // Invisible
+                            }
+
+                            final num = attrs['data-num'] ?? '';
+                            return GestureDetector(
+                              onTap: () {
+                                if (_isTafsirMode) {
+                                  _showTafsirSwitcherDialog(num);
+                                }
+                              },
+                              child: SelectionContainer.disabled(
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colors.text.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: colors.text.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '§$num',
+                                        style: TextStyle(
+                                          fontSize: _fontSize * 0.7,
+                                          fontWeight: FontWeight.bold,
+                                          color: colors.text,
+                                          height: 1.0,
+                                        ),
+                                      ),
+                                      if (_isTafsirMode) ...[
+                                        const SizedBox(width: 2),
+                                        Icon(
+                                          Icons.link,
+                                          size: _fontSize * 0.6,
+                                          color: colors.text,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+
+                          // C. PB Marker (Page Break - PTS/CSCD)
+                          if (className == 'pb-marker') {
+                            // 🔥 KALAU USER MATIIN, JANGAN RENDER
+                            if (!_showVerseNumbers) {
+                              return const SizedBox.shrink(); // Invisible
+                            }
+
+                            final rawEdition = attrs['data-edition'] ?? '';
+                            final page = attrs['data-page'] ?? '';
+                            String editionLabel = rawEdition;
+                            switch (rawEdition) {
+                              case 'M':
+                                editionLabel = 'Mymr';
+                                break;
+                              case 'P':
+                                editionLabel = 'PTS';
+                                break;
+                              case 'T':
+                                editionLabel = 'Thai';
+                                break;
+                              case 'V':
+                                editionLabel = 'VRI';
+                                break;
+                            }
+                            return SelectionContainer.disabled(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _currentStyle.text.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    "$editionLabel $page",
+                                    style: TextStyle(
+                                      fontSize: _fontSize * 0.55,
+                                      color: _currentStyle.text.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+
+                          // 🔥 F. SPEAKER (NAMA PEMBICARA) - VERSI CENTER
+                          if (className == 'speaker') {
+                            return Container(
+                              width: double.infinity, // 1. Paksa lebar penuh
+                              alignment:
+                                  Alignment.center, // 2. Posisikan di tengah
+                              padding: const EdgeInsets.only(top: 8, bottom: 4),
+                              child: Text(
+                                (extensionContext.element?.text ?? "")
+                                    .toUpperCase(),
+                                textAlign:
+                                    TextAlign.center, // 3. Rata tengah teksnya
+                                style: TextStyle(
+                                  color: textColor.withValues(alpha: 0.6),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: _fontSize * 0.85,
+                                  letterSpacing:
+                                      1.0, // Tambahin spasi dikit biar elegan
+                                ),
+                              ),
+                            );
+                          }
+
+                          // D. EVAM (Opening formula - uppercase)
+                          if (className == 'evam') {
+                            return Text(
+                              extensionContext.element!.text.toUpperCase(),
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: _fontSize * 0.85,
+                                height: 1.0,
+                              ),
+                            );
+                          }
+
+                          // E. Default span handler (UNTUK .ADD / PIKIRANNYA)
+                          // Pakai generateTextStyle + copyWith(height: 1.0) supaya baris rata
+                          return Text(
+                            extensionContext.element?.text ?? '',
+                            style: extensionContext.styledElement?.style
+                                .generateTextStyle()
+                                .copyWith(height: 1.0),
+                          );
+                        },
+                      ),
+                    ],
+
+                    // =============================================
+                    // STYLE MAP (UNTUK ELEMEN HTML STANDAR)
+                    // =============================================
+                    style: {
+                      "body": Style(
+                        fontFamily: _currentFontFamily,
+                        fontSize: FontSize(_fontSize),
+                        lineHeight: LineHeight(_lineHeight),
+                        margin: Margins.zero, // 👈 HAPUS MARGIN KIRI-KANAN
+                        padding: HtmlPaddings
+                            .zero, // 👈 TAMBAHIN INI JUGA BIAR BERSIH
+                        color: textColor,
+                      ),
+                      ".add": Style(
+                        fontStyle: FontStyle.italic,
+                        color: textColor.withValues(alpha: 0.8),
+                        // PENTING: LineHeight-nya samain sama body
+                        lineHeight: LineHeight(_lineHeight),
+                      ),
+                      "p": Style(
+                        margin: Margins.only(
+                          bottom: 10,
+                        ), // 👈 JARAK ANTAR PARAGRAF (TURUNIN DARI DEFAULT 16)
+                        display: Display.block,
+                      ),
+                      "h1": Style(
+                        fontSize: FontSize(_fontSize * 1.8),
+                        fontWeight: FontWeight.w900,
+                        margin: Margins.only(top: 24, bottom: 12),
+                        color: textColor,
+                        textAlign: TextAlign.center,
+                      ),
+                      "h2": Style(
+                        fontSize: FontSize(_fontSize * 1.5),
+                        fontWeight: FontWeight.bold,
+                        margin: Margins.only(top: 20, bottom: 10),
+                        color: textColor,
+                        textAlign: TextAlign.center,
+                      ),
+                      "h3": Style(
+                        fontSize: FontSize(_fontSize * 1.25),
+                        fontWeight: FontWeight.w700,
+                        margin: Margins.only(top: 16, bottom: 8),
+                        color: textColor,
+                        textAlign: TextAlign.center,
+                      ),
+                      // 🔥 STYLE SUBHEADING (RATA TENGAH)
+                      ".subheading": Style(
+                        // 1. Rata Tengah (Permintaan Utama)
+                        textAlign: TextAlign.center,
+
+                        // 2. Styling Font (Agak tebal, ukuran sedikit lebih besar dari body)
+                        fontFamily: _currentFontFamily,
+                        fontSize: FontSize(_fontSize * 1.1),
+                        fontWeight: FontWeight.w600,
+
+                        // 3. Warna (Sedikit lebih pudar dari judul utama)
+                        color: textColor.withValues(alpha: 0.75),
+
+                        // 4. Jarak (Biar gak nempel sama teks di bawahnya)
+                        margin: Margins.only(bottom: 20, top: 4),
+                        display: Display.block,
+                      ),
+                      // 🔥 GANTI STYLE BLOCKQUOTE LAMA DENGAN INI:
+                      // Kita target class 'gatha-segment' yang tadi kita suntik
+                      ".gatha-segment": Style(
+                        // 1. MARGIN NOL (KUNCI BIAR NYAMBUNG)
+                        margin: Margins.zero,
+
+                        // 2. Padding internal per baris (biar teks gak dempet border)
+                        padding: HtmlPaddings.only(
+                          left: 8,
+                          right: 8,
+                          top: 6,
+                          bottom: 6,
                         ),
-                      ],
-                      style: {
-                        "body": Style(
-                          fontFamily: _currentFontFamily,
-                          fontSize: FontSize(_fontSize),
-                          lineHeight: LineHeight(_lineHeight),
-                          margin: Margins.only(left: 10, right: 10),
-                          color: textColor,
-                        ),
-                        "h1": Style(
-                          fontSize: FontSize(_fontSize * 1.8),
-                          fontWeight: FontWeight.w900,
-                          margin: Margins.only(top: 24, bottom: 12),
-                          color: textColor,
-                        ),
-                        "h2": Style(
-                          fontSize: FontSize(_fontSize * 1.5),
-                          fontWeight: FontWeight.bold,
-                          margin: Margins.only(top: 20, bottom: 10),
-                          color: textColor,
-                        ),
-                        "h3": Style(
-                          fontSize: FontSize(_fontSize * 1.25),
-                          fontWeight: FontWeight.w700,
-                          margin: Margins.only(top: 16, bottom: 8),
-                          color: textColor,
-                        ),
-                        ".ref": Style(
-                          fontSize: FontSize.smaller,
-                          color: Colors.grey,
-                          textDecoration: TextDecoration.none,
-                          verticalAlign: VerticalAlign.sup,
-                          border: Border.all(
-                            color: Colors.grey.withValues(alpha: 0.5),
+
+                        // 3. Dekorasi Visual (Sama persis kayak blockquote kemarin)
+                        /* backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.1),
+                            */
+                        border: Border(
+                          left: BorderSide(
+                            color: textColor.withValues(
+                              alpha: 0.6,
+                            ), // Ngikut warna tema
+                            width: 1,
                           ),
-                          margin: Margins.only(right: 4),
-                          padding: HtmlPaddings.symmetric(
-                            horizontal: 2,
-                            vertical: 0,
+                        ),
+
+                        // 4. Font & Display
+                        fontFamily: _currentFontFamily,
+                        fontSize: FontSize(_fontSize),
+                        lineHeight: LineHeight(_lineHeight),
+                        color: textColor.withValues(alpha: 0.9),
+                        display: Display.block,
+                      ),
+                      /* ".ref": Style(
+                        fontSize: FontSize.smaller, // Ukuran kecil
+                        color: Colors.grey, // Warna abu biar gak ganggu baca
+                        textDecoration:
+                            TextDecoration.none, // Hapus garis bawah link
+                        verticalAlign:
+                            VerticalAlign.sup, // Naik dikit (Superscript)
+                        margin: Margins.only(
+                          right: 4,
+                        ), // Kasih jarak dikit ke teks utama
+                        display: Display.inline, // 🔥 WAJIB: Biar dirender
+                      ),*/
+                      "header": Style(
+                        display: Display.block,
+                        margin: Margins.only(bottom: 20),
+                      ),
+                      "header ul": Style(
+                        listStyleType: ListStyleType.none,
+                        padding: HtmlPaddings.zero,
+                        margin: Margins.zero,
+                      ),
+                      "header li": Style(
+                        textAlign: TextAlign.center,
+                        color: colors.text.withValues(alpha: 0.3),
+                        fontSize: FontSize.medium,
+                        fontWeight: FontWeight.bold,
+                        display: Display.block,
+                        margin: Margins.only(bottom: 4),
+                      ),
+                      "footer": Style(display: Display.none),
+                      "div.verse-block": Style(
+                        fontFamily: _currentFontFamily,
+                        fontSize: FontSize(_fontSize),
+                        lineHeight: LineHeight(_lineHeight),
+                        // fontStyle: FontStyle.italic,
+                        color: textColor.withValues(alpha: 0.9),
+                        margin: Margins.symmetric(vertical: 12),
+                        padding: HtmlPaddings.only(
+                          left: 8,
+                          top: 12,
+                          right: 16,
+                          bottom: 12,
+                        ),
+                        border: Border(
+                          left: BorderSide(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surface.withValues(alpha: 0.6),
+                            width: 1,
                           ),
-                          display: Display.inlineBlock,
                         ),
-                        "header": Style(
-                          display: Display.block,
-                          margin: Margins.only(bottom: 20),
-                        ),
-                        "header ul": Style(
-                          listStyleType: ListStyleType.none,
-                          padding: HtmlPaddings.zero,
-                          margin: Margins.zero,
-                        ),
-                        "header li": Style(
-                          textAlign: TextAlign.center,
-                          color: Colors.grey,
-                          fontSize: FontSize.medium,
-                          fontWeight: FontWeight.bold,
-                          display: Display.block,
-                          margin: Margins.only(bottom: 4),
-                        ),
-                        "footer": Style(display: Display.none),
-                      },
-                    ),
-                  );
-                },
-              ),
+                        //   backgroundColor: Theme.of(context)
+                        //       .colorScheme
+                        //       .surfaceContainerHighest
+                        //       .withValues(alpha: 0.1),
+                        display: Display.block, //! Biar <br> ke-render
+                      ),
+                    },
+                  ),
+                );
+              },
             ),
           ),
+          // ),
         ),
       );
     } else if (widget.textData!["root_text"] is Map &&
@@ -2932,36 +4532,39 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       body = RepaintBoundary(
         child: SelectionArea(
+          onSelectionChanged: (content) =>
+              _currentSelectedText = content?.plainText ?? '',
+          contextMenuBuilder: _buildMyContextMenu, // <--- sebaris juga!
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) => notification.depth != 0,
-            child: Scrollbar(
-              thumbVisibility: false,
-              thickness: 4,
-              radius: const Radius.circular(8),
-              child: ScrollablePositionedList.builder(
-                physics: const BouncingScrollPhysics(),
-                itemScrollController: _itemScrollController,
-                itemPositionsListener: _itemPositionsListener,
-                padding: EdgeInsets.fromLTRB(
-                  _horizontalPadding,
-                  topContentPadding,
-                  _horizontalPadding,
-                  _isBottomMenuVisible ? 100 : 40,
-                ),
-                itemCount: paliKeys.length,
-                itemBuilder: (context, index) {
-                  return _buildSegmentedItem(
-                    context,
-                    index,
-                    paliKeys[index],
-                    paliOnlyMap,
-                    {},
-                    {},
-                  );
-                },
+            //  child: Scrollbar(
+            //    thumbVisibility: false,
+            //    thickness: 4,
+            //    radius: const Radius.circular(8),
+            child: ScrollablePositionedList.builder(
+              physics: const BouncingScrollPhysics(),
+              itemScrollController: _itemScrollController,
+              itemPositionsListener: _itemPositionsListener,
+              padding: EdgeInsets.fromLTRB(
+                _horizontalPadding,
+                topContentPadding,
+                _horizontalPadding,
+                _isBottomMenuVisible ? 100 : 40,
               ),
+              itemCount: paliKeys.length,
+              itemBuilder: (context, index) {
+                return _buildSegmentedItem(
+                  context,
+                  index,
+                  paliKeys[index],
+                  paliOnlyMap,
+                  {},
+                  {},
+                );
+              },
             ),
           ),
+          //   ),
         ),
       );
     } else {
@@ -2972,6 +4575,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
         ),
       );
     }
+
+    // final titleLower =
+    //    widget.textData?["root_text"]?["title"]?.toString().toLowerCase() ?? "";
+    //  String typeLabel = "Mūla";
+
+    //  if (titleLower.contains("aṭṭhakathā")) {
+    //     typeLabel = "Aṭṭhakathā";
+    //   } else if (titleLower.contains("ṭīkā")) {
+    //    typeLabel = "Ṭīkā";
+    //  }
+
+    final bool showTikaButton = TafsirService().hasTika(widget.uid); // Cek dulu
 
     return PopScope(
       canPop: false,
@@ -3096,6 +4711,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                         milliseconds: 250,
                                       ),
                                       curve: Curves.easeOutCubic,
+                                      alignment:
+                                          0.15, // 🔥 TAMBAHIN INI (0.15 = Turun 15%)
+                                      // Kalau masih kurang turun, ganti jadi 0.2
                                     );
                                   } catch (e) {
                                     debugPrint('❌ TOC scroll error: $e');
@@ -3154,221 +4772,279 @@ class _SuttaDetailState extends State<SuttaDetail> {
                 )
               : null,
 
-          body: Stack(
-            children: [
-              // 1. KONTEN UTAMA (Full Screen)
-              body,
+          body: GestureDetector(
+            onHorizontalDragStart: (details) {
+              _dragStartX = details.globalPosition.dx;
+              _currentDragX = details.globalPosition.dx;
+            },
 
-              // 🔥 STATUS BAR COVER (PENUTUP SOLID)
-              // Ini biar teks gak kelihatan "jalan" di belakang jam/baterai.
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: MediaQuery.of(context).padding.top,
-                child: Container(
-                  color: bgColor, // Pake warna tema halaman (Sepia/Dark/Light)
-                ),
-              ),
+            // 🔥 UPDATE BAGIAN INI: Tambah setState biar panahnya gerak real-time
+            onHorizontalDragUpdate: (details) {
+              setState(() {
+                _currentDragX = details.globalPosition.dx;
+              });
+            },
 
-              // 2. HEADER: Floating Pill Style
-              Positioned(
-                top: MediaQuery.of(context).padding.top,
-                left: 0,
-                right: 0,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 0,
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                        child: Container(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surface.withValues(alpha: 0.85),
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              Container(
+            // 🔥 UPDATE BAGIAN INI: Reset pas dilepas
+            onHorizontalDragEnd: (details) {
+              final double distance = _currentDragX - _dragStartX;
+
+              // Logic Navigasi (Copy yang lama gapapa, atau pake ini)
+              if (distance.abs() > _minDragDistance) {
+                if (distance > 0) {
+                  if (!_isLoading && !_isFirst) _goToPrevSutta();
+                } else {
+                  if (!_isLoading && !_isLast) _goToNextSutta();
+                }
+              }
+
+              // RESET POSISI VISUAL
+              setState(() {
+                _dragStartX = 0.0;
+                _currentDragX = 0.0;
+              });
+            },
+
+            child: Stack(
+              children: [
+                // 1. KONTEN UTAMA (body)
+                body,
+                // 🔥 INDIKATOR SWIPE VISUAL
+                if (_dragStartX != 0.0 && _currentDragX != 0.0)
+                  Builder(
+                    builder: (context) {
+                      final delta = _currentDragX - _dragStartX;
+                      final isSwipeRight = delta > 0; // Mau ke Prev (Mundur)
+                      final isSwipeLeft = delta < 0; // Mau ke Next (Maju)
+
+                      // Hitung opacity (0.0 - 1.0) biar smooth
+                      final progress = (delta.abs() / _minDragDistance).clamp(
+                        0.0,
+                        1.0,
+                      );
+
+                      // Jangan render kalau gesernya masih dikit banget
+                      if (progress < 0.05) return const SizedBox.shrink();
+
+                      // Cek apakah halaman tersedia? Kalau mentok (First/Last), jangan munculin panah
+                      // Atau kalau mode Tematik (navigasi dimatikan)
+                      if (widget.entryPoint == "tematik") {
+                        return const SizedBox.shrink();
+                      }
+                      if (isSwipeRight && _isFirst) {
+                        return const SizedBox.shrink();
+                      }
+                      if (isSwipeLeft && _isLast) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Positioned(
+                        top: 0,
+                        bottom: 0,
+                        // Kalau geser kanan, panah muncul di kiri. Geser kiri, muncul di kanan.
+                        left: isSwipeRight ? 24 : null,
+                        right: isSwipeLeft ? 24 : null,
+                        child: Center(
+                          child: Opacity(
+                            opacity: progress, // Makin jauh narik, makin jelas
+                            child: Transform.scale(
+                              scale:
+                                  0.5 + (0.5 * progress), // Efek membesar (Pop)
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
+                                  // Warna background kontras (Hitam transparan di light mode, Putih di dark)
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .inverseSurface
+                                      .withValues(alpha: 0.8),
                                   shape: BoxShape.circle,
-                                  boxShadow: [
+                                  boxShadow: const [
                                     BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
+                                      color: Colors.black26,
+                                      blurRadius: 16,
+                                      offset: Offset(0, 4),
                                     ),
                                   ],
                                 ),
-                                child: InkWell(
-                                  onTap: _isLoading
-                                      ? null
-                                      : () async {
-                                          final navigator = Navigator.of(
-                                            context,
-                                          );
-                                          final allow =
-                                              await _handleBackReplace();
-                                          if (allow && mounted) navigator.pop();
-                                        },
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Icon(
-                                      Icons.arrow_back,
-                                      size: 20,
-                                      color: iconColor,
+                                child: Icon(
+                                  // Ikon Panah
+                                  isSwipeRight
+                                      ? Icons.arrow_back_rounded
+                                      : Icons.arrow_forward_rounded,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onInverseSurface,
+                                  size: 32,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                // 🔥 STATUS BAR COVER (PENUTUP SOLID)
+                // Ini biar teks gak kelihatan "jalan" di belakang jam/baterai.
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: MediaQuery.of(context).padding.top,
+                  child: Container(
+                    color:
+                        bgColor, // Pake warna tema halaman (Sepia/Dark/Light)
+                  ),
+                ),
+
+                // 2. HEADER: Floating Pill Style
+                Positioned(
+                  top: MediaQuery.of(context).padding.top,
+                  left: 0,
+                  right: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 0,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: Container(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surface.withValues(alpha: 0.85),
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: InkWell(
+                                    onTap: _isLoading ? null : _onBackPressed,
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Icon(
+                                        Icons.arrow_back,
+                                        size: 20,
+                                        color: iconColor,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize
-                                      .min, // Biar gak makan tempat vertikal
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start, // Rata kiri
-                                  mainAxisAlignment: MainAxisAlignment
-                                      .center, // Tengah secara vertikal
-                                  children: [
-                                    // 1. JUDUL UTAMA
-                                    Text(
-                                      widget.textData?["suttaplex"]?["original_title"] ??
-                                          suttaTitle,
-                                      style: TextStyle(
-                                        fontSize: 16, // Kecilin dikit biar muat
-                                        fontWeight: FontWeight.bold,
-                                        color: iconColor,
-                                        height: 1.2,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-
-                                    // 2. NAMA PENERJEMAH (TAHUN)
-                                    // Cek dulu datanya ada gak biar gak error/kosong
-                                    if (metadata["author"]
-                                        .toString()
-                                        .isNotEmpty)
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize
+                                        .min, // Biar gak makan tempat vertikal
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start, // Rata kiri
+                                    mainAxisAlignment: MainAxisAlignment
+                                        .center, // Tengah secara vertikal
+                                    children: [
+                                      // 1. JUDUL UTAMA
                                       Text(
-                                        "${metadata['author']}${metadata['pubDate'] != null ? ' (${metadata['pubDate']})' : ''}",
+                                        widget.textData?["suttaplex"]?["original_title"] ??
+                                            suttaTitle,
                                         style: TextStyle(
-                                          fontSize: 11, // Lebih kecil & tipis
-                                          color: iconColor.withValues(
-                                            alpha: 0.7,
-                                          ), // Agak transparan biar gak balapan sama judul
+                                          fontSize:
+                                              16, // Kecilin dikit biar muat
+                                          fontWeight: FontWeight.bold,
+                                          color: iconColor,
                                           height: 1.2,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                  ],
-                                ),
-                              ),
 
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.info_outline,
-                                  color: Colors.blue,
-                                  size: 20,
+                                      // 2. NAMA PENERJEMAH (TAHUN)
+                                      // Cek dulu datanya ada gak biar gak error/kosong
+                                      if (metadata["author"]
+                                          .toString()
+                                          .isNotEmpty)
+                                        Text(
+                                          "${metadata['author']}${metadata['pubDate'] != null ? ' (${metadata['pubDate']})' : ''}",
+                                          style: TextStyle(
+                                            fontSize: 11, // Lebih kecil & tipis
+                                            color: iconColor.withValues(
+                                              alpha: 0.7,
+                                            ), // Agak transparan biar gak balapan sama judul
+                                            height: 1.2,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
+                                  ),
                                 ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (_) => AlertDialog(
-                                      backgroundColor: cardColor,
-                                      title: Text(
-                                        widget.textData?["suttaplex"]?["original_title"] ??
-                                            suttaTitle,
-                                        style: TextStyle(color: iconColor),
-                                      ),
-                                      content: SingleChildScrollView(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (shouldShowBlurb &&
-                                                rawBlurb.isNotEmpty) ...[
-                                              Html(
-                                                data: rawBlurb,
-                                                style: {
-                                                  "body": Style(
-                                                    color: iconColor,
-                                                  ),
-                                                },
-                                              ),
-                                              const SizedBox(height: 16),
-                                              const Divider(),
-                                              const SizedBox(height: 12),
-                                            ],
-                                            Text(
-                                              "Tentang",
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 15,
-                                                color: iconColor,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            if (metadata["author"]
-                                                .toString()
-                                                .isNotEmpty) ...[
-                                              _buildInfoRow(
-                                                Icons.person_outline,
-                                                "Author",
-                                                metadata["author"],
-                                              ),
-                                              const SizedBox(height: 10),
-                                            ],
-                                            // 🔥 TAMBAHIN INI:
-                                            if (metadata["pubDate"] != null &&
-                                                metadata["pubDate"]
-                                                    .toString()
-                                                    .isNotEmpty) ...[
-                                              _buildInfoRow(
-                                                Icons
-                                                    .calendar_today_rounded, // Icon kalender
-                                                "Tahun",
-                                                metadata["pubDate"].toString(),
-                                              ),
-                                              const SizedBox(height: 10),
-                                            ],
-                                            _buildInfoRow(
-                                              Icons.language,
-                                              "Bahasa",
-                                              metadata["langName"],
-                                            ),
 
-                                            // 🔥 UPDATE LOGIC: Tampilkan kalau ada footer ATAU kalau Segmented (Default CC0)
-                                            if (_htmlFooter.isNotEmpty ||
-                                                isSegmented) ...[
-                                              const SizedBox(height: 16),
-                                              const Divider(),
-                                              const SizedBox(height: 12),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.info_outline,
+                                    color: Colors.blue,
+                                    size: 20,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        backgroundColor: cardColor,
+                                        title: Text(
+                                          widget.textData?["suttaplex"]?["original_title"] ??
+                                              suttaTitle,
+                                          style: TextStyle(color: iconColor),
+                                        ),
+                                        content: SingleChildScrollView(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (shouldShowBlurb &&
+                                                  rawBlurb.isNotEmpty) ...[
+                                                Html(
+                                                  data: rawBlurb,
+                                                  style: {
+                                                    "body": Style(
+                                                      color: iconColor,
+                                                    ),
+                                                  },
+                                                ),
+                                                const SizedBox(height: 16),
+                                                const Divider(),
+                                                const SizedBox(height: 12),
+                                              ],
                                               Text(
-                                                "Rincian Publikasi",
+                                                "Tentang",
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 15,
@@ -3376,226 +5052,133 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                                 ),
                                               ),
                                               const SizedBox(height: 12),
-                                              // Render HTML footer (link lisensi, prepared by, dll)
-                                              Html(
-                                                // 👇 LOGIC UPDATE: Tambahin teks "Sedapat mungkin..." di bawahnya
-                                                data: _htmlFooter.isNotEmpty
-                                                    ? _htmlFooter
-                                                    : "<p>Teks ini dipublikasikan melalui Creative Commons Zero (CC0 1.0 Universal) Public Domain Dedication.</p>"
-                                                          "<p>Sedapat mungkin berdasarkan hukum, Author telah melepaskan semua hak cipta dan hak terkait karya ini.</p>",
+                                              if (metadata["author"]
+                                                  .toString()
+                                                  .isNotEmpty) ...[
+                                                _buildInfoRow(
+                                                  Icons.person_outline,
+                                                  "Author",
+                                                  metadata["author"],
+                                                ),
+                                                const SizedBox(height: 10),
+                                              ],
+                                              // 🔥 TAMBAHIN INI:
+                                              if (metadata["pubDate"] != null &&
+                                                  metadata["pubDate"]
+                                                      .toString()
+                                                      .isNotEmpty) ...[
+                                                _buildInfoRow(
+                                                  Icons
+                                                      .calendar_today_rounded, // Icon kalender
+                                                  "Tahun",
+                                                  metadata["pubDate"]
+                                                      .toString(),
+                                                ),
+                                                const SizedBox(height: 10),
+                                              ],
+                                              _buildInfoRow(
+                                                Icons.language,
+                                                "Bahasa",
+                                                metadata["langName"],
+                                              ),
 
-                                                style: {
-                                                  "body": Style(
-                                                    fontSize: FontSize(13),
-                                                    color: iconColor.withValues(
-                                                      alpha: 0.8,
+                                              // 🔥 UPDATE LOGIC: Tampilkan kalau ada footer ATAU kalau Segmented (Default CC0)
+                                              if (_htmlFooter.isNotEmpty ||
+                                                  isSegmented) ...[
+                                                const SizedBox(height: 16),
+                                                const Divider(),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  "Rincian Publikasi",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                    color: iconColor,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                // Render HTML footer (link lisensi, prepared by, dll)
+                                                Html(
+                                                  // 👇 LOGIC UPDATE: Tambahin teks "Sedapat mungkin..." di bawahnya
+                                                  data: _htmlFooter.isNotEmpty
+                                                      ? _htmlFooter
+                                                      : "<p>Teks ini dipublikasikan melalui Creative Commons Zero (CC0 1.0 Universal) Public Domain Dedication.</p>"
+                                                            "<p>Sedapat mungkin berdasarkan hukum, Author telah melepaskan semua hak cipta dan hak terkait karya ini.</p>",
+
+                                                  style: {
+                                                    "body": Style(
+                                                      fontSize: FontSize(13),
+                                                      color: iconColor
+                                                          .withValues(
+                                                            alpha: 0.8,
+                                                          ),
+                                                      margin: Margins.zero,
+                                                      padding:
+                                                          HtmlPaddings.zero,
                                                     ),
-                                                    margin: Margins.zero,
-                                                    padding: HtmlPaddings.zero,
-                                                  ),
-                                                  "p": Style(
-                                                    margin: Margins.only(
-                                                      bottom: 8,
+                                                    "p": Style(
+                                                      margin: Margins.only(
+                                                        bottom: 10,
+                                                      ),
+                                                      textAlign: TextAlign
+                                                          .justify, // Opsional: Biar teks hukumnya rata kanan-kiri
                                                     ),
-                                                    textAlign: TextAlign
-                                                        .justify, // Opsional: Biar teks hukumnya rata kanan-kiri
-                                                  ),
-                                                  "a": Style(
-                                                    color: Colors.blue,
-                                                    textDecoration:
-                                                        TextDecoration.none,
-                                                  ),
-                                                },
-                                                /*  onLinkTap: (url, _, _) {
+                                                    "a": Style(
+                                                      color: Colors.blue,
+                                                      textDecoration:
+                                                          TextDecoration.none,
+                                                    ),
+                                                  },
+                                                  /*  onLinkTap: (url, _, _) {
                                                   if (url != null) {
                                                     debugPrint(
                                                       "Open link: $url",
                                                     );
                                                   }
                                                 },*/
-                                              ),
+                                                ),
+                                              ],
                                             ],
-                                          ],
+                                          ),
                                         ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text("Tutup"),
+                                          ),
+                                        ],
                                       ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: const Text("Tutup"),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                              if (acronym.isNotEmpty) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  //decoration: BoxDecoration(
-                                  //color: Theme.of(context)
-                                  // .colorScheme
-                                  // .surfaceContainerHighest
-                                  //   .withValues(alpha: 0.5),
-                                  // 🔥 UPDATE DISINI: Dulu 4, sekarang 8 biar melengkung manis
-                                  // borderRadius: BorderRadius.circular(10),
-                                  // ),
-                                  child: Text(
-                                    rawAcronym,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: getNikayaColor(
-                                        normalizeNikayaAcronym(acronym),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              if (_isLoading)
-                Container(
-                  color: Colors.black54,
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-
-              // 3. BOTTOM MENU: Integrated Glass Style (Layar - 48)
-              if (!_connectionError && !isError)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      // Lebar container menu
-                      width: MediaQuery.of(context).size.width > 600
-                          ? 500
-                          : MediaQuery.of(context).size.width - 48,
-
-                      margin: EdgeInsets.zero,
-
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(
-                            20,
-                          ), // Agak buletin dikit biar manis
-                          bottom: Radius.zero,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, -2),
-                          ),
-                        ],
-                      ),
-
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
-                          bottom: Radius.zero,
-                        ),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                          child: Container(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surface.withValues(alpha: 0.85),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // ===============================================
-                                // 🔥 DRAG HANDLE (AREA SENTUH ADAPTIF)
-                                // ===============================================
-                                GestureDetector(
-                                  behavior: HitTestBehavior.translucent,
-                                  onVerticalDragEnd: (details) {
-                                    if (details.primaryVelocity! > 0 &&
-                                        _isBottomMenuVisible) {
-                                      setState(
-                                        () => _isBottomMenuVisible = false,
-                                      );
-                                      _savePreferences();
-                                    } else if (details.primaryVelocity! < 0 &&
-                                        !_isBottomMenuVisible) {
-                                      setState(
-                                        () => _isBottomMenuVisible = true,
-                                      );
-                                      _savePreferences();
-                                    }
-                                  },
-                                  onTap: () {
-                                    setState(
-                                      () => _isBottomMenuVisible =
-                                          !_isBottomMenuVisible,
                                     );
-                                    _savePreferences();
                                   },
-                                  // GANTI JADI ANIMATED CONTAINER
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeOutCubic,
-                                    width: double.infinity,
-
-                                    // 🔥 LOGIC PADDING BARU (VERSI DIET)
-                                    // Kalau BUKA: Tipis (8 atas, 4 bawah)
-                                    // Kalau TUTUP: Sedeng (15 rata), gak segede gaban kayak tadi
-                                    padding: _isBottomMenuVisible
-                                        ? const EdgeInsets.fromLTRB(0, 8, 0, 4)
-                                        : const EdgeInsets.symmetric(
-                                            vertical: 10,
-                                          ),
-
-                                    child: Center(
-                                      // VISUAL GARIS (TETAP SAMA)
-                                      child: Container(
-                                        width: 40,
-                                        height: 3,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(
-                                            2,
-                                          ),
+                                ),
+                                if (acronym.isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    //decoration: BoxDecoration(
+                                    //color: Theme.of(context)
+                                    // .colorScheme
+                                    // .surfaceContainerHighest
+                                    //   .withValues(alpha: 0.5),
+                                    // 🔥 UPDATE DISINI: Dulu 4, sekarang 8 biar melengkung manis
+                                    // borderRadius: BorderRadius.circular(10),
+                                    // ),
+                                    child: Text(
+                                      rawAcronym,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: getNikayaColor(
+                                          normalizeNikayaAcronym(acronym),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-
-                                // ===============================================
-                                // MENU CONTENT
-                                // ===============================================
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOutCubic,
-                                  height: _isBottomMenuVisible ? null : 0,
-                                  child: SingleChildScrollView(
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 8.0,
-                                      ),
-                                      child: _buildFloatingActions(isSegmented),
-                                    ),
-                                  ),
-                                ),
+                                ],
                               ],
                             ),
                           ),
@@ -3604,7 +5187,523 @@ class _SuttaDetailState extends State<SuttaDetail> {
                     ),
                   ),
                 ),
-            ],
+
+                if (_isLoading)
+                  Container(
+                    color: Colors.black54,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+
+                // 3. BOTTOM MENU: Integrated Glass Style (Layar - 48)
+                if (!_connectionError && !isError)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        // Lebar container menu
+                        width: MediaQuery.of(context).size.width > 600
+                            ? 500
+                            : MediaQuery.of(context).size.width - 48,
+
+                        margin: EdgeInsets.zero,
+
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(
+                              20,
+                            ), // Agak buletin dikit biar manis
+                            bottom: Radius.zero,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, -2),
+                            ),
+                          ],
+                        ),
+
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                            bottom: Radius.zero,
+                          ),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(
+                              sigmaX: 10.0,
+                              sigmaY: 10.0,
+                            ),
+                            child: Container(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surface.withValues(alpha: 0.85),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // ===============================================
+                                  // 🔥 DRAG HANDLE (AREA SENTUH ADAPTIF)
+                                  // ===============================================
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    onVerticalDragEnd: (details) {
+                                      if (details.primaryVelocity! > 0 &&
+                                          _isBottomMenuVisible) {
+                                        setState(
+                                          () => _isBottomMenuVisible = false,
+                                        );
+                                        _savePreferences();
+                                      } else if (details.primaryVelocity! < 0 &&
+                                          !_isBottomMenuVisible) {
+                                        setState(
+                                          () => _isBottomMenuVisible = true,
+                                        );
+                                        _savePreferences();
+                                      }
+                                    },
+                                    onTap: () {
+                                      setState(
+                                        () => _isBottomMenuVisible =
+                                            !_isBottomMenuVisible,
+                                      );
+                                      _savePreferences();
+                                    },
+                                    // GANTI JADI ANIMATED CONTAINER
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      width: double.infinity,
+
+                                      // 🔥 LOGIC PADDING BARU (VERSI DIET)
+                                      // Kalau BUKA: Tipis (8 atas, 4 bawah)
+                                      // Kalau TUTUP: Sedeng (15 rata), gak segede gaban kayak tadi
+                                      padding: _isBottomMenuVisible
+                                          ? const EdgeInsets.fromLTRB(
+                                              0,
+                                              8,
+                                              0,
+                                              4,
+                                            )
+                                          : const EdgeInsets.symmetric(
+                                              vertical: 10,
+                                            ),
+
+                                      child: Center(
+                                        // VISUAL GARIS (TETAP SAMA)
+                                        child: Container(
+                                          width: 40,
+                                          height: 3,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // ===============================================
+                                  // MENU CONTENT
+                                  // ===============================================
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeOutCubic,
+                                    height: _isBottomMenuVisible ? null : 0,
+                                    child: SingleChildScrollView(
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8.0,
+                                        ),
+                                        child: _buildFloatingActions(
+                                          isSegmented,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ), // ← 🔥 INI PENUTUP POSITIONED BOTTOM MENU
+                // 🔥 GANTI BLOK IF LAMA DENGAN BUILDER INI:
+                // 🔥 TOMBOL PIL (TENGAH BAWAH) - Cuma muncul di Tafsir Mode
+                if (_isTafsirMode) // <--- TAMBAHIN IF INI
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _showFloatingBtnVN,
+                    builder: (context, showBtn, child) {
+                      return ValueListenableBuilder<String?>(
+                        valueListenable: _visibleParaNumVN,
+                        builder: (context, paraNum, _) {
+                          // 1. Cek Kondisi di sini (pengganti if lama)
+                          if (!showBtn || paraNum == null) {
+                            return const SizedBox.shrink();
+                          }
+
+                          // 2. Render Widget Tombol
+                          return Positioned(
+                            left: 16,
+                            top: MediaQuery.of(context).padding.top + 80,
+                            child: Material(
+                              elevation: 4,
+                              shadowColor: Colors.black.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surface.withValues(alpha: 0.85),
+                              child: InkWell(
+                                // Pake 'paraNum' dari builder, bukan variable lama
+                                onTap: () => _showTafsirSwitcherDialog(paraNum),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey.withValues(alpha: 0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Pake 'paraNum' dari builder
+                                      Text(
+                                        '§$paraNum',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        Icons.link,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+
+                // 🔥 FLOATING SWITCHER (KANAN) - Font Size 12 (Compact)
+                if (_isTafsirMode)
+                  Builder(
+                    builder: (context) {
+                      // 1. CARI TAHU TIPE SEKARANG
+                      TafsirType currentType = TafsirType.mul;
+                      final titleLower =
+                          widget.textData?["root_text"]?["title"]
+                              ?.toString()
+                              .toLowerCase() ??
+                          "";
+
+                      if (titleLower.contains("aṭṭhakathā")) {
+                        currentType = TafsirType.att;
+                      } else if (titleLower.contains("ṭīkā")) {
+                        currentType = TafsirType.tik;
+                      }
+
+                      // 2. WIDGET TOMBOLNYA
+                      return Positioned(
+                        right: 16,
+                        top: MediaQuery.of(context).padding.top + 80,
+                        child: Material(
+                          elevation: 4,
+                          shadowColor: Colors.black.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surface.withValues(alpha: 0.85),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.grey.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // --- TOMBOL M ---
+                                InkWell(
+                                  onTap: () {
+                                    _navigateTafsirInternal(
+                                      widget.uid,
+                                      TafsirType.mul,
+                                      //      targetParamNum:
+                                      //         _visibleParaNum?.toString() ?? "",
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    child: Text(
+                                      "M",
+                                      style: TextStyle(
+                                        fontSize:
+                                            12, // <--- SUDAH DIKECILIN (SAMA KAYAK TETANGGA)
+                                        fontWeight:
+                                            currentType == TafsirType.mul
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        color: currentType == TafsirType.mul
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // GARIS PEMISAH
+                                Container(
+                                  width: 1,
+                                  height: 12, // Tinggi garis disesuain dikit
+                                  color: Colors.grey.withValues(alpha: 0.3),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                ),
+
+                                // --- TOMBOL A ---
+                                InkWell(
+                                  onTap: () {
+                                    _navigateTafsirInternal(
+                                      widget.uid,
+                                      TafsirType.att,
+                                      //    targetParamNum:
+                                      //       _visibleParaNum?.toString() ?? "",
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    child: Text(
+                                      "A",
+                                      style: TextStyle(
+                                        fontSize: 12, // <--- SUDAH DIKECILIN
+                                        fontWeight:
+                                            currentType == TafsirType.att
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        color: currentType == TafsirType.att
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                // GARIS PEMISAH
+                                if (showTikaButton)
+                                  Container(
+                                    width: 1,
+                                    height: 12,
+                                    color: Colors.grey.withValues(alpha: 0.3),
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                    ),
+                                  ),
+
+                                // --- TOMBOL T ---
+                                if (showTikaButton)
+                                  InkWell(
+                                    onTap: () {
+                                      _navigateTafsirInternal(
+                                        widget.uid,
+                                        TafsirType.tik,
+                                        //  targetParamNum:
+                                        //      _visibleParaNum?.toString() ?? "",
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      child: Text(
+                                        "Ṭ",
+                                        style: TextStyle(
+                                          fontSize: 12, // <--- SUDAH DIKECILIN
+                                          fontWeight:
+                                              currentType == TafsirType.tik
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          color: currentType == TafsirType.tik
+                                              ? Theme.of(
+                                                  context,
+                                                ).colorScheme.primary
+                                              : Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                // 🔥 REAL DRAGGABLE SCROLLBAR (OPTIMIZED & ISOLATED)
+                if (!_isLoading && !_connectionError && !isError)
+                  ValueListenableBuilder<double>(
+                    valueListenable: _viewportRatioVN,
+                    builder: (context, ratio, _) {
+                      return ValueListenableBuilder<double>(
+                        valueListenable: _scrollProgressVN,
+                        builder: (context, progress, _) {
+                          return Positioned(
+                            right: 0,
+                            top: MediaQuery.of(context).padding.top + 80,
+                            bottom: _isBottomMenuVisible ? 100 : 20,
+                            width: 30,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final double trackHeight =
+                                    constraints.maxHeight;
+                                final double thumbHeight = (trackHeight * ratio)
+                                    .clamp(40.0, trackHeight);
+                                final double scrollableArea =
+                                    trackHeight - thumbHeight;
+                                final double thumbTop =
+                                    (progress * scrollableArea).clamp(
+                                      0.0,
+                                      scrollableArea,
+                                    );
+
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.translucent,
+                                  onVerticalDragStart: (_) {
+                                    // Dragging state tetep pake setState lokal gpp, atau
+                                    // biarin di parent karena event drag jarang terjadi dibanding scroll
+                                    setState(() => _isUserDragging = true);
+                                  },
+                                  onVerticalDragUpdate: (details) {
+                                    // LOGIC DRAG (Update ValueNotifier langsung)
+                                    final double fingerY =
+                                        details.localPosition.dy;
+                                    final double targetThumbTop =
+                                        fingerY - (thumbHeight / 2);
+                                    final double newProgress =
+                                        (targetThumbTop / scrollableArea).clamp(
+                                          0.0,
+                                          1.0,
+                                        );
+
+                                    // Update UI Scrollbar langsung
+                                    _scrollProgressVN.value = newProgress;
+
+                                    // Update List (Jumping)
+                                    int totalItems = 1;
+                                    if (_htmlSegments.isNotEmpty) {
+                                      totalItems = _htmlSegments.length;
+                                    } else if (widget.textData != null &&
+                                        widget.textData!["keys_order"]
+                                            is List) {
+                                      totalItems =
+                                          (widget.textData!["keys_order"]
+                                                  as List)
+                                              .length;
+                                    }
+
+                                    if (totalItems > 0 &&
+                                        _itemScrollController.isAttached) {
+                                      final int targetIndex =
+                                          (newProgress * (totalItems - 1))
+                                              .floor();
+                                      _itemScrollController.jumpTo(
+                                        index: targetIndex,
+                                        alignment: 0,
+                                      );
+                                    }
+                                  },
+                                  onVerticalDragEnd: (_) {
+                                    setState(() => _isUserDragging = false);
+                                  },
+                                  child: Stack(
+                                    children: [
+                                      Positioned(
+                                        top: thumbTop,
+                                        right: 2,
+                                        child: Container(
+                                          width: 6,
+                                          height: thumbHeight,
+                                          decoration: BoxDecoration(
+                                            color: _isUserDragging
+                                                ? accentColor.withValues(
+                                                    alpha: 0.8,
+                                                  )
+                                                /*Theme.of(context)
+                                                      .colorScheme
+                                                      .primary
+                                                      .withValues(alpha: 0.8)*/
+                                                /*: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant
+                                                      .withValues(alpha: 0.4),*/
+                                                : textColor.withValues(
+                                                    alpha: 0.4,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+              ], // ← PENUTUP STACK (children)
+            ),
           ),
           floatingActionButton: null,
         ),
@@ -3613,7 +5712,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   // ============================================
-  // UPDATED FLOATING ACTIONS (CONSISTENT DISABLED STATE)
+  // UPDATED FLOATING ACTIONS (FIX LANDSCAPE LAYOUT)
   // ============================================
   Widget _buildFloatingActions(bool isSegmented) {
     // 1. Cek Logic Navigasi
@@ -3632,10 +5731,13 @@ class _SuttaDetailState extends State<SuttaDetail> {
     final activeColor = systemScheme.primary;
     final disabledClickableColor = Colors.grey.withValues(alpha: 0.5);
 
-    // Styling Compact vs Normal
-    final double internalPaddingH = isPhoneLandscape ? 4.0 : 6.0;
-    final double internalPaddingV = isPhoneLandscape ? 2.0 : 4.0;
-    final double iconSize = isPhoneLandscape ? 20.0 : 24.0;
+    // 🔥 FIX PADDING LANDSCAPE:
+    // Dulu 4.0, sekarang 12.0 biar tombol paling pinggir gak nempel bezel HP
+    final double internalPaddingH = isPhoneLandscape ? 12.0 : 6.0;
+    final double internalPaddingV = isPhoneLandscape ? 4.0 : 4.0;
+
+    // Ukuran icon disesuaikan dikit
+    final double iconSize = isPhoneLandscape ? 22.0 : 24.0;
     final double separatorHeight = isPhoneLandscape ? 16.0 : 24.0;
 
     Widget buildBtn({
@@ -3646,7 +5748,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       Color? customIconColor,
     }) {
       Color finalColor;
-      // 🔥 LOGIC VISUAL DISABLED: Kalau onTap NULL, warnanya jadi abu pudar
+      // Logic warna tetap sama
       if (onTap == null) {
         finalColor = Colors.grey.withValues(alpha: 0.3);
       } else if (customIconColor != null) {
@@ -3665,8 +5767,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
           child: Tooltip(
             message: tooltip,
             child: Container(
+              // Padding tombol
               padding: EdgeInsets.symmetric(
-                horizontal: isPhoneLandscape ? 8 : 12,
+                horizontal: isPhoneLandscape ? 8 : 8,
                 vertical: isPhoneLandscape ? 8 : 12,
               ),
               decoration: isActive
@@ -3688,15 +5791,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
         horizontal: internalPaddingH,
         vertical: internalPaddingV,
       ),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        /* border: Border(
-          top: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1),
-        ),*/
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         mainAxisSize: MainAxisSize.max,
+
+        // 🔥 INI KUNCINYA:
+        // Ganti 'spaceBetween' jadi 'spaceEvenly'.
+        // spaceBetween = Tombol mentok ke kiri & kanan (Jelek di landscape).
+        // spaceEvenly = Jarak dibagi rata, jadi tombol panah agak ke tengah.
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+
         children: [
           // --- PREV ---
           buildBtn(
@@ -3705,21 +5809,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
             customIconColor: (_isFirst || isTematik)
                 ? disabledClickableColor
                 : null,
-            // Logic prev sudah benar (cek _isLoading)
-            onTap: _isLoading
-                ? null
-                : () {
-                    if (isTematik) {
-                      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
-                    } else if (_isFirst) {
-                      _showSuttaSnackBar(
-                        SuttaSnackType.firstText,
-                        uid: widget.uid,
-                      );
-                    } else {
-                      _goToPrevSutta();
-                    }
-                  },
+            // 🔥 Bersih banget kan:
+            onTap: _isLoading ? null : _goToPrevSutta,
           ),
 
           Container(
@@ -3728,36 +5819,46 @@ class _SuttaDetailState extends State<SuttaDetail> {
             color: Colors.grey.withValues(alpha: 0.2),
           ),
 
-          // --- TOOLS ---
+          // --- TOOLS (Translate) ---
           buildBtn(
             icon: Icons.translate_rounded,
-            tooltip: "Info Sutta & Terjemahan",
-            // Translate sudah benar
+            tooltip: "Suttaplex",
             onTap: _isLoading ? null : _openSuttaplexModal,
           ),
+
+          // --- TOOLS (Search) ---
           buildBtn(
             icon: Icons.search_rounded,
-            tooltip: "Cari Teks",
-            // Search sudah benar
+            tooltip: "Pencarian",
             onTap: _isLoading ? null : _openSearchModal,
           ),
 
-          // 🔥 FIX: SETTINGS (Tt)
+          // --- TOOLS (Settings) ---
           buildBtn(
             icon: Icons.text_fields_rounded,
             tooltip: "Tampilan",
-            // SEKARANG CEK _isLoading JUGA
             onTap: _isLoading
                 ? null
                 : () => _openViewSettingsModal(isSegmented),
           ),
 
-          // 🔥 FIX: DAFTAR ISI (List)
+          // 🔥 UPDATE BAGIAN INI:
+          // Munculin tombol Link kalau Mode Tafsir ATAU kalau ada section SC/Verse yang kedeteksi
+          if (_isTafsirMode || _tafsirAvailableSections.isNotEmpty)
+            buildBtn(
+              icon: Icons.link,
+              tooltip: "Indeks Referensi",
+              // Kalau datanya kosong, disable.
+              onTap: (_tafsirAvailableSections.isEmpty || _isLoading)
+                  ? null
+                  : _openTafsirGridModal,
+            ),
+
+          // --- TOOLS (Daftar Isi) ---
           if (showToc)
             buildBtn(
               icon: Icons.list_alt_rounded,
               tooltip: "Daftar Isi",
-              // SEKARANG CEK _isLoading JUGA
               onTap: _isLoading
                   ? null
                   : () => _scaffoldKey.currentState?.openEndDrawer(),
@@ -3776,23 +5877,77 @@ class _SuttaDetailState extends State<SuttaDetail> {
             customIconColor: (_isLast || isTematik)
                 ? disabledClickableColor
                 : null,
-            // Logic next sudah benar
-            onTap: _isLoading
-                ? null
-                : () {
-                    if (isTematik) {
-                      _showSuttaSnackBar(SuttaSnackType.disabledForTematik);
-                    } else if (_isLast) {
-                      _showSuttaSnackBar(
-                        SuttaSnackType.lastText,
-                        uid: widget.uid,
-                      );
-                    } else {
-                      _goToNextSutta();
-                    }
-                  },
+            // 🔥 Bersih banget kan:
+            onTap: _isLoading ? null : _goToNextSutta,
           ),
         ],
+      ),
+    );
+  }
+
+  // 🔥 HELPER UI: Tombol Navigasi Cantik (Persis TafsirDetail)
+  Widget _buildNavButton(
+    BuildContext ctx, {
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(ctx).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isActive ? null : onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isActive
+                ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isActive
+                  ? colorScheme.primary
+                  : Colors.grey.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isActive
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isActive
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -3884,11 +6039,17 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                           ),
                                           onPressed: () {
                                             _searchController.clear();
-                                            setState(() {
-                                              _cachedSearchRegex = null;
-                                              _allMatches.clear();
-                                            });
+
+                                            // Reset data LOKAL sheet dulu (biar responsif)
+                                            _allMatches.clear();
+                                            _currentMatchIndex = 0;
+
+                                            // Update UI Sheet
                                             setSheetState(() {});
+
+                                            // Baru update regex global (tanpa paksa rebuild satu layar penuh yg gak perlu)
+                                            _cachedSearchRegex = null;
+                                            // setState(() {}); // <--- INI HAPUS AJA, GAK PERLU REBUILD BACKGROUND PAS LAGI BUKA MODAL
                                           },
                                         )
                                       : null,
@@ -3924,9 +6085,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                       //  () => _cachedSearchRegex = regex,
                                       //);
                                       // 🔥 BARU: Pake Helper Fuzzy Pali
-                                      final regex = _createPaliRegex(
-                                        val.trim(),
-                                      );
+                                      final regex =
+                                          SuttaTextHelper.createPaliRegex(
+                                            val.trim(),
+                                          );
 
                                       setState(
                                         () => _cachedSearchRegex = regex,
@@ -3971,7 +6133,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                             String paliTxt =
                                                 rootMap[key]?.toString() ?? "";
                                             paliTxt = paliTxt.replaceAll(
-                                              RegExp(r'<[^>]*>'),
+                                              SuttaTextHelper.htmlTagRegex,
                                               '',
                                             );
                                             int localPali = 0;
@@ -3989,7 +6151,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                           String transTxt =
                                               transMap[key]?.toString() ?? "";
                                           transTxt = transTxt.replaceAll(
-                                            RegExp(r'<[^>]*>'),
+                                            SuttaTextHelper.htmlTagRegex,
                                             '',
                                           );
                                           int localTrans = 0;
@@ -4011,7 +6173,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                         ) {
                                           String txt = _htmlSegments[i]
                                               .replaceAll(
-                                                RegExp(r'<[^>]*>'),
+                                                SuttaTextHelper.htmlTagRegex,
                                                 '',
                                               );
                                           int localCounter = 0;
@@ -4162,12 +6324,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
             uid: widget.uid,
             sourceMode: "sutta_detail",
             onSelect: (newUid, lang, authorUid, textData) {
+              // Panggil engine, arah animasi default (Next/Kanan)
               _replaceToSutta(
                 newUid,
                 lang,
                 authorUid: authorUid,
                 segmented: textData["segmented"] == true,
                 textData: textData,
+                isNext: true,
+                isNavigatedAction:
+                    false, // Karena ini ganti terjemahan, bukan pindah sutta
               );
             },
           ),
@@ -4182,761 +6348,74 @@ class _SuttaDetailState extends State<SuttaDetail> {
   void _openViewSettingsModal(bool isSegmented) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
       isScrollControlled: true,
-      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            final colorScheme = Theme.of(context).colorScheme;
-            final readerColors = _themeColors;
+        return SuttaSettingsSheet(
+          isSegmented: isSegmented,
+          lang: widget.lang,
+          isRootOnly: _isRootOnly,
+          fontSize: _fontSize,
+          lineHeight: _lineHeight,
+          horizontalPadding: _horizontalPadding,
+          fontType: _fontType,
+          viewMode: _viewMode,
+          readerTheme: _readerTheme,
 
-            // 🔥 1. DETEKSI LAYAR
-            final size = MediaQuery.of(context).size;
-            final isLandscape = size.width > size.height;
-            final isTablet = size.shortestSide >= 600;
+          // 1. Pastikan 3 warna kustom dikirim ke sheet
+          customBgColor: _customBgColor,
+          customTextColor: _customTextColor,
+          customPaliColor: _customPaliColor, // Tambahkan ini
 
-            // Tampilkan preview HANYA JIKA: (Portrait) ATAU (Tablet Landscape)
-            final bool showPreview = !isLandscape || isTablet;
+          showVerseNumbers: _showVerseNumbers,
 
-            final ScrollController modalScrollController = ScrollController();
+          onFontSizeChanged: (val) {
+            setState(() => _fontSize = val);
+            _savePreferences();
+          },
+          onLineHeightChanged: (val) {
+            setState(() => _lineHeight = val);
+            _savePreferences();
+          },
+          onPaddingChanged: (val) {
+            setState(() => _horizontalPadding = val);
+            _savePreferences();
+          },
+          onFontTypeChanged: (val) {
+            setState(() => _fontType = val);
+            _savePreferences();
+          },
+          onViewModeChanged: (val) {
+            setState(() => _viewMode = val);
+            _savePreferences();
+          },
+          onThemeChanged: (val) {
+            setState(() => _readerTheme = val);
+            _savePreferences();
+          },
 
-            ButtonStyle getFontBtnStyle(bool isActive) {
-              return OutlinedButton.styleFrom(
-                backgroundColor: isActive ? colorScheme.primaryContainer : null,
-                side: BorderSide(
-                  color: isActive
-                      ? colorScheme.primary
-                      : Colors.grey.withValues(alpha: 0.3),
-                ),
-                foregroundColor: isActive
-                    ? colorScheme.onPrimaryContainer
-                    : colorScheme.onSurface,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              );
-            }
+          // 2. Update callback agar menerima 3 argumen (bg, txt, pali)
+          onCustomColorsChanged: (bg, txt, pali) {
+            // Tambahkan 'pali' di sini
+            setState(() {
+              _customBgColor = bg;
+              _customTextColor = txt;
+              _customPaliColor = pali; // Simpan warna pali
+            });
+            _savePreferences();
+          },
 
-            Widget buildSectionHeader(String title) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12, top: 4),
-                child: Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              );
-            }
-
-            // --- LOGIC BUILD PREVIEW CONTENT ---
-            Widget buildPreviewContent() {
-              final paliText =
-                  "Namo tassa bhagavato arahato sammāsambuddhassa.";
-              final transText =
-                  "Terpujilah Sang Bhagavā, Yang Mahasuci, Yang Telah Mencapai Penerangan Sempurna.";
-
-              final paliStyle = TextStyle(
-                fontFamily: _currentFontFamily,
-                fontSize: _fontSize * 0.8,
-                height: _lineHeight,
-                fontWeight: FontWeight.w500,
-                color: readerColors['pali'],
-              );
-
-              final transStyle = TextStyle(
-                fontFamily: _currentFontFamily,
-                fontSize: _fontSize,
-                height: _lineHeight,
-                color: readerColors['text'],
-              );
-
-              if (_isRootOnly) {
-                return Text(paliText, style: transStyle);
-              }
-
-              if (!isSegmented) {
-                return Text(transText, style: transStyle);
-              }
-
-              switch (_viewMode) {
-                case ViewMode.translationOnly:
-                  return Text(transText, style: transStyle);
-                case ViewMode.sideBySide:
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: Text(paliText, style: paliStyle),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: Text(transText, style: transStyle),
-                      ),
-                    ],
-                  );
-                case ViewMode.lineByLine:
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(paliText, style: paliStyle),
-                      const SizedBox(height: 4),
-                      Text(transText, style: transStyle),
-                    ],
-                  );
-              }
-            }
-
-            return Container(
-              // 🔥 FIX: Padding Bawah dikurangi (24 -> 16) biar gak bolong
-              padding: const EdgeInsets.fromLTRB(24, 12, 4, 0),
-              constraints: BoxConstraints(
-                // Max height disamain sama html.dart (0.85)
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // --- HEADER (FIXED/STICKY) ---
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Pengaturan Baca",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                        CircleAvatar(
-                          backgroundColor: colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.5),
-                          radius: 16,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, size: 18),
-                            padding: EdgeInsets.zero,
-                            color: colorScheme.onSurface,
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 🔥 STICKY LIVE PREVIEW BOX
-                  if (showPreview) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(right: 20, bottom: 16),
-                      child: Container(
-                        width: double.infinity,
-                        constraints: const BoxConstraints(maxHeight: 180),
-                        decoration: BoxDecoration(
-                          color: readerColors['bg'],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.grey.withValues(alpha: 0.3),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 16,
-                                    top: 12,
-                                  ),
-                                  child: Text(
-                                    "PRATINJAU TAMPILAN",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: readerColors['note'],
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: 16,
-                                    horizontal: _horizontalPadding < 16
-                                        ? 16
-                                        : _horizontalPadding,
-                                  ),
-                                  child: buildPreviewContent(),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  // --- KONTEN SCROLLABLE (SETTINGS) ---
-                  Flexible(
-                    fit: FlexFit.loose,
-                    child: Scrollbar(
-                      controller: modalScrollController,
-                      thumbVisibility: true,
-                      radius: const Radius.circular(8),
-                      thickness: 4,
-                      child: SingleChildScrollView(
-                        controller: modalScrollController,
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.only(right: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 1. MODE TAMPILAN
-                            if (isSegmented && widget.lang != "pli") ...[
-                              buildSectionHeader("Segmen Pāli"),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  return ToggleButtons(
-                                    isSelected: [
-                                      _viewMode == ViewMode.lineByLine,
-                                      _viewMode == ViewMode.sideBySide,
-                                      _viewMode == ViewMode.translationOnly,
-                                    ],
-                                    onPressed: (int index) {
-                                      setState(() {
-                                        if (index == 0) {
-                                          _viewMode = ViewMode.lineByLine;
-                                        } else if (index == 1) {
-                                          _viewMode = ViewMode.sideBySide;
-                                        } else {
-                                          _viewMode = ViewMode.translationOnly;
-                                        }
-                                      });
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderColor: Colors.grey.withValues(
-                                      alpha: 0.2,
-                                    ),
-                                    selectedBorderColor: colorScheme.primary,
-                                    fillColor: colorScheme.primaryContainer,
-                                    selectedColor:
-                                        colorScheme.onPrimaryContainer,
-                                    color: colorScheme.onSurfaceVariant,
-                                    constraints: BoxConstraints(
-                                      minWidth: (constraints.maxWidth - 4) / 3,
-                                      minHeight: 48,
-                                    ),
-                                    children: const [
-                                      Tooltip(
-                                        message: "Atas Bawah",
-                                        child: Icon(
-                                          Icons.horizontal_split_outlined,
-                                        ),
-                                      ),
-                                      Tooltip(
-                                        message: "Kiri Kanan",
-                                        child: Icon(
-                                          Icons.vertical_split_outlined,
-                                        ),
-                                      ),
-                                      Tooltip(
-                                        message: "Tanpa Pāli",
-                                        child: Icon(Icons.block),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              Center(
-                                child: Text(
-                                  _viewMode == ViewMode.lineByLine
-                                      ? "Atas-Bawah"
-                                      : _viewMode == ViewMode.sideBySide
-                                      ? "Kiri-Kanan"
-                                      : "Terjemahan Saja",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.secondary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-
-                            // 2. GAYA & WARNA
-                            buildSectionHeader("Gaya & Warna"),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.light,
-                                    Colors.white,
-                                    Colors.black,
-                                    "Terang",
-                                    () => setModalState(() {}),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.light2,
-                                    const Color(0xFFFAFAFA),
-                                    const Color(0xFF424242),
-                                    "Lembut",
-                                    () => setModalState(() {}),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.sepia,
-                                    const Color(0xFFF4ECD8),
-                                    const Color(0xFF5D4037),
-                                    "Sepia",
-                                    () => setModalState(() {}),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.dark,
-                                    const Color(0xFF212121),
-                                    Colors.white,
-                                    "Gelap",
-                                    () => setModalState(() {}),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.dark2,
-                                    const Color(0xFF212121),
-                                    const Color(0xFFB0BEC5),
-                                    "Redup",
-                                    () => setModalState(() {}),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    style: getFontBtnStyle(_fontType == 'sans'),
-                                    onPressed: () {
-                                      setState(() => _fontType = 'sans');
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    child: Text(
-                                      "Sans",
-                                      style: GoogleFonts.inter(),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    style: getFontBtnStyle(
-                                      _fontType == 'serif',
-                                    ),
-                                    onPressed: () {
-                                      setState(() => _fontType = 'serif');
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    child: Text(
-                                      "Serif",
-                                      style: GoogleFonts.notoSerif(),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 32),
-
-                            // 3. TATA LETAK
-                            buildSectionHeader("Tata Letak"),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.grey.withValues(alpha: 0.1),
-                                ),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              child: Column(
-                                children: [
-                                  _buildStepperRow(
-                                    context,
-                                    icon: Icons.format_size_rounded,
-                                    label: "Ukuran Teks",
-                                    valueLabel: "${_fontSize.toInt()}",
-                                    onMinus: () {
-                                      setState(
-                                        () => _fontSize = (_fontSize - 2).clamp(
-                                          12.0,
-                                          40.0,
-                                        ),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    onPlus: () {
-                                      setState(
-                                        () => _fontSize = (_fontSize + 2).clamp(
-                                          12.0,
-                                          40.0,
-                                        ),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                  Divider(
-                                    color: Colors.grey.withValues(alpha: 0.1),
-                                    height: 16,
-                                  ),
-                                  _buildStepperRow(
-                                    context,
-                                    icon: Icons.format_line_spacing_rounded,
-                                    label: "Jarak Baris",
-                                    valueLabel: _lineHeight.toStringAsFixed(1),
-                                    onMinus: () {
-                                      setState(
-                                        () => _lineHeight = (_lineHeight - 0.1)
-                                            .clamp(1.0, 3.0),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    onPlus: () {
-                                      setState(
-                                        () => _lineHeight = (_lineHeight + 0.1)
-                                            .clamp(1.0, 3.0),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                  Divider(
-                                    color: Colors.grey.withValues(alpha: 0.1),
-                                    height: 16,
-                                  ),
-                                  _buildStepperRow(
-                                    context,
-                                    icon: Icons.space_bar_rounded,
-                                    label: "Jarak Sisi",
-                                    valueLabel: "${_horizontalPadding.toInt()}",
-                                    onMinus: () {
-                                      setState(
-                                        () => _horizontalPadding =
-                                            (_horizontalPadding - 8).clamp(
-                                              0.0,
-                                              128.0,
-                                            ),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    onPlus: () {
-                                      setState(
-                                        () => _horizontalPadding =
-                                            (_horizontalPadding + 8).clamp(
-                                              0.0,
-                                              128.0,
-                                            ),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
+          onShowVerseNumbersChanged: (val) {
+            setState(() => _showVerseNumbers = val);
+            _savePreferences();
           },
         );
       },
     );
   }
-
-  Widget _buildStepperRow(
-    BuildContext context, {
-    required IconData icon, // ✅ Tambah parameter Icon
-    required String label,
-    required String valueLabel,
-    required VoidCallback onMinus,
-    required VoidCallback onPlus,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // KIRI: Icon + Label
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: colorScheme.secondary,
-              ), // Ikon kecil warna sekunder
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight:
-                      FontWeight.w500, // Medium weight, jangan terlalu bold
-                  fontSize: 15,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-
-          // KANAN: Controls (Tanpa border kotak, cuma tombol dan angka)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: onMinus,
-                color: colorScheme.onSurfaceVariant,
-                iconSize: 22,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(), // Hapus default padding
-              ),
-              Container(
-                constraints: const BoxConstraints(minWidth: 40),
-                alignment: Alignment.center,
-                child: Text(
-                  valueLabel,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: colorScheme.primary,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline),
-                onPressed: onPlus,
-                color: colorScheme.onSurfaceVariant,
-                iconSize: 22,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildThemeOption(
-    BuildContext context,
-    ReaderTheme theme,
-    Color previewColor,
-    Color textColor,
-    String label,
-    VoidCallback onRefresh, // ✅ PARAMETER BARU
-  ) {
-    final bool isSelected = _readerTheme == theme;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    return GestureDetector(
-      onTap: () {
-        // 1. Update State Halaman Utama (Background berubah)
-        setState(() => _readerTheme = theme);
-        _savePreferences();
-
-        // 2. Update State Modal (Biar Ceklis muncul/pindah!)
-        onRefresh();
-      },
-      child: Column(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: previewColor,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected
-                    ? primaryColor
-                    : Colors.grey.withValues(alpha: 0.3),
-                width: isSelected ? 2 : 1,
-              ),
-              boxShadow: [
-                if (isSelected)
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-              ],
-            ),
-            child: isSelected
-                ? Icon(Icons.check, color: textColor, size: 20)
-                : null,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected
-                  ? primaryColor
-                  : Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 🔥 FUNGSI UTAMA PEMBUAT HIGHLIGHT
-  HighlightResult _buildHighlightedSpans(
-    String text,
-    TextStyle currentStyle,
-    int listIndex,
-    bool isPaliTarget,
-    int startCounter,
-  ) {
-    // Kalau gak ada search, balikin teks polos
-    if (_cachedSearchRegex == null || _searchController.text.length < 2) {
-      return HighlightResult([
-        TextSpan(text: text, style: currentStyle),
-      ], startCounter);
-    }
-
-    final matches = _cachedSearchRegex!.allMatches(text);
-    if (matches.isEmpty) {
-      return HighlightResult([
-        TextSpan(text: text, style: currentStyle),
-      ], startCounter);
-    }
-
-    final spans = <InlineSpan>[];
-    int textCursor = 0;
-    int currentCounter = startCounter;
-
-    for (final match in matches) {
-      // 1. Teks sebelum highlight
-      if (match.start > textCursor) {
-        spans.add(
-          TextSpan(
-            text: text.substring(textCursor, match.start),
-            style: currentStyle,
-          ),
-        );
-      }
-
-      // 2. Cek apakah highlight ini AKTIF?
-      bool isActive = false;
-      // Cek di daftar _allMatches global
-      if (_allMatches.isNotEmpty && _currentMatchIndex < _allMatches.length) {
-        final activeMatch = _allMatches[_currentMatchIndex];
-        // Syarat: Index Baris sama, Tipe sama (Pali/Indo), dan Urutan Counter sama
-        if (activeMatch.listIndex == listIndex &&
-            activeMatch.isPali == isPaliTarget &&
-            activeMatch.localIndex == currentCounter) {
-          isActive = true;
-        }
-      }
-
-      // 3. Render HIGHLIGHT (Gabungin style sekarang + Warna Background)
-      spans.add(
-        TextSpan(
-          text: text.substring(match.start, match.end),
-          style: currentStyle.copyWith(
-            backgroundColor: isActive ? Colors.orange : Colors.yellow,
-            color: isActive ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold, // Opsional: biar lebih jelas
-          ),
-        ),
-      );
-
-      textCursor = match.end;
-      currentCounter++; // Nambah counter setiap ketemu kata
-    }
-
-    // 4. Sisa teks setelah highlight terakhir
-    if (textCursor < text.length) {
-      spans.add(
-        TextSpan(text: text.substring(textCursor), style: currentStyle),
-      );
-    }
-
-    return HighlightResult(spans, currentCounter);
-  }
-}
-
-// Helper class buat return 2 nilai sekaligus
-class HighlightResult {
-  final List<InlineSpan> spans;
-  final int newCounter;
-  HighlightResult(this.spans, this.newCounter);
-}
-
-class SearchMatch {
-  final int listIndex;
-  final int localIndex; // Urutan ke-berapa di dalam teks tersebut
-  final bool isPali; // 🔥 PENANDA: Apakah ini teks Pali?
-
-  SearchMatch(this.listIndex, this.localIndex, this.isPali);
 }
 
 class SuttaHeaderConfig {

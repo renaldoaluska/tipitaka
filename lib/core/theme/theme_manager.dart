@@ -51,7 +51,7 @@ class ThemeManager extends ChangeNotifier {
       surface: Colors.white,
       onSurface: Colors.black,
       onSurfaceVariant: const Color(0xFF757575),
-      secondary: Colors.blueGrey,
+      secondary: Colors.redAccent,
     ),
     textTheme: GoogleFonts.interTextTheme(),
     primaryTextTheme: GoogleFonts.interTextTheme(),

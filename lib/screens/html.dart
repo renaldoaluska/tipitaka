@@ -1,18 +1,17 @@
 import 'dart:async';
 import 'dart:ui';
+import '../models/reader_enums.dart';
+import '../widgets/sutta_settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../core/utils/system_ui_helper.dart';
+import '../utils/system_ui_helper.dart';
 import '../data/html_data.dart';
 import '../widgets/audio.dart';
 import '../widgets/tematik_chapter_list.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-
-// Taruh di paling atas file html.dart (di luar class)
-enum ReaderTheme { light, light2, sepia, dark, dark2 }
 
 class HtmlReaderPage extends StatefulWidget {
   final String title;
@@ -37,6 +36,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   // STATE VARIABLES
   // ============================================
+  // --- STATE GESTURE SWIPE ---
+  double _dragStartX = 0.0;
+  double _currentDragX = 0.0;
+  final double _minDragDistance = 100.0; // Threshold minimal swipe (100px)
+
   bool _isBottomMenuVisible = true;
 
   ReaderTheme _readerTheme = ReaderTheme.light;
@@ -137,80 +141,20 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   // UPDATED THEME COLORS (WITH PALI)
   // ============================================
-  Map<String, Color> get _themeColors {
-    final systemScheme = Theme.of(context).colorScheme;
-    final uiCardColor = systemScheme.surface;
-    final uiIconColor = systemScheme.onSurface;
 
-    // 🔥 SINKRONISASI TOTAL DENGAN SUTTA_DETAIL.DART
-    // Kita Hardcode Hex-nya biar:
-    // 1. Gak Crash (LateInitializationError)
-    // 2. Warnanya persis sama kayak Sutta Detail
+  Color _customBgColor = Colors.white;
+  Color _customTextColor = Colors.black;
+  Color _customPaliColor = const Color(
+    0xFF8B4513,
+  ); // Warna Pali default (coklat)
 
-    switch (_readerTheme) {
-      // --- TERANG 1 (Standard) ---
-      // Sumber: ThemeManager lightTheme
-      case ReaderTheme.light:
-        return {
-          'bg': const Color(0xFFFAFAFA), // Colors.grey[50]
-          'text': const Color(0xFF000000), // Colors.black
-          'note': const Color(0xFF757575), // onSurfaceVariant
-          'card': uiCardColor,
-          'icon': uiIconColor,
-          'pali': const Color(
-            0xFF8B4513,
-          ), // Coklat Tua Klasik (Sama kyk SuttaDetail)
-        };
-
-      // --- TERANG 2 (Soft) ---
-      // Sumber: SuttaDetail Light 2
-      case ReaderTheme.light2:
-        return {
-          'bg': const Color(0xFFFAFAFA), // Colors.grey[50]
-          'text': const Color(0xFF424242), // Abu Tua Soft
-          'note': const Color(0xFF9E9E9E), // Abu Sedang
-          'card': uiCardColor,
-          'icon': uiIconColor,
-          'pali': const Color(0xFFA1887F), // Coklat Kemerahan Soft
-        };
-
-      // --- SEPIA (Custom) ---
-      // Sumber: SuttaDetail Sepia
-      case ReaderTheme.sepia:
-        return {
-          'bg': const Color(0xFFF4ECD8), // Krem
-          'text': const Color(0xFF5D4037), // Coklat
-          'note': const Color(0xFF8D6E63), // Coklat Pudar
-          'card': uiCardColor,
-          'icon': uiIconColor,
-          'pali': const Color(0xFF795548), // Coklat Tanah
-        };
-
-      // --- GELAP 1 (Standard) ---
-      // Sumber: ThemeManager darkTheme
-      case ReaderTheme.dark:
-        return {
-          'bg': const Color(0xFF212121), // Colors.grey[900]
-          'text': const Color(0xFFFFFFFF), // Colors.white
-          'note': const Color(0xFFBDBDBD), // onSurfaceVariant
-          'card': uiCardColor,
-          'icon': uiIconColor,
-          'pali': const Color(0xFFD4A574), // Emas Pudar
-        };
-
-      // --- GELAP 2 (Soft) ---
-      // Sumber: SuttaDetail Dark 2
-      case ReaderTheme.dark2:
-        return {
-          'bg': const Color(0xFF212121), // Colors.grey[900]
-          'text': const Color(0xFFB0BEC5), // Abu Kebiruan
-          'note': const Color(0xFF757575), // Abu Gelap
-          'card': uiCardColor,
-          'icon': uiIconColor,
-          'pali': const Color(0xFFC5B6A6), // Dusty Sand
-        };
-    }
-  }
+  // Getter pusat (pastikan ReaderThemeStyle.getStyle sudah diupdate terima 3 warna)
+  ReaderThemeStyle get _currentStyle => ReaderThemeStyle.getStyle(
+    _readerTheme,
+    customBg: _customBgColor,
+    customText: _customTextColor,
+    customPali: _customPaliColor,
+  );
 
   int get displayZoom => _textZoom.round();
 
@@ -440,6 +384,24 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         _fontType = prefs.getString('html_font_type') ?? 'sans';
         _isBottomMenuVisible =
             prefs.getBool('html_bottom_menu_visible') ?? true; // ✅ TAMBAH INI
+
+        // Load Warna Kustom
+        // Gunakan key universal tanpa prefix biar sinkron
+        _customBgColor = Color(
+          prefs.getInt('custom_bg_color') ?? Colors.white.toARGB32(),
+        );
+        _customTextColor = Color(
+          prefs.getInt('custom_text_color') ?? Colors.black.toARGB32(),
+        );
+        _customPaliColor = Color(
+          prefs.getInt('custom_pali_color') ??
+              const Color(0xFF8B4513).toARGB32(),
+        );
+
+        // Load Theme Index
+        int themeIdx = prefs.getInt('reader_theme_index') ?? 0;
+        _readerTheme = ReaderTheme
+            .values[themeIdx.clamp(0, ReaderTheme.values.length - 1)];
       });
     }
   }
@@ -470,7 +432,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           themeIndex < ReaderTheme.values.length) {
         targetTheme = ReaderTheme.values[themeIndex];
       } else {
-        final brightness = Theme.of(context).brightness;
+        //   final brightness = Theme.of(context).brightness;
+        // ambil brightness langsung dari sistem/window, gak butuh context tree
+        final brightness = View.of(
+          context,
+        ).platformDispatcher.platformBrightness;
         targetTheme = brightness == Brightness.dark
             ? ReaderTheme.dark
             : ReaderTheme.light;
@@ -511,10 +477,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     await prefs.setDouble('html_line_height', _lineHeight);
     await prefs.setString('html_font_type', _fontType);
     await prefs.setInt('reader_theme_index', _readerTheme.index);
-    await prefs.setBool(
-      'html_bottom_menu_visible',
-      _isBottomMenuVisible,
-    ); // ✅ TAMBAH INI
+    await prefs.setBool('html_bottom_menu_visible', _isBottomMenuVisible);
+
+    await prefs.setInt('custom_bg_color', _customBgColor.toARGB32());
+    await prefs.setInt('custom_text_color', _customTextColor.toARGB32());
+    await prefs.setInt('custom_pali_color', _customPaliColor.toARGB32());
   }
 
   // ============================================
@@ -1047,564 +1014,60 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       isScrollControlled: true,
-      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            final colorScheme = Theme.of(context).colorScheme;
-            // Ambil warna tema terbaru
-            final readerColors = _themeColors;
+        return SuttaSettingsSheet(
+          isSegmented: false, // HTML reader bukan segmented
+          lang: 'id',
+          isRootOnly: false,
+          fontSize: _fontSize,
+          lineHeight: _lineHeight,
+          horizontalPadding: _horizontalPadding,
+          fontType: _fontType,
+          viewMode: ViewMode.translationOnly, // Default untuk HTML
+          readerTheme: _readerTheme,
 
-            // 🔥 1. DETEKSI LAYAR
-            final size = MediaQuery.of(context).size;
-            final isLandscape = size.width > size.height;
-            final isTablet = size.shortestSide >= 600;
+          // 1. Tambahkan parameter warna ketiga
+          customBgColor: _customBgColor,
+          customTextColor: _customTextColor,
+          customPaliColor: _customPaliColor, // <--- Tambahkan ini
 
-            // Tampilkan preview HANYA JIKA: (Portrait) ATAU (Tablet Landscape)
-            final bool showPreview = !isLandscape || isTablet;
+          onFontSizeChanged: (val) {
+            setState(() => _fontSize = val);
+            _savePreferences();
+          },
+          onLineHeightChanged: (val) {
+            setState(() => _lineHeight = val);
+            _savePreferences();
+          },
+          onPaddingChanged: (val) {
+            setState(() => _horizontalPadding = val);
+            _savePreferences();
+          },
+          onFontTypeChanged: (val) {
+            setState(() => _fontType = val);
+            _savePreferences();
+          },
+          onViewModeChanged: (val) {}, // Tidak berpengaruh di HTML reader
+          onThemeChanged: (val) {
+            setState(() => _readerTheme = val);
+            _savePreferences();
+          },
 
-            final ScrollController modalScrollController = ScrollController();
-
-            ButtonStyle getFontBtnStyle(bool isActive) {
-              return OutlinedButton.styleFrom(
-                backgroundColor: isActive ? colorScheme.primaryContainer : null,
-                side: BorderSide(
-                  color: isActive
-                      ? colorScheme.primary
-                      : Colors.grey.withValues(alpha: 0.3),
-                ),
-                foregroundColor: isActive
-                    ? colorScheme.onPrimaryContainer
-                    : colorScheme.onSurface,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              );
-            }
-
-            Widget buildSectionHeader(String title) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12, top: 4),
-                child: Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              );
-            }
-
-            return Container(
-              // 🔥 FIX: Padding Bawah dikurangi (24 -> 16) biar gak bolong
-              padding: const EdgeInsets.fromLTRB(24, 12, 4, 0),
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // --- HEADER HANDLE ---
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-
-                  // --- JUDUL ---
-                  Padding(
-                    padding: const EdgeInsets.only(right: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Pengaturan Baca",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                        CircleAvatar(
-                          backgroundColor: colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.5),
-                          radius: 16,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, size: 18),
-                            padding: EdgeInsets.zero,
-                            color: colorScheme.onSurface,
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // ===============================================
-                  // 🔥 LIVE PREVIEW BOX (html.dart version)
-                  // ===============================================
-                  if (showPreview) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(right: 20, bottom: 16),
-                      child: Container(
-                        width: double.infinity,
-                        constraints: const BoxConstraints(maxHeight: 180),
-                        decoration: BoxDecoration(
-                          color: readerColors['bg'],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.grey.withValues(alpha: 0.3),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 16,
-                                    top: 12,
-                                  ),
-                                  child: Text(
-                                    "PRATINJAU TAMPILAN",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: readerColors['note'],
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: 16,
-                                    horizontal: _horizontalPadding < 16
-                                        ? 16
-                                        : _horizontalPadding,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // TEKS PALI
-                                      Text(
-                                        "Namo Tassa Bhagavato Arahato Sammāsambuddhassa.",
-                                        style: TextStyle(
-                                          fontFamily: _currentFontFamily,
-                                          fontSize: _fontSize,
-                                          height: _lineHeight,
-                                          fontWeight: _fontType == 'serif'
-                                              ? FontWeight.w400
-                                              : FontWeight.w500,
-                                          color: readerColors['pali'],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-
-                                      // TEKS TERJEMAHAN
-                                      Text(
-                                        "Terpujilah Sang Bhagavā, Yang Mahasuci, Yang Telah Mencapai Penerangan Sempurna.",
-                                        style: TextStyle(
-                                          fontFamily: _currentFontFamily,
-                                          fontSize: _fontSize,
-                                          height: _lineHeight,
-                                          color: readerColors['text'],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  // --- KONTEN SETTINGS ---
-                  Flexible(
-                    fit: FlexFit.loose,
-                    child: Scrollbar(
-                      controller: modalScrollController,
-                      thumbVisibility: true,
-                      radius: const Radius.circular(8),
-                      thickness: 4,
-                      child: SingleChildScrollView(
-                        controller: modalScrollController,
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.only(right: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 1. GAYA & WARNA
-                            buildSectionHeader("Gaya & Warna"),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.light,
-                                    Colors.white,
-                                    Colors.black,
-                                    "Terang",
-                                    () => setModalState(() {}),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.light2,
-                                    const Color(0xFFFAFAFA),
-                                    const Color(0xFF424242),
-                                    "Lembut",
-                                    () => setModalState(() {}),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.sepia,
-                                    const Color(0xFFF4ECD8),
-                                    const Color(0xFF5D4037),
-                                    "Sepia",
-                                    () => setModalState(() {}),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.dark,
-                                    const Color(0xFF212121),
-                                    Colors.white,
-                                    "Gelap",
-                                    () => setModalState(() {}),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _buildThemeOption(
-                                    context,
-                                    ReaderTheme.dark2,
-                                    const Color(0xFF212121),
-                                    const Color(0xFFB0BEC5),
-                                    "Redup",
-                                    () => setModalState(() {}),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    style: getFontBtnStyle(_fontType == 'sans'),
-                                    onPressed: () {
-                                      setState(() => _fontType = 'sans');
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    child: Text(
-                                      "Sans",
-                                      style: GoogleFonts.inter(),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton(
-                                    style: getFontBtnStyle(
-                                      _fontType == 'serif',
-                                    ),
-                                    onPressed: () {
-                                      setState(() => _fontType = 'serif');
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    child: Text(
-                                      "Serif",
-                                      style: GoogleFonts.notoSerif(),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 32),
-
-                            // 2. TATA LETAK
-                            buildSectionHeader("Tata Letak"),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.grey.withValues(alpha: 0.1),
-                                ),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              child: Column(
-                                children: [
-                                  // UKURAN TEKS
-                                  _buildStepperRow(
-                                    context,
-                                    icon: Icons.format_size_rounded,
-                                    label: "Ukuran Teks",
-                                    valueLabel: "${_fontSize.toInt()}",
-                                    onMinus: () {
-                                      setState(() {
-                                        _fontSize = (_fontSize - 2).clamp(
-                                          12.0,
-                                          40.0,
-                                        );
-                                      });
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    onPlus: () {
-                                      setState(() {
-                                        _fontSize = (_fontSize + 2).clamp(
-                                          12.0,
-                                          40.0,
-                                        );
-                                      });
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                  Divider(
-                                    color: Colors.grey.withValues(alpha: 0.1),
-                                    height: 16,
-                                  ),
-
-                                  // JARAK BARIS
-                                  _buildStepperRow(
-                                    context,
-                                    icon: Icons.format_line_spacing_rounded,
-                                    label: "Jarak Baris",
-                                    valueLabel: _lineHeight.toStringAsFixed(1),
-                                    onMinus: () {
-                                      setState(
-                                        () => _lineHeight = (_lineHeight - 0.1)
-                                            .clamp(1.0, 3.0),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    onPlus: () {
-                                      setState(
-                                        () => _lineHeight = (_lineHeight + 0.1)
-                                            .clamp(1.0, 3.0),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                  Divider(
-                                    color: Colors.grey.withValues(alpha: 0.1),
-                                    height: 16,
-                                  ),
-
-                                  // JARAK SISI
-                                  _buildStepperRow(
-                                    context,
-                                    icon: Icons.space_bar_rounded,
-                                    label: "Jarak Sisi",
-                                    valueLabel: "${_horizontalPadding.toInt()}",
-                                    onMinus: () {
-                                      setState(
-                                        () => _horizontalPadding =
-                                            (_horizontalPadding - 4).clamp(
-                                              0.0,
-                                              120.0,
-                                            ),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                    onPlus: () {
-                                      setState(
-                                        () => _horizontalPadding =
-                                            (_horizontalPadding + 4).clamp(
-                                              0.0,
-                                              120.0,
-                                            ),
-                                      );
-                                      _savePreferences();
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
+          // 2. Ubah callback agar menerima 3 argumen (bg, txt, pali)
+          onCustomColorsChanged: (bg, txt, pali) {
+            // <--- Tambahkan 'pali'
+            setState(() {
+              _customBgColor = bg;
+              _customTextColor = txt;
+              _customPaliColor = pali; // <--- Simpan warna pali juga
+            });
+            _savePreferences();
           },
         );
       },
-    );
-  }
-
-  Widget _buildStepperRow(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String valueLabel,
-    required VoidCallback onMinus,
-    required VoidCallback onPlus,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: colorScheme.secondary),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 15,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: onMinus,
-                color: colorScheme.onSurfaceVariant,
-                iconSize: 22,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              Container(
-                constraints: const BoxConstraints(
-                  minWidth: 50,
-                ), // Lebarin dikit buat "100%"
-                alignment: Alignment.center,
-                child: Text(
-                  valueLabel,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: colorScheme.primary,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline),
-                onPressed: onPlus,
-                color: colorScheme.onSurfaceVariant,
-                iconSize: 22,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildThemeOption(
-    BuildContext context,
-    ReaderTheme theme,
-    Color previewColor,
-    Color textColor,
-    String label,
-    VoidCallback onRefresh,
-  ) {
-    final bool isSelected = _readerTheme == theme;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() => _readerTheme = theme);
-        SharedPreferences.getInstance().then((prefs) {
-          prefs.setInt('reader_theme_index', theme.index);
-        });
-        onRefresh();
-      },
-      child: Column(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: previewColor,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected
-                    ? primaryColor
-                    : Colors.grey.withValues(alpha: 0.3),
-                width: isSelected ? 2 : 1,
-              ),
-              boxShadow: [
-                if (isSelected)
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-              ],
-            ),
-            child: isSelected
-                ? Icon(Icons.check, color: textColor, size: 20)
-                : null,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected
-                  ? primaryColor
-                  : Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1613,7 +1076,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   @override
   Widget build(BuildContext context) {
-    final colors = _themeColors;
+    final colors = _currentStyle;
     //final bool isFirst = _currentIndex <= 0;
     //final bool isLast = _currentIndex >= widget.chapterFiles.length - 1;
     // final double topPadding = MediaQuery.of(context).padding.top + 60;
@@ -1628,306 +1091,449 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         value: SystemUIHelper.getStyle(context),
         child: Scaffold(
           key: _scaffoldKey,
-          backgroundColor: colors['bg'],
-          body: Stack(
-            children: [
-              // CONTENT (TIDAK BERUBAH)
-              SafeArea(
-                bottom: false,
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.deepOrange,
-                        ),
-                      )
-                    : Scrollbar(
-                        thumbVisibility: false,
-                        thickness: 4,
-                        radius: const Radius.circular(8),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 400),
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(opacity: animation, child: child),
-                          child: SingleChildScrollView(
-                            key: ValueKey<int>(_currentIndex),
-                            controller: _scrollController,
-                            padding: EdgeInsets.only(
-                              left: _horizontalPadding,
-                              right: _horizontalPadding,
-                              bottom: _isPlayerVisible
-                                  ? 340
-                                  : (_isSearchActive
-                                        ? 300
-                                        : (_isBottomMenuVisible ? 120 : 50)),
+          backgroundColor: colors.bg,
+          body: GestureDetector(
+            // 🔥 TAMBAH WRAPPER INI
+            onHorizontalDragStart: (details) {
+              setState(() {
+                _dragStartX = details.globalPosition.dx;
+                _currentDragX = details.globalPosition.dx;
+              });
+            },
+            onHorizontalDragUpdate: (details) {
+              setState(() {
+                _currentDragX = details.globalPosition.dx;
+              });
+            },
+            onHorizontalDragEnd: (details) {
+              final double distance = _currentDragX - _dragStartX;
+
+              // Cek apakah gerakannya cukup jauh
+              if (distance.abs() > _minDragDistance) {
+                if (distance > 0) {
+                  // ➡️ SWIPE KANAN (PREV)
+                  if (!_isLoading && _currentIndex > 0) {
+                    _goToIndex(_currentIndex - 1);
+                  } else if (_currentIndex <= 0) {
+                    _showNavigationMessage(true); // Notif "Halaman awal"
+                  }
+                } else {
+                  // ⬅️ SWIPE KIRI (NEXT)
+                  if (!_isLoading &&
+                      _currentIndex < widget.chapterFiles.length - 1) {
+                    _goToIndex(_currentIndex + 1);
+                  } else if (_currentIndex >= widget.chapterFiles.length - 1) {
+                    _showNavigationMessage(false); // Notif "Halaman akhir"
+                  }
+                }
+              }
+
+              // RESET posisi
+              setState(() {
+                _dragStartX = 0.0;
+                _currentDragX = 0.0;
+              });
+            },
+
+            child: SizedBox.expand(
+              child: Stack(
+                children: [
+                  // CONTENT (TIDAK BERUBAH)
+                  SafeArea(
+                    bottom: false,
+                    child: _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.deepOrange,
                             ),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 80),
-                                SelectionArea(
-                                  child: Html(
-                                    data: _displayHtmlContent,
-                                    style: _getHtmlStyles(),
-                                    extensions: [
-                                      TagExtension(
-                                        tagsToExtend: {"x-highlight"},
-                                        builder: (extensionContext) {
-                                          final attrs =
-                                              extensionContext.attributes;
-                                          final indexStr = attrs['index'];
-                                          final style = extensionContext
-                                              .styledElement
-                                              ?.style;
-                                          double? currentFontSize =
-                                              style?.fontSize?.value;
-                                          currentFontSize ??= _fontSize;
+                          )
+                        : Scrollbar(
+                            thumbVisibility: false,
+                            thickness: 4,
+                            radius: const Radius.circular(8),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 400),
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  ),
+                              child: SingleChildScrollView(
+                                key: ValueKey<int>(_currentIndex),
+                                controller: _scrollController,
+                                padding: EdgeInsets.only(
+                                  left: _horizontalPadding,
+                                  right: _horizontalPadding,
+                                  bottom: _isPlayerVisible
+                                      ? 340
+                                      : (_isSearchActive
+                                            ? 300
+                                            : (_isBottomMenuVisible
+                                                  ? 120
+                                                  : 50)),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 80),
+                                    SelectionArea(
+                                      child: Html(
+                                        data: _displayHtmlContent,
+                                        style: _getHtmlStyles(),
+                                        extensions: [
+                                          TagExtension(
+                                            tagsToExtend: {"x-highlight"},
+                                            builder: (extensionContext) {
+                                              final attrs =
+                                                  extensionContext.attributes;
+                                              final indexStr = attrs['index'];
+                                              final style = extensionContext
+                                                  .styledElement
+                                                  ?.style;
+                                              double? currentFontSize =
+                                                  style?.fontSize?.value;
+                                              currentFontSize ??= _fontSize;
 
-                                          if (indexStr != null) {
-                                            final int index =
-                                                int.tryParse(indexStr) ?? 0;
-                                            final key = _searchKeys.putIfAbsent(
-                                              index,
-                                              () => GlobalKey(),
-                                            );
+                                              if (indexStr != null) {
+                                                final int index =
+                                                    int.tryParse(indexStr) ?? 0;
+                                                final key = _searchKeys
+                                                    .putIfAbsent(
+                                                      index,
+                                                      () => GlobalKey(),
+                                                    );
 
-                                            return ValueListenableBuilder<int>(
-                                              valueListenable:
-                                                  _activeSearchIndex,
-                                              builder: (context, activeIndex, child) {
-                                                final bool isActive =
-                                                    (activeIndex == index);
+                                                return ValueListenableBuilder<
+                                                  int
+                                                >(
+                                                  valueListenable:
+                                                      _activeSearchIndex,
+                                                  builder: (context, activeIndex, child) {
+                                                    final bool isActive =
+                                                        (activeIndex == index);
 
-                                                return Container(
-                                                  key: key,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: isActive
-                                                        ? Colors.orange
-                                                        : Colors.yellow,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          4,
-                                                        ),
-                                                    border: isActive
-                                                        ? Border.all(
-                                                            color: Colors
-                                                                .deepOrange,
-                                                            width: 2,
-                                                          )
-                                                        : null,
-                                                  ),
-                                                  child: Transform.translate(
-                                                    offset: const Offset(0, 1),
-                                                    child: Text(
-                                                      extensionContext
-                                                          .element!
-                                                          .text,
-                                                      style: TextStyle(
+                                                    return Container(
+                                                      key: key,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 0,
+                                                          ),
+                                                      decoration: BoxDecoration(
                                                         color: isActive
-                                                            ? Colors.white
-                                                            : Colors.black,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize:
-                                                            currentFontSize,
-                                                        height: 1.0,
+                                                            ? Colors.orange
+                                                            : Colors.yellow,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              4,
+                                                            ),
+                                                        border: isActive
+                                                            ? Border.all(
+                                                                color: Colors
+                                                                    .deepOrange,
+                                                                width: 1,
+                                                              )
+                                                            : null,
                                                       ),
-                                                    ),
-                                                  ),
+                                                      child: Transform.translate(
+                                                        offset: const Offset(
+                                                          0,
+                                                          0,
+                                                        ),
+                                                        child: Text(
+                                                          extensionContext
+                                                              .element!
+                                                              .text,
+                                                          style: TextStyle(
+                                                            color: isActive
+                                                                ? Colors.white
+                                                                : Colors.black,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize:
+                                                                currentFontSize,
+                                                            height: _lineHeight,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
                                                 );
-                                              },
-                                            );
-                                          }
-                                          return Text(
-                                            extensionContext.element!.text,
-                                          );
+                                              }
+                                              return Text(
+                                                extensionContext.element!.text,
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                        onLinkTap: (url, attributes, element) {
+                                          if (url != null) _handleLinkTap(url);
                                         },
                                       ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+
+                  // HEADER (TIDAK BERUBAH)
+                  _buildHeader(),
+
+                  // 🔥 INDIKATOR SWIPE VISUAL (PANAH ANIMASI)
+                  if (_dragStartX != 0.0 && _currentDragX != 0.0)
+                    Builder(
+                      builder: (context) {
+                        final delta = _currentDragX - _dragStartX;
+                        final isSwipeRight = delta > 0;
+                        final isSwipeLeft = delta < 0;
+
+                        // Progress 0.0 - 1.0 (berapa persen dari threshold)
+                        final progress = (delta.abs() / _minDragDistance).clamp(
+                          0.0,
+                          1.0,
+                        );
+
+                        // Jangan render kalau gesernya masih dikit banget
+                        if (progress < 0.05) return const SizedBox.shrink();
+
+                        // CEK KALAU MENTOK (Gak ada halaman prev/next)
+                        if (isSwipeRight && _currentIndex <= 0) {
+                          return const SizedBox.shrink();
+                        }
+                        if (isSwipeLeft &&
+                            _currentIndex >= widget.chapterFiles.length - 1) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return Positioned(
+                          top: 0,
+                          bottom: 0,
+                          left: isSwipeRight
+                              ? 24
+                              : null, // Kalau tarik kanan, muncul di kiri
+                          right: isSwipeLeft
+                              ? 24
+                              : null, // Kalau tarik kiri, muncul di kanan
+                          child: Center(
+                            child: Opacity(
+                              opacity:
+                                  progress, // Makin jauh tarik, makin jelas
+                              child: Transform.scale(
+                                scale:
+                                    0.5 +
+                                    (0.5 * progress), // Efek membesar (Pop)
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .inverseSurface
+                                        .withValues(alpha: 0.8),
+                                    shape: BoxShape.circle,
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 16,
+                                        offset: Offset(0, 4),
+                                      ),
                                     ],
-                                    onLinkTap: (url, attributes, element) {
-                                      if (url != null) _handleLinkTap(url);
-                                    },
                                   ),
+                                  child: Icon(
+                                    isSwipeRight
+                                        ? Icons.arrow_back_rounded
+                                        : Icons.arrow_forward_rounded,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onInverseSurface,
+                                    size: 32,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  // 🔥 UPDATE TERBARU: BOTTOM MENU (GLASSMORPHISM)
+                  // 🔥 UPDATE TERBARU: AUDIO PLAYER LEBIH NAIK
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Align(
+                      // ✅ TAMBAHIN INI
+                      alignment: Alignment.bottomCenter,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          // 1. AUDIO PLAYER
+                          if (_isPlayerVisible) ...[
+                            Padding(
+                              // 🔥 UBAH DISINI BANG:
+                              // 'bottom: 16' -> Biar dia kedorong naik, gak nempel menu kaca.
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              child: AudioHandlerWidget(
+                                audioPath: _currentAudioUrl,
+                                onClose: () =>
+                                    setState(() => _isPlayerVisible = false),
+                              ),
+                            ),
+                          ],
+
+                          // 2. WADAH KACA UTAMA (MENU) - (TETAP SAMA KAYAK SEBELUMNYA)
+                          //   Align(
+                          //    alignment: Alignment.bottomCenter,
+                          //    child:
+                          Container(
+                            // Logic Lebar
+                            width: MediaQuery.of(context).size.width > 600
+                                ? 500
+                                : MediaQuery.of(context).size.width - 48,
+
+                            margin: EdgeInsets.zero, // Napak Tanah
+                            // DEKORASI LUAR (Shadow doang)
+                            decoration: BoxDecoration(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(16),
+                                bottom: Radius.zero,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, -2),
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-                      ),
-              ),
 
-              // HEADER (TIDAK BERUBAH)
-              _buildHeader(),
-              // 🔥 UPDATE TERBARU: BOTTOM MENU (GLASSMORPHISM)
-              // 🔥 UPDATE TERBARU: AUDIO PLAYER LEBIH NAIK
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    // 1. AUDIO PLAYER
-                    if (_isPlayerVisible) ...[
-                      Padding(
-                        // 🔥 UBAH DISINI BANG:
-                        // 'bottom: 16' -> Biar dia kedorong naik, gak nempel menu kaca.
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        child: AudioHandlerWidget(
-                          audioPath: _currentAudioUrl,
-                          onClose: () =>
-                              setState(() => _isPlayerVisible = false),
-                        ),
-                      ),
-                    ],
+                            // EFEK KACA (Blur + Transparan)
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(16),
+                                bottom: Radius.zero,
+                              ),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(
+                                  sigmaX: 10.0,
+                                  sigmaY: 10.0,
+                                ),
+                                // ... di dalam BackdropFilter -> Container ...
+                                child: Container(
+                                  // Warna "Tipis-tipis" (85% opacity)
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surface.withValues(alpha: 0.85),
 
-                    // 2. WADAH KACA UTAMA (MENU) - (TETAP SAMA KAYAK SEBELUMNYA)
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        // Logic Lebar
-                        width: MediaQuery.of(context).size.width > 600
-                            ? 500
-                            : MediaQuery.of(context).size.width - 48,
-
-                        margin: EdgeInsets.zero, // Napak Tanah
-                        // DEKORASI LUAR (Shadow doang)
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16),
-                            bottom: Radius.zero,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, -2),
-                            ),
-                          ],
-                        ),
-
-                        // EFEK KACA (Blur + Transparan)
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16),
-                            bottom: Radius.zero,
-                          ),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(
-                              sigmaX: 10.0,
-                              sigmaY: 10.0,
-                            ),
-                            // ... di dalam BackdropFilter -> Container ...
-                            child: Container(
-                              // Warna "Tipis-tipis" (85% opacity)
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.surface.withValues(alpha: 0.85),
-
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // ===============================================
-                                  // 🔥 DRAG HANDLE / GARIS (SAMA KAYAK SUTTA DETAIL)
-                                  // ===============================================
-                                  GestureDetector(
-                                    behavior: HitTestBehavior.translucent,
-                                    // Fitur Swipe buat tutup/buka
-                                    onVerticalDragEnd: (details) {
-                                      if (details.primaryVelocity! > 0 &&
-                                          _isBottomMenuVisible) {
-                                        setState(
-                                          () => _isBottomMenuVisible = false,
-                                        );
-                                        _savePreferences();
-                                      } else if (details.primaryVelocity! < 0 &&
-                                          !_isBottomMenuVisible) {
-                                        setState(
-                                          () => _isBottomMenuVisible = true,
-                                        );
-                                        _savePreferences();
-                                      }
-                                    },
-                                    // Fitur Tap buat toggle
-                                    onTap: () {
-                                      setState(
-                                        () => _isBottomMenuVisible =
-                                            !_isBottomMenuVisible,
-                                      );
-                                      _savePreferences();
-                                    },
-                                    // Container Area Sentuh
-                                    child: Container(
-                                      width: double.infinity,
-                                      // Padding atas dikit aja (8), bawah (4) biar mepet sama tombol
-                                      padding: const EdgeInsets.fromLTRB(
-                                        0,
-                                        8,
-                                        0,
-                                        4,
-                                      ),
-                                      child: Center(
-                                        // Tambahin Center biar pasti di tengah
-                                        // VISUAL GARISNYA (SAMA PERSIS SUTTA DETAIL)
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // ===============================================
+                                      // 🔥 DRAG HANDLE / GARIS (SAMA KAYAK SUTTA DETAIL)
+                                      // ===============================================
+                                      GestureDetector(
+                                        behavior: HitTestBehavior.translucent,
+                                        // Fitur Swipe buat tutup/buka
+                                        onVerticalDragEnd: (details) {
+                                          if (details.primaryVelocity! > 0 &&
+                                              _isBottomMenuVisible) {
+                                            setState(
+                                              () =>
+                                                  _isBottomMenuVisible = false,
+                                            );
+                                            _savePreferences();
+                                          } else if (details.primaryVelocity! <
+                                                  0 &&
+                                              !_isBottomMenuVisible) {
+                                            setState(
+                                              () => _isBottomMenuVisible = true,
+                                            );
+                                            _savePreferences();
+                                          }
+                                        },
+                                        // Fitur Tap buat toggle
+                                        onTap: () {
+                                          setState(
+                                            () => _isBottomMenuVisible =
+                                                !_isBottomMenuVisible,
+                                          );
+                                          _savePreferences();
+                                        },
+                                        // Container Area Sentuh
                                         child: Container(
-                                          width: 40, // Lebar disamain (tadi 48)
-                                          height: 3,
-                                          decoration: BoxDecoration(
-                                            // Warna disamain (pake onSurface + 0.15)
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(
-                                              2,
+                                          width: double.infinity,
+                                          // Padding atas dikit aja (8), bawah (4) biar mepet sama tombol
+                                          padding: const EdgeInsets.fromLTRB(
+                                            0,
+                                            8,
+                                            0,
+                                            4,
+                                          ),
+                                          child: Center(
+                                            // Tambahin Center biar pasti di tengah
+                                            // VISUAL GARISNYA (SAMA PERSIS SUTTA DETAIL)
+                                            child: Container(
+                                              width:
+                                                  40, // Lebar disamain (tadi 48)
+                                              height: 3,
+                                              decoration: BoxDecoration(
+                                                // Warna disamain (pake onSurface + 0.15)
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(2),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ),
 
-                                  // ===============================================
-                                  // MENU CONTENT
-                                  // ===============================================
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves
-                                        .easeInOutCubic, // Pakai Cubic biar lebih smooth
-                                    height: _isBottomMenuVisible ? null : 0,
-                                    child: SingleChildScrollView(
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      child: SizedBox(
-                                        width: double.infinity,
-                                        // Padding bawah dikit biar gak mepet
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 8.0,
-                                          ),
-                                          child: _buildFloatingActions(
-                                            _currentIndex <= 0,
-                                            _currentIndex >=
-                                                widget.chapterFiles.length - 1,
+                                      // ===============================================
+                                      // MENU CONTENT
+                                      // ===============================================
+                                      AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        curve: Curves
+                                            .easeInOutCubic, // Pakai Cubic biar lebih smooth
+                                        height: _isBottomMenuVisible ? null : 0,
+                                        child: SingleChildScrollView(
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            // Padding bawah dikit biar gak mepet
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 8.0,
+                                              ),
+                                              child: _buildFloatingActions(
+                                                _currentIndex <= 0,
+                                                _currentIndex >=
+                                                    widget.chapterFiles.length -
+                                                        1,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
+                                ),
+                                // ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1939,11 +1545,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   // ============================================
   Map<String, Style> _getHtmlStyles() {
     final mainFont = _currentFontFamily;
-    final colors = _themeColors;
+    final colors = _currentStyle;
 
-    final bgColor = colors['bg']!;
-    final textColor = colors['text']!;
-    final paliAccentColor = colors['pali']!;
+    final bgColor = colors.bg;
+    final textColor = colors.text;
+    final paliAccentColor = colors.pali;
 
     // 🔥 FORMULA WARNA PINTAR (Biar Reader Theme Konsisten)
     // Kita gak pake warna sistem (noteColor), tapi nurunin dari textColor.
@@ -2027,7 +1633,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         margin: Margins.only(top: 16, bottom: 8),
 
         fontSize: FontSize(_fontSize),
-        lineHeight: LineHeight(_lineHeight * 1.1),
+        lineHeight: LineHeight(_lineHeight),
       ),
 
       // ===========================================
@@ -2045,7 +1651,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
         fontSize: FontSize(_fontSize),
         // Tambahin dikit line-height biar teks panjang lebih enak dibaca
-        lineHeight: LineHeight(1.5),
+        //   lineHeight: LineHeight(1.5),
+        lineHeight: LineHeight(_lineHeight),
       ),
 
       "p.footnote": Style(
@@ -2061,13 +1668,13 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       // ===========================================
       "div.isi": Style(
         backgroundColor: Colors.transparent,
-        border: Border(
-          left: BorderSide(
-            color: paliAccentColor.withValues(alpha: 0.3),
-            width: 3,
-          ),
-        ),
-        padding: HtmlPaddings.only(left: 16, top: 4, bottom: 4),
+        // border: Border(
+        //  left: BorderSide(
+        //     color: textColor.withValues(alpha: 0.6), // Ngikut warna tema
+        //     width: 1,
+        //   ),
+        // ),
+        padding: HtmlPaddings.only(left: 0, top: 4, bottom: 4),
         margin: Margins.only(bottom: 24),
       ),
 
@@ -2319,6 +1926,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       required IconData icon,
       required VoidCallback? onTap,
       bool isActive = false,
+      String tooltip = "",
       Color? customIconColor,
     }) {
       Color finalColor;
@@ -2338,15 +1946,18 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           splashColor: activeColor.withValues(alpha: 0.1),
-          child: Container(
-            padding: EdgeInsets.all(isPhoneLandscape ? 8 : 12),
-            decoration: isActive
-                ? BoxDecoration(
-                    color: activeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  )
-                : null,
-            child: Icon(icon, color: finalColor, size: iconSize),
+          child: Tooltip(
+            message: tooltip,
+            child: Container(
+              padding: EdgeInsets.all(isPhoneLandscape ? 8 : 12),
+              decoration: isActive
+                  ? BoxDecoration(
+                      color: activeColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    )
+                  : null,
+              child: Icon(icon, color: finalColor, size: iconSize),
+            ),
           ),
         ),
       );
@@ -2359,16 +1970,14 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         vertical: internalPaddingV,
       ),
       // 🔥 UPDATE: Border DIHAPUS total biar nyatu sama kaca
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-        // border: Border(...)  <-- INI DIHAPUS AJA
-      ),
+      decoration: const BoxDecoration(color: Colors.transparent),
       child: Row(
         mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           buildBtn(
             icon: Icons.chevron_left_rounded,
+            tooltip: "Sebelumnya",
             customIconColor: isPrevDisabled ? disabledClickableColor : null,
             onTap: _isLoading
                 ? null
@@ -2402,12 +2011,14 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
             buildBtn(icon: Icons.folder_outlined, onTap: _showTematikListModal),
 
           buildBtn(
+            tooltip: "Pencarian",
             icon: Icons.search_rounded,
             onTap: _isLoading ? null : _openSearchModal,
             isActive: _isSearchModalOpen,
           ),
           // SETTINGS
           buildBtn(
+            tooltip: "Tampilan",
             icon: Icons.text_fields_rounded,
             // 🔥 UPDATE: Matikan kalau lagi loading
             onTap: _isLoading ? null : _showSettingsModal,
@@ -2415,6 +2026,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
           // SCROLL TOP
           buildBtn(
+            tooltip: "Menu Atas",
             icon: Icons.vertical_align_top_rounded,
             // 🔥 UPDATE: Matikan juga biar konsisten (atau biarin nyala terserah lu)
             onTap: _isLoading ? null : _scrollToTop,
@@ -2426,6 +2038,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           ),
 
           buildBtn(
+            tooltip: "Selanjutnya",
             icon: Icons.chevron_right_rounded,
             customIconColor: isNextDisabled ? disabledClickableColor : null,
             onTap: _isLoading

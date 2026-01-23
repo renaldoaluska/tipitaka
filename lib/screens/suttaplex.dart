@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../core/utils/system_ui_helper.dart';
+import '../utils/system_ui_helper.dart';
 import '../services/sutta.dart';
 import 'sutta_detail.dart';
 import 'package:flutter_html/flutter_html.dart';
 import '../styles/nikaya_style.dart';
 import '../services/history.dart';
+import '../services/tafsir.dart';
+// Buat render <b> dll
 
 const Color kLockedColor = Colors.grey;
 
@@ -36,6 +38,9 @@ class Suttaplex extends StatefulWidget {
 }
 
 class _SuttaplexState extends State<Suttaplex> {
+  // 🔥 VARIABLE BARU: Status ketersediaan tafsir
+  bool _hasPaliTafsir = false;
+  // bool _hasIndoTafsir = false; // Nanti kalau indo udah ada
   Map<String, dynamic>? _sutta;
   bool _loading = true;
   bool _fetchingText = false;
@@ -57,6 +62,121 @@ class _SuttaplexState extends State<Suttaplex> {
       _setupSuttaFromData(widget.initialData!);
     } else {
       _fetchSuttaplex();
+    }
+
+    _checkTafsirAvailability();
+  }
+
+  // Fungsi Cek ke Firebase
+  Future<void> _checkTafsirAvailability() async {
+    final service = TafsirService();
+    // Cek apakah 'mn1' ada di database tafsir_map
+    final exists = await service.hasTafsir(widget.uid);
+
+    if (mounted) {
+      setState(() {
+        _hasPaliTafsir = exists;
+        // Debugging: Cek di console lu muncul true apa false
+        // debugPrint("Tafsir availability for ${widget.uid}: $exists");
+      });
+    }
+  }
+
+  // 🔥 FUNGSI BARU: Fetch Tafsir -> Format jadi "Fake Sutta" -> Buka SuttaDetail
+  Future<void> _openTafsirInSuttaDetail({
+    required String type,
+    required String title,
+  }) async {
+    // 1. Loading state
+    setState(() => _fetchingText = true);
+
+    try {
+      // 2. Fetch raw HTML dari TafsirService (pastiin import service tafsir udah ada)
+      final tafsirContent = await TafsirService().getContent2(
+        widget.uid,
+        type: type == "mul"
+            ? TafsirType.mul
+            : (type == "att" ? TafsirType.att : TafsirType.tik),
+      );
+
+      if (tafsirContent == null || tafsirContent.isEmpty) {
+        throw Exception("Konten kosong");
+      }
+
+      if (!mounted) return;
+
+      // 3. BUNGKUS DATA (Adapter Pattern)
+      // Kita bikin Map yang strukturnya SAMA PERSIS kayak data dari SuttaService
+      final Map<String, dynamic> fakeSuttaData = {
+        "uid": widget.uid,
+        "is_tafsir": true, // Flag penanda buat SuttaDetail
+        "segmented": false, // Tafsir itu HTML utuh (non-segmented)
+        "root_text": {
+          "title": title, // Judul yang diklik (misal: "Aṭṭhakathā")
+          "text": tafsirContent, // Isi HTML-nya
+          "lang": "pli",
+          "author_uid": "vri",
+          "author": "VRI (Chaṭṭha Saṅgāyana)",
+        },
+        "translation_text": {}, // Kosongin aja
+        "suttaplex":
+            _sutta, // Bawa data suttaplex asli buat context (prev/next)
+      };
+      // ... (Step 1, 2, 3 biarin sama persis) ...
+
+      // 4. LOGIK NAVIGASI YANG BENER (Fix Numpuk)
+      if (widget.onSelect != null) {
+        // KASUS A: Dibuka dari SuttaDetail (Paling Sering)
+        // Kita suruh layar induk buat ganti (replace) isinya pake data tafsir ini.
+        widget.onSelect!(
+          widget.uid,
+          "pli", // Lang selalu Pali
+          "vri", // Author UID dummy
+          fakeSuttaData, // Data HTML yang udah dibungkus tadi
+        );
+
+        // Jangan lupa tutup modal Suttaplex-nya
+        Navigator.pop(context);
+      } else {
+        // KASUS B: Dibuka dari Search/Menu lain (Jaga-jaga aja)
+        if (widget.sourceMode == "sutta_detail") {
+          // Kalau mode replace
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SuttaDetail(
+                uid: widget.uid,
+                lang: "pli",
+                textData: fakeSuttaData,
+                entryPoint: "suttaplex",
+              ),
+            ),
+          );
+        } else {
+          // Kalau mode push biasa
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SuttaDetail(
+                uid: widget.uid,
+                lang: "pli",
+                textData: fakeSuttaData,
+                entryPoint: widget.sourceMode, // Forward entry point
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Gagal buka tafsir: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Gagal memuat tafsir: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _fetchingText = false);
     }
   }
 
@@ -300,6 +420,9 @@ class _SuttaplexState extends State<Suttaplex> {
     final String author = t["author"] ?? "";
     final bool disabled = t["disabled"] ?? false;
 
+    final bool isTafsir = t["is_tafsir"] == true;
+    final String tafsirType = t["tafsir_type"] ?? "att";
+
     final pubYear = t["publication_date"];
     final authorWithYear = pubYear != null && pubYear.toString().isNotEmpty
         ? "$author ($pubYear)"
@@ -314,6 +437,17 @@ class _SuttaplexState extends State<Suttaplex> {
         onTap: disabled || _fetchingText
             ? null
             : () async {
+                if (isTafsir) {
+                  // 🔥 PANGGIL FUNGSI BARU DI SINI
+                  final title = tafsirType == "mul"
+                      ? "Mūla"
+                      : (tafsirType == "att" ? "Aṭṭhakathā" : "Ṭīkā");
+
+                  // Panggil fungsi integrasi tadi
+                  _openTafsirInSuttaDetail(type: tafsirType, title: title);
+                  return;
+                }
+
                 final String safeAuthorUid =
                     (t["author_uid"] != null &&
                         t["author_uid"].toString().isNotEmpty)
@@ -407,14 +541,18 @@ class _SuttaplexState extends State<Suttaplex> {
                       label,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: disabled ? kLockedColor : textColor,
+                        color: disabled
+                            ? kLockedColor.withValues(alpha: 0.4)
+                            : textColor,
                       ),
                     ),
                     Text(
                       authorWithYear,
                       style: TextStyle(
                         fontSize: 13,
-                        color: disabled ? kLockedColor : subTextColor,
+                        color: disabled
+                            ? kLockedColor.withValues(alpha: 0.4)
+                            : subTextColor,
                       ),
                     ),
                   ],
@@ -627,6 +765,10 @@ class _SuttaplexState extends State<Suttaplex> {
     final blurb = _sutta?["blurb"] ?? "";
     final translations = _sutta?["filtered_translations"] ?? [];
 
+    // Di dalam build method widget Abang
+    final tafsirService = TafsirService();
+    bool showTikaButton = tafsirService.hasTika(widget.uid); // Cek dulu
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       // 🔥 WRAP
       value: SystemUIHelper.getStyle(context),
@@ -657,6 +799,7 @@ class _SuttaplexState extends State<Suttaplex> {
                         label: Text(
                           isBookmarked ? "Hapus Penanda" : "Tambah Penanda",
                           style: TextStyle(
+                            fontWeight: FontWeight.w600,
                             fontSize: 13,
                             color: Theme.of(context).colorScheme.secondary,
                           ),
@@ -791,7 +934,7 @@ class _SuttaplexState extends State<Suttaplex> {
                           ),
 
                           Text(
-                            "Akar (Mūla)",
+                            "SuttaCentral",
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -823,26 +966,69 @@ class _SuttaplexState extends State<Suttaplex> {
 
                           if (_showAllTranslations)
                             buildTranslationList(_extraTranslations),
-
                           Opacity(
                             opacity: 0.15,
                             child: const Divider(height: 32),
                           ),
-                          lockedSectionGroup("Tafsiran (Aṭṭhakathā)", [
-                            "pli",
-                            "id",
-                          ]),
-                          Opacity(
-                            opacity: 0.15,
-                            child: const Divider(height: 32),
-                          ),
-                          lockedSectionGroup("Subtafsiran (Ṭīkā)", [
-                            "pli",
-                            "id",
-                          ]),
 
+                          // --- MULAI COPY DARI SINI ---
+
+                          // 1. UI TAFSIR (Aṭṭhakathā)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Chaṭṭha Saṅgāyana CD",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Card Mūla
+                              buildTranslationItem({
+                                "lang": "pli",
+                                "lang_name": "Mūla",
+                                "author": "Vipassana Research Institute",
+                                "disabled": !_hasPaliTafsir,
+                                "is_tafsir": true,
+                                "tafsir_type": "mul",
+                              }),
+
+                              const SizedBox(height: 3),
+                              // Card Aṭṭhakathā
+                              buildTranslationItem({
+                                "lang": "pli",
+                                "lang_name": "Aṭṭhakathā",
+                                "author": "Vipassana Research Institute",
+                                "disabled": !_hasPaliTafsir,
+                                "is_tafsir": true,
+                                "tafsir_type": "att",
+                              }),
+
+                              const SizedBox(height: 3),
+
+                              // Card Ṭīkā
+                              // Tombol Tika (CUMA MUNCUL KALAU HAS TIKA = TRUE)
+                              if (showTikaButton)
+                                buildTranslationItem({
+                                  "lang": "pli",
+                                  "lang_name": "Ṭīkā",
+                                  "author": "Vipassana Research Institute",
+                                  "disabled": !_hasPaliTafsir,
+                                  "is_tafsir": true,
+                                  "tafsir_type": "tik",
+                                }),
+                            ],
+                          ),
+
+                          //   const SizedBox(
+                          //      height: 50,
+                          //    ), // Spasi bawah biar enak scrollnya
                           const SizedBox(height: 4),
-                          Text.rich(
+                          /* Text.rich(
                             TextSpan(
                               style: const TextStyle(fontSize: 10, height: 1.2),
                               children: [
@@ -874,7 +1060,7 @@ class _SuttaplexState extends State<Suttaplex> {
                                 ),
                               ],
                             ),
-                          ),
+                          ),*/
                         ],
                       ),
                     ),

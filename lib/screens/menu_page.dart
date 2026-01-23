@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import '../core/utils/system_ui_helper.dart';
+import '../utils/system_ui_helper.dart';
 import '../services/sutta.dart';
 import '../models/menu.dart';
 import 'suttaplex.dart';

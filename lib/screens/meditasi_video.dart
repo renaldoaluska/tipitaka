@@ -8,7 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import '../core/utils/system_ui_helper.dart';
+import '../utils/system_ui_helper.dart';
 
 // ==================== COLORS & THEME ====================
 const Color kPrimaryColor = Color(0xFFD32F2F); // Merah Hati

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'dart:async';
-import '../core/theme/theme_manager.dart';
+import '../screens/settings.dart';
 
 class HeaderDepan extends StatefulWidget {
   final String title;
@@ -48,7 +47,6 @@ class _HeaderDepanState extends State<HeaderDepan> {
     _displayList = [widget.subtitle, ...?widget.subtitlesList];
 
     if (widget.enableAnimation && _displayList.length > 1) {
-      // ini waktu lama muncul
       _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
         if (mounted) {
           setState(() {
@@ -67,7 +65,6 @@ class _HeaderDepanState extends State<HeaderDepan> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
@@ -104,9 +101,7 @@ class _HeaderDepanState extends State<HeaderDepan> {
                     child: SizedBox(
                       height: 20,
                       child: AnimatedSwitcher(
-                        // Ubah 500 jadi misal 800 atau 1000 (makin gede makin lambat geraknya)
                         duration: const Duration(milliseconds: 500),
-                        // LayoutStack biar transisi lancar
                         layoutBuilder: (currentChild, previousChildren) {
                           return Stack(
                             alignment: Alignment.centerLeft,
@@ -116,69 +111,57 @@ class _HeaderDepanState extends State<HeaderDepan> {
                             ],
                           );
                         },
-                        transitionBuilder: (Widget child, Animation<double> animation) {
-                          final isNewWidget =
-                              child.key == ValueKey(currentText);
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                              final isNewWidget =
+                                  child.key == ValueKey(currentText);
 
-                          if (isNewWidget) {
-                            // --- MASUK (TEKS BARU) ---
-                            // Masuk normal dari bawah (Offset 0, 1.0)
-                            return SlideTransition(
-                              position:
-                                  Tween<Offset>(
-                                    begin: const Offset(0.0, 1.0),
-                                    end: Offset.zero,
-                                  ).animate(
-                                    CurvedAnimation(
-                                      parent: animation,
-                                      curve: Curves.easeOut, // Masuk santai
-                                    ),
-                                  ),
-                              child: FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              ),
-                            );
-                          } else {
-                            // --- KELUAR (TEKS LAMA) ---
-                            // DISINI KUNCINYA:
-                            // Kita geser JAUH ke atas (-1.0) biar cepet minggir
-                            return SlideTransition(
-                              position:
-                                  Tween<Offset>(
-                                    begin: const Offset(
-                                      0.0,
-                                      -1.0,
-                                    ), // Geser Full ke atas
-                                    end: Offset
-                                        .zero, // (Posisi awal sebelum gerak)
-                                  ).animate(
-                                    CurvedAnimation(
-                                      parent: animation,
-                                      curve: const Interval(
-                                        0.0,
-                                        0.7,
-                                        curve: Curves.easeIn,
-                                      ), // Selesai lebih cepet (70% durasi)
-                                    ),
-                                  ),
-                              child: FadeTransition(
-                                // Ilang lebih cepet lagi (50% durasi udah transparan)
-                                opacity: Tween<double>(begin: 0.0, end: 1.0)
-                                    .animate(
-                                      CurvedAnimation(
-                                        parent: animation,
-                                        curve: const Interval(
-                                          0.5,
-                                          1.0,
-                                        ), // Kebalik karena exit animation itu reverse
+                              if (isNewWidget) {
+                                return SlideTransition(
+                                  position:
+                                      Tween<Offset>(
+                                        begin: const Offset(0.0, 1.0),
+                                        end: Offset.zero,
+                                      ).animate(
+                                        CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeOut,
+                                        ),
                                       ),
-                                    ),
-                                child: child,
-                              ),
-                            );
-                          }
-                        },
+                                  child: FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  ),
+                                );
+                              } else {
+                                return SlideTransition(
+                                  position:
+                                      Tween<Offset>(
+                                        begin: const Offset(0.0, -1.0),
+                                        end: Offset.zero,
+                                      ).animate(
+                                        CurvedAnimation(
+                                          parent: animation,
+                                          curve: const Interval(
+                                            0.0,
+                                            0.7,
+                                            curve: Curves.easeIn,
+                                          ),
+                                        ),
+                                      ),
+                                  child: FadeTransition(
+                                    opacity: Tween<double>(begin: 0.0, end: 1.0)
+                                        .animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: const Interval(0.5, 1.0),
+                                          ),
+                                        ),
+                                    child: child,
+                                  ),
+                                );
+                              }
+                            },
                         child: Text(
                           currentText,
                           key: ValueKey<String>(currentText),
@@ -195,61 +178,30 @@ class _HeaderDepanState extends State<HeaderDepan> {
             ),
           ),
 
-          // Toggle Switch (Gak diubah)
-          GestureDetector(
-            onTap: () {
-              final isCurrentlyDark =
-                  Theme.of(context).brightness == Brightness.dark;
-              context.read<ThemeManager>().toggleTheme(isCurrentlyDark);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              width: 60,
-              height: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: isDark ? Colors.grey.shade800 : Colors.orange.shade100,
-                border: Border.all(
-                  color: isDark ? Colors.grey.shade700 : Colors.orange.shade200,
-                  width: 1,
+          // Settings Button
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
+              ],
+            ),
+            child: IconButton(
+              icon: Icon(
+                Icons.settings_outlined,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  AnimatedAlign(
-                    alignment: isDark
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutBack,
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDark ? Colors.black : Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        isDark
-                            ? Icons.dark_mode_rounded
-                            : Icons.wb_sunny_rounded,
-                        size: 16,
-                        color: isDark ? Colors.amber : Colors.orange,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsPage()),
+                );
+              },
             ),
           ),
         ],
