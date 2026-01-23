@@ -1394,7 +1394,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       //   debugPrint("📏 LENGTH: ${fullContent.length}");
       //  }
     } //else {
-    // debugPrint("❌ NO BLOCKQUOTE FOUND!");
+    // debugPrint(" NO BLOCKQUOTE FOUND!");
     //}
 
     if (rawHtml.isNotEmpty) {
@@ -1842,7 +1842,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         );
       }
     } else {
-      // ❌ 2. KASUS GAK KETEMU (ERROR)
+      //  2. KASUS GAK KETEMU (ERROR)
 
       // Filter regex angka biar gak error aneh
       if (!RegExp(r'^\d').hasMatch(num)) return;
@@ -1856,6 +1856,19 @@ class _SuttaDetailState extends State<SuttaDetail> {
       _lastErrorTime = DateTime.now();
 
       ScaffoldMessenger.of(context).clearSnackBars();
+
+      if (!RegExp(r'^\d').hasMatch(num)) return;
+
+      // 2. Logic Anti-Spam (Tetap ada buat nyatet waktu, tapi jangan nge-block clear)
+      if (_lastErrorTime != null &&
+          DateTime.now().difference(_lastErrorTime!) <
+              const Duration(seconds: 2)) {
+        // Kita biarkan clear di atas tadi bekerja, tapi jangan buat SnackBar baru
+        // kalau terlalu cepat, biar gak kedap-kedip.
+        return;
+      }
+      _lastErrorTime = DateTime.now();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -1868,7 +1881,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  "Tak ada penjelas spesifik untuk bagian §$num",
+                  "Tak ada penjelas spesifik untuk §$num",
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
@@ -2625,7 +2638,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       if (lang == "en") _showEnFallbackBanner();
     } catch (e) {
-      debugPrint("❌ Error _replaceToSutta: $e");
+      debugPrint(" Error _replaceToSutta: $e");
       if (mounted) {
         setState(() => _isLoading = false);
         if (e.toString().contains("SocketException")) {
@@ -4743,7 +4756,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                       // Kalau masih kurang turun, ganti jadi 0.2
                                     );
                                   } catch (e) {
-                                    debugPrint('❌ TOC scroll error: $e');
+                                    debugPrint(' TOC scroll error: $e');
                                   }
                                 },
                                 child: Container(
