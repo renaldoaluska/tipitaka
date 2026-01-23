@@ -1155,6 +1155,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
       _currentMatchIndex = safeIndex;
     });
 
+    // ✅ CEK NULL SEBELUM AKSES
+    if (_allMatches.isEmpty || safeIndex >= _allMatches.length)
+      return; // ← TAMBAHKAN INI
+
     final targetRow = _allMatches[safeIndex].listIndex;
     final isSegmented = widget.textData?["segmented"] == true;
 
@@ -1185,12 +1189,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
           final key = _searchKeys[safeIndex];
 
           if (key?.currentContext != null) {
-            Scrollable.ensureVisible(
-              key!.currentContext!,
-              duration: const Duration(milliseconds: 300), // Geser haluuus
-              alignment: 0.5, // Pas-in di tengah-tengah mata
-              curve: Curves.easeOut,
-            );
+            final context = key?.currentContext; // 1. Ambil context secara aman
+            if (context != null) {
+              // 2. Cek apakah null?
+              Scrollable.ensureVisible(
+                context, // 3. Masukkan context yang sudah pasti tidak null
+                duration: const Duration(milliseconds: 300),
+                alignment: 0.5,
+                curve: Curves.easeOut,
+              );
+            }
           }
         });
       }
@@ -1370,7 +1378,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       rawHtml = SuttaTextHelper.unescape.convert(sutta.text);
     } else if (widget.textData!["root_text"] is Map &&
         widget.textData!["root_text"].containsKey("text")) {
-      final root = Map<String, dynamic>.from(widget.textData!["root_text"]);
+      final root = widget.textData?["root_text"] as Map<String, dynamic>? ?? {};
       final sutta = NonSegmentedSutta.fromJson(root);
       // rawHtml = HtmlUnescape().convert(sutta.text);
       rawHtml = SuttaTextHelper.unescape.convert(sutta.text);
@@ -1847,8 +1855,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
       if (showSnackBar) {
         // 1. CEK ANTI-SPAM
         if (_lastErrorTime != null &&
-            DateTime.now().difference(_lastErrorTime!) <
-                const Duration(seconds: 2)) {
+            // UBAH JADI (Tambah pengecekan null):
+            (_lastErrorTime != null &&
+                DateTime.now().difference(_lastErrorTime!) <
+                    const Duration(seconds: 2))) {
           return;
         }
         _lastErrorTime = DateTime.now();
@@ -3197,6 +3207,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
     Map<String, String> translationSegs,
     Map<String, String> commentarySegs,
   ) {
+    // ✅ VALIDASI AWAL
+    if (key.isEmpty) return const SizedBox.shrink();
+
     final config = _getHeaderConfig(key, isPaliOnly: _isRootOnly);
 
     var pali = paliSegs[key] ?? "";
@@ -3792,6 +3805,10 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   void _updateVisibleParagraph() {
     if (!mounted) return;
+
+    if (_itemPositionsListener.itemPositions.value.isEmpty)
+      return; // ← INI PENTING
+
     if (_isUserDragging) return;
     //  1. THROTTLING LEBIH SANTAI (25ms -> 150ms)
     // Biar CPU gak engap dipaksa kerja rodi tiap milidetik
@@ -3800,7 +3817,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     _lastScrollTime = now;
 
     final positions = _itemPositionsListener.itemPositions.value;
-    if (positions.isEmpty) return;
+    if (positions.isEmpty) return; // ← DOUBLE CHECK
 
     // Sort posisi
     final sortedRawPositions = positions.toList()
@@ -3891,7 +3908,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
             orElse: () => -1,
           );
 
-          if (lastSectionIdx != -1) {
+          if (lastSectionIdx != -1 &&
+              _indexToTafsirLabel.containsKey(lastSectionIdx)) {
             foundNum = _indexToTafsirLabel[lastSectionIdx];
           }
         }
@@ -4379,9 +4397,27 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
                           // E. Default span handler (UNTUK .ADD / PIKIRANNYA)
                           // Pakai generateTextStyle + copyWith(height: 1.0) supaya baris rata
+                          final styledElement = extensionContext
+                              .styledElement; // 1. Kunci di variabel lokal
+                          final textContent =
+                              extensionContext.element?.text ?? '';
+
+                          // 2. Cek Manual (Biar IDE gak protes soal tanda tanya)
+                          if (styledElement == null) {
+                            return Text(
+                              textContent,
+                              style: TextStyle(
+                                fontSize: _fontSize,
+                                height: 1.0,
+                                color: textColor,
+                              ),
+                            );
+                          }
+
+                          // 3. Kalau aman baru panggil generateTextStyle
                           return Text(
-                            extensionContext.element?.text ?? '',
-                            style: extensionContext.styledElement?.style
+                            textContent,
+                            style: styledElement.style
                                 .generateTextStyle()
                                 .copyWith(height: 1.0),
                           );
@@ -5283,13 +5319,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
                                   GestureDetector(
                                     behavior: HitTestBehavior.translucent,
                                     onVerticalDragEnd: (details) {
-                                      if (details.primaryVelocity! > 0 &&
+                                      final velocity =
+                                          details.primaryVelocity ?? 0;
+
+                                      if (velocity > 0 &&
                                           _isBottomMenuVisible) {
                                         setState(
                                           () => _isBottomMenuVisible = false,
                                         );
                                         _savePreferences();
-                                      } else if (details.primaryVelocity! < 0 &&
+                                      } else if (velocity < 0 &&
                                           !_isBottomMenuVisible) {
                                         setState(
                                           () => _isBottomMenuVisible = true,

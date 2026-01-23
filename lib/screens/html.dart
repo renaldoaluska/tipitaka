@@ -623,16 +623,17 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final key = _searchKeys[newIndex];
       // Cek apakah key ada dan punya context
-      if (key != null && key.currentContext != null) {
+      // SESUDAH (Ganti Baris 626-633):
+      final context = key?.currentContext;
+      if (context != null) {
         Scrollable.ensureVisible(
-          key.currentContext!,
+          context,
           duration: const Duration(milliseconds: 300),
-          alignment:
-              0.3, // 0.3 artinya posisi agak di sepertiga atas layar (enak dibaca)
+          alignment: 0.3,
           curve: Curves.easeInOutCubic,
         );
       } else {
-        debugPrint("⚠️ Key not found or not attached for index $newIndex");
+        debugPrint("Context tidak ditemukan untuk index $newIndex");
       }
     });
   }
@@ -1246,6 +1247,17 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                               final attrs =
                                                   extensionContext.attributes;
                                               final indexStr = attrs['index'];
+
+                                              // 1. AMANKAN ELEMENT & TEKS (Pake ? dan ??)
+                                              final element =
+                                                  extensionContext.element;
+                                              final text = element?.text ?? "";
+
+                                              // Kalau teks kosong, jangan render apa-apa
+                                              if (text.isEmpty) {
+                                                return const SizedBox.shrink();
+                                              }
+
                                               final style = extensionContext
                                                   .styledElement
                                                   ?.style;
@@ -1299,9 +1311,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                                           0,
                                                         ),
                                                         child: Text(
-                                                          extensionContext
-                                                              .element!
-                                                              .text,
+                                                          text,
                                                           style: TextStyle(
                                                             color: isActive
                                                                 ? Colors.white
@@ -1319,7 +1329,11 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                                 );
                                               }
                                               return Text(
-                                                extensionContext.element!.text,
+                                                text,
+                                                style: TextStyle(
+                                                  fontSize: currentFontSize,
+                                                  height: _lineHeight,
+                                                ),
                                               );
                                             },
                                           ),
@@ -1495,15 +1509,16 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                         behavior: HitTestBehavior.translucent,
                                         // Fitur Swipe buat tutup/buka
                                         onVerticalDragEnd: (details) {
-                                          if (details.primaryVelocity! > 0 &&
+                                          final velocity =
+                                              details.primaryVelocity ?? 0;
+                                          if (velocity > 0 &&
                                               _isBottomMenuVisible) {
                                             setState(
                                               () =>
                                                   _isBottomMenuVisible = false,
                                             );
                                             _savePreferences();
-                                          } else if (details.primaryVelocity! <
-                                                  0 &&
+                                          } else if (velocity < 0 &&
                                               !_isBottomMenuVisible) {
                                             setState(
                                               () => _isBottomMenuVisible = true,
