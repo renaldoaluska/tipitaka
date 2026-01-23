@@ -1188,7 +1188,7 @@ class _SeeAllPageState extends State<SeeAllPage> {
                       // 1.0 = Persegi
                       // 0.93 = Agak tinggi dikit (mirip layout asli 280x270)
                       // Makin KECIL angkanya, makin TINGGI kotaknya.
-                      childAspectRatio: 0.93,
+                      childAspectRatio: 0.92,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
                     ),
