@@ -595,12 +595,12 @@ class _SuttaSettingsSheetState extends State<SuttaSettingsSheet> {
                           valueLabel: "${_fontSize.toInt()}",
                           colorScheme: colorScheme,
                           onMinus: () {
-                            final newVal = (_fontSize - 2).clamp(12.0, 40.0);
+                            final newVal = (_fontSize - 1).clamp(12.0, 40.0);
                             setState(() => _fontSize = newVal); // ðŸ”¥ RESTORED
                             widget.onFontSizeChanged(newVal);
                           },
                           onPlus: () {
-                            final newVal = (_fontSize + 2).clamp(12.0, 40.0);
+                            final newVal = (_fontSize + 1).clamp(12.0, 40.0);
                             setState(() => _fontSize = newVal); // ðŸ”¥ RESTORED
                             widget.onFontSizeChanged(newVal);
                           },
@@ -640,7 +640,7 @@ class _SuttaSettingsSheetState extends State<SuttaSettingsSheet> {
                           valueLabel: "${_horizontalPadding.toInt()}",
                           colorScheme: colorScheme,
                           onMinus: () {
-                            final newVal = (_horizontalPadding - 8).clamp(
+                            final newVal = (_horizontalPadding - 4).clamp(
                               0.0,
                               128.0,
                             );
@@ -650,7 +650,7 @@ class _SuttaSettingsSheetState extends State<SuttaSettingsSheet> {
                             widget.onPaddingChanged(newVal);
                           },
                           onPlus: () {
-                            final newVal = (_horizontalPadding + 8).clamp(
+                            final newVal = (_horizontalPadding + 4).clamp(
                               0.0,
                               128.0,
                             );
