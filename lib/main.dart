@@ -25,7 +25,7 @@ void main() {
 
   // Hapus file download-an lama (sekali jalan doang)
   TafsirService.deleteOldOfflineFiles();
-  
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeManager(),

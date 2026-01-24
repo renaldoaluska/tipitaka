@@ -1011,6 +1011,19 @@ class TafsirService {
           } else if (globalIdx >= 41 && globalIdx <= 50) {
             specialKeyword = r'opapātika.*?sutt.*?ādi';
           }
+
+          // 1. Tambahkan pengecekan range untuk Samyutta 24
+        } else if (samyuttaNum == 24 && globalIdx >= 19 && globalIdx <= 44) {
+          specialKeyword = "Dutiyagamanādivaggavaṇṇanā";
+        } else if (samyuttaNum == 47 && globalIdx >= 31 && globalIdx <= 40) {
+          specialKeyword = "Ananussutavaggavaṇṇanā";
+        } else if (samyuttaNum == 48 && globalIdx >= 61 && globalIdx <= 70) {
+          specialKeyword = "Bodhipakkhiyavagg";
+        } else if (samyuttaNum == 52 && globalIdx >= 11 && globalIdx <= 24) {
+          specialKeyword = "Dutiyavaggavaṇṇanā";
+        } else if (samyuttaNum == 56 && globalIdx >= 51 && globalIdx <= 60) {
+          specialKeyword = "Abhisamayavaggavaṇṇanā";
+          // 2. Sisanya tetap menggunakan Map yang sudah ada
         } else if ((samyuttaNum >= 30 && samyuttaNum <= 33) ||
             samyuttaNum == 26 ||
             samyuttaNum == 27 ||
@@ -1934,7 +1947,8 @@ class TafsirService {
     // ðŸ”¥ STEP 2: THE "HARDCODE" BYPASS (AN 1 & AN 2 - ATT & TIK) ðŸ”¥
     // =======================================================================
     // Kita izinkan Nipata 1 & 2, dan Tipe selain MUL (bisa Att/Tik)
-    if ((nipata == 1 || nipata == 2 || nipata == 3) && type != TafsirType.mul) {
+    if ((nipata == 1 || nipata == 2 || nipata == 3 || nipata == 24) &&
+        type != TafsirType.mul) {
       String? hardcodedTarget;
 
       // -----------------------------------------------------------
@@ -1989,7 +2003,7 @@ class TafsirService {
       } // -----------------------------------------------------------
       // BAGIAN B: Mapping Khusus AN 2 (Dukanipāta)
       // -----------------------------------------------------------
-      if (nipata == 2) {
+      else if (nipata == 2) {
         // 1. Bālavaggavaṇṇanā (AN 2.98-117)
         if (globalSuttaNum >= 99 && globalSuttaNum <= 118) {
           hardcodedTarget = "5. Bālavaggavaṇṇanā"; // Cukup kata uniknya
@@ -2854,7 +2868,7 @@ class TafsirService {
       <p style="margin-bottom: 8px;"><b>Ada beberapa kemungkinan:</b></p>
       
       <ol style="margin-left: -20px; margin-top: 0px;">
-        <li style="margin-bottom: 8px;">Memang tidak ada dari sumber asli (CSCD VRI). Tidak semua teks memiliki penjelas karena dianggap sudah jelas.</li>
+        <li style="margin-bottom: 8px;">Memang tidak ada dari sumber asli (CSCD VRI).<br/>• Tidak semua teks memiliki penjelas karena dianggap sudah jelas.<br/>• Ada perbedaan penomoran antara edisi Mahasaṅgīti Tipiṭaka Buddhavasse 2500 dan Chaṭṭha Saṅgāyana CD VRI.</li>
         
         
         <li style="margin-bottom: 8px;">Menyatu dengan bagian lain sekaligus (lihat teks sebelum/sesudah teks ini).</li>
