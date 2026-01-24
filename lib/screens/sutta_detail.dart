@@ -469,12 +469,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
   String _normalizeDbText(String text, {bool useNewline = false}) {
     return text
-        // Gunakan variabel static yang sudah dibuat di atas
+        // 1. Ganti <j> jadi \n (share) atau spasi (footer)
         .replaceAll(_jTagRegex, useNewline ? '\n' : ' ')
-        .replaceAll(SuttaTextHelper.htmlTagRegex, '')
-        .replaceAll(_segmentRegex, '')
-        .replaceAll(_markerRegex, '')
-        .trim();
+        // 2. Ganti semua tag lain jadi SPASI (biar kata ga nempel)
+        .replaceAll(SuttaTextHelper.htmlTagRegex, ' ')
+        .replaceAll(_segmentRegex, ' ')
+        .replaceAll(_markerRegex, ' ')
+        .trim()
+        // 3. KUNCI: Kempeskan spasi berlebih (termasuk hasil 3 tag nempel tadi)
+        // Gunakan r' +' (spasi diikuti plus) agar \n dari <j> tidak ikut terhapus
+        .replaceAll(RegExp(r' +'), ' ');
   }
 
   //  HITUNG NOMOR SEGMEN V4: STRICT SEGMENTED ONLY
