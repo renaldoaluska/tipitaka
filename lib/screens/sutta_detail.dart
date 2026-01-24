@@ -62,6 +62,15 @@ enum SuttaSnackType {
 }
 
 class _SuttaDetailState extends State<SuttaDetail> {
+  // Pindahkan ke sini sebagai 'static final' agar hemat memori
+  static final _jTagRegex = RegExp(r'<j\s*/?>', caseSensitive: false);
+  static final _markerRegex = RegExp(
+    r'\b(pts|vri|mymr|thai)\s+[\d.-]+\s*',
+    caseSensitive: false,
+  );
+  static final _segmentRegex = RegExp(r'§\s*[\d.-]+\s*');
+  static final _wsRegex = RegExp(r'\s+');
+
   //  CACHE DATABASE PALI & TRANS (Biar Gak Lag)
   // Format: List of Entries [MapEntry('1.1', 'text...'), ...]
   List<MapEntry<String, String>>? _cachedPaliList;
@@ -409,9 +418,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
   void _buildSearchCache() {
     if (widget.textData == null) return;
 
-    final RegExp wsRegex = RegExp(r'\s+');
     String normalize(String s) =>
-        s.trim().toLowerCase().replaceAll(wsRegex, ' ');
+        s.trim().toLowerCase().replaceAll(_wsRegex, ' ');
 
     // 1. Build Pali Cache
     final rootMap = widget.textData?["root_text"] is Map
@@ -459,6 +467,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
     }
   }
 
+  String _normalizeDbText(String text, {bool useNewline = false}) {
+    // 1. Definisikan Regex di sini (atau di level class agar lebih hemat memori)
+
+    return text
+        // Gunakan variabel static yang sudah dibuat di atas
+        .replaceAll(_jTagRegex, useNewline ? '\n' : ' ')
+        .replaceAll(SuttaTextHelper.htmlTagRegex, '')
+        .replaceAll(_segmentRegex, '')
+        .replaceAll(_markerRegex, '')
+        .trim();
+  }
+
   //  HITUNG NOMOR SEGMEN V4: STRICT SEGMENTED ONLY
   String? _calculateSegmentRange(String selectedText) {
     if (selectedText.trim().isEmpty) return null;
@@ -469,9 +489,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     if (_cachedPaliList == null) _buildSearchCache();
 
-    final RegExp wsRegex = RegExp(r'\s+');
     final String cleanSelect = selectedText.trim().toLowerCase().replaceAll(
-      wsRegex,
+      _wsRegex,
       ' ',
     );
 
@@ -489,14 +508,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
         widget.textData?["translation"]?["data"] as Map? ?? {};
     final tafsirMap = widget.textData?["commentary_text"] as Map? ?? {};
 
-    // Helper Boolean
     bool tryConsume(String dbText) {
       if (cursor >= cleanSelect.length) return false;
-      String cleanDb = dbText
-          .replaceAll(SuttaTextHelper.htmlTagRegex, '')
-          .trim();
+
+      // Panggil helper universal (pake spasi saja karena cuma buat hitung range)
+      String cleanDb = _normalizeDbText(dbText, useNewline: false);
+
       if (cleanDb.isEmpty) return false;
-      String normDb = cleanDb.toLowerCase().replaceAll(wsRegex, ' ');
+      String normDb = cleanDb.toLowerCase().replaceAll(_wsRegex, ' ');
       String remainingUser = cleanSelect.substring(cursor).trimLeft();
 
       if (remainingUser.startsWith(normDb)) {
@@ -563,23 +582,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     // 1. DEFINISI RACUN (Hanya Marker Visual)
     //  Pake Triple Quote (r'''...''') biar aman dari syntax error
-    // ignore: unused_local_variable
-    final htmlMarkerKiller = RegExp(
-      r'''<span[^>]*class=["']?(pb-marker|para-num)["']?[^>]*>.*?</span>''',
-      caseSensitive: false,
-      dotAll: true,
-    );
-    final markerRegex = RegExp(
-      r'\b(pts|vri|mymr|thai)\s+[\d.-]+\s*',
-      caseSensitive: false,
-    );
-    final segmentRegex = RegExp(r'§\s*[\d.-]+\s*');
 
     // 2. CUCI TEKS USER (INPUT BERSIH)
     // Ini teks murni yang dilihat user. Paling aman ya pake ini.
     String sanitizedText = selectedText
-        .replaceAll(segmentRegex, '')
-        .replaceAll(markerRegex, '')
+        .replaceAll(_segmentRegex, '') // Gunakan underscore (_)
+        .replaceAll(_markerRegex, '')
         .replaceAll(RegExp(r'\$\$.*?\$\$'), '')
         .trim();
 
@@ -609,9 +617,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
     if (_cachedPaliList == null) _buildSearchCache();
 
-    final RegExp wsRegex = RegExp(r'\s+');
     final String cleanSelect = sanitizedText.toLowerCase().replaceAll(
-      wsRegex,
+      _wsRegex,
       ' ',
     );
 
@@ -646,20 +653,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
     String? consumeMatch(String dbText) {
       if (cursor >= cleanSelect.length) return null;
 
-      String cleanDb = dbText
-          // 1. UBAH <j> JADI ENTER DULU (Kunci format cantik)
-          .replaceAll(RegExp(r'<j\s*/?>', caseSensitive: false), '\n')
-          // 2. Baru hapus tag lain, segmen, dan marker
-          .replaceAll(SuttaTextHelper.htmlTagRegex, '')
-          .replaceAll(segmentRegex, '')
-          .replaceAll(markerRegex, '')
-          .trim();
+      // Panggil helper universal (pake \n agar format puisi terjaga)
+      String cleanDb = _normalizeDbText(dbText, useNewline: true);
 
       if (cleanDb.isEmpty) return null;
 
-      // Logic selanjutnya biarkan tetap sama (normDb akan mengubah \n tadi jadi spasi
-      // untuk pencocokan, tapi cleanDb tetap punya \n untuk hasil return-nya)
-      String normDb = cleanDb.toLowerCase().replaceAll(wsRegex, ' ');
+      String normDb = cleanDb.toLowerCase().replaceAll(_wsRegex, ' ');
       String remainingUser = cleanSelect.substring(cursor).trimLeft();
 
       // 1. HEAD MATCH
