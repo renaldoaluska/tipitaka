@@ -35,7 +35,7 @@ class ExploreTabApp extends StatelessWidget {
         "url": "https://www.palinissaya.com/",
       },
       {
-        "title": "Samaggi Phala:\nTipiṭaka",
+        "title": "Samaggi Phala: Tipiṭaka",
         "desc": "Tipiṭaka Indonesia versi Samaggi Phala",
         "url": "https://samaggi-phala.or.id/tipitaka/",
       },
