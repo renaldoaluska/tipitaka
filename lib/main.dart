@@ -479,7 +479,7 @@ class _RootPageState extends State<RootPage>
                           // child:
                           const HeaderDepan(
                             title: "Pariyatti",
-                            subtitle: "Studi Dhamma",
+                            subtitle: "Teori Dhamma",
                             // ),
                           ),
                     ),
