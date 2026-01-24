@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'dart:ui';
 
 import '../utils/system_ui_helper.dart';
@@ -140,6 +141,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    WakelockPlus.disable();
     _stopPreviewTimer?.cancel();
     _bellCompleteSubscription?.cancel();
     _startBellPlayer.dispose();
@@ -319,11 +321,12 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   }
 
   void _startMeditation() {
-    // Cancel semua timer preview dan subscription
     _stopPreviewTimer?.cancel();
     _bellCompleteSubscription?.cancel();
 
-    // Stop SEMUA audio dulu sebelum mulai
+    // Nyalakan segera agar layar tidak redup saat loading audio/settings
+    WakelockPlus.enable();
+
     Future.wait([
           _startBellPlayer.stop(),
           _endBellPlayer.stop(),
@@ -338,7 +341,6 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               _remainingSeconds = 10;
             });
             _startTimer();
-            // Play ambient langsung sejak preparation
             _playAmbient();
           }
         })
@@ -351,6 +353,8 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
               _isPreparation = true;
               _remainingSeconds = 10;
             });
+
+            //        WakelockPlus.enable();
             _startTimer();
             // Play ambient langsung sejak preparation
             _playAmbient();
@@ -358,23 +362,35 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
         });
   }
 
+  DateTime? _targetTime;
+
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isPaused) {
-        setState(() {
-          if (_remainingSeconds > 0) {
-            _remainingSeconds--;
-          } else {
+    // Hitung kapan timer harus selesai
+    _targetTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+
+    _timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (!_isPaused && _targetTime != null) {
+        final now = DateTime.now();
+        final difference = _targetTime!.difference(now).inSeconds;
+
+        if (difference <= 0) {
+          timer.cancel();
+          setState(() {
+            _remainingSeconds = 0;
             if (_isPreparation) {
               _isPreparation = false;
               _remainingSeconds = (_hours * 3600) + (_minutes * 60) + _seconds;
-              // Bell bunyi pas preparation nyampe 00:00
               _playStartBell();
+              _startTimer(); // Mulai timer meditasi yang sesungguhnya
             } else {
               _finishMeditation();
             }
-          }
-        });
+          });
+        } else {
+          setState(() {
+            _remainingSeconds = difference;
+          });
+        }
       }
     });
   }
@@ -439,19 +455,25 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
   void _pauseResume() {
     if (!mounted) return;
 
-    setState(() => _isPaused = !_isPaused);
-    if (_isPaused) {
-      if (_ambient != 'Tanpa Latar') _ambientPlayer.pause();
-    } else {
-      // Hapus pengecekan _isPreparation
-      if (_ambient != 'Tanpa Latar') _ambientPlayer.resume();
-    }
+    setState(() {
+      _isPaused = !_isPaused;
+      if (_isPaused) {
+        // Hentikan ambient
+        if (_ambient != 'Tanpa Latar') _ambientPlayer.pause();
+        // Opsional: Hentikan timer untuk hemat CPU, meski DateTime akan handle akurasinya
+      } else {
+        // SAAT RESUME: Hitung ulang target waktu berdasarkan sisa detik sekarang
+        _targetTime = DateTime.now().add(Duration(seconds: _remainingSeconds));
+        if (_ambient != 'Tanpa Latar') _ambientPlayer.resume();
+      }
+    });
   }
 
   void _finishMeditation() {
     _timer?.cancel();
     _bellCompleteSubscription?.cancel();
 
+    WakelockPlus.disable();
     _startBellPlayer.stop();
     // Jangan stop ambient dulu, biar overlap sama bell
 
@@ -514,6 +536,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
     );
     if (result == true) {
       _timer?.cancel();
+      WakelockPlus.disable();
       _bellCompleteSubscription?.cancel();
       _startBellPlayer.stop();
       _endBellPlayer.stop();

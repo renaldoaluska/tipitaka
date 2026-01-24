@@ -12,6 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   
+  wakelock_plus: ^1.4.0
   package_info_plus: ^9.0.0
   # Core & UI
   flutter_html: ^3.0.0
