@@ -1465,6 +1465,12 @@ class _HomeState extends State<Home> {
                 initialIndex: initialIndex,
                 child: Scaffold(
                   appBar: AppBar(
+                    elevation: 3, // Memberikan efek angkat/bayangan saat statis
+                    scrolledUnderElevation:
+                        3, // Memastikan shadow tetap ada saat konten di bawahnya di-scroll
+                    shadowColor: Colors.black.withValues(
+                      alpha: 0.3,
+                    ), // Warna bayangan agar lebih halus
                     title: const Text("Eksplor"),
                     leading: IconButton(
                       icon: const Icon(Icons.close),
@@ -1472,6 +1478,7 @@ class _HomeState extends State<Home> {
                     ),
                     bottom: const TabBar(
                       isScrollable: true,
+                      dividerColor: Colors.transparent,
                       tabs: [
                         Tab(text: "Tipiṭakapps"),
                         Tab(text: "Kamus & Perpus"),
