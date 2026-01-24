@@ -11,7 +11,7 @@ class ExploreTabForum extends StatelessWidget {
       {"title": "Forum Diskusi", "isHeader": "true"},
       {
         "title": "Classical Theravāda",
-        "desc": "Forum diskusi Theravāda internasional",
+        "desc": "Forum diskusi Theravāda Klasik internasional",
         "url": "https://classicaltheravada.org/",
       },
       {

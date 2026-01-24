@@ -49,7 +49,7 @@ class ExploreTabApp extends StatelessWidget {
       {"title": "Terjemahan Inggris", "isHeader": "true"},
       {
         "title": "dhammatalks.org: Suttas",
-        "desc": "Sutta Piṭaka Inggris versi Bhikkhu Ṭhānissaro",
+        "desc": "Sutta Piṭaka Inggris terjemahan Bhikkhu Ṭhānissaro",
         "url": "https://www.dhammatalks.org/suttas/",
       },
 
