@@ -468,8 +468,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
   }
 
   String _normalizeDbText(String text, {bool useNewline = false}) {
-    // 1. Definisikan Regex di sini (atau di level class agar lebih hemat memori)
-
     return text
         // Gunakan variabel static yang sudah dibuat di atas
         .replaceAll(_jTagRegex, useNewline ? '\n' : ' ')
@@ -580,10 +578,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
   String _getSmartFormattedText(String selectedText) {
     if (selectedText.trim().isEmpty) return selectedText;
 
-    // 1. DEFINISI RACUN (Hanya Marker Visual)
-    //  Pake Triple Quote (r'''...''') biar aman dari syntax error
-
-    // 2. CUCI TEKS USER (INPUT BERSIH)
+    //  CUCI TEKS USER (INPUT BERSIH)
     // Ini teks murni yang dilihat user. Paling aman ya pake ini.
     String sanitizedText = selectedText
         .replaceAll(_segmentRegex, '') // Gunakan underscore (_)
