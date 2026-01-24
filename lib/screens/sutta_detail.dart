@@ -743,7 +743,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
     buttonItems.removeWhere(
       (item) =>
           item.type == ContextMenuButtonType.share ||
-          item.label?.toLowerCase() == 'share',
+          item.type == ContextMenuButtonType.selectAll || // Tambahkan baris ini
+          item.label?.toLowerCase() == 'share' ||
+          item.label?.toLowerCase() == 'select all',
     );
 
     final List<ContextMenuButtonItem> customButtons = [];
