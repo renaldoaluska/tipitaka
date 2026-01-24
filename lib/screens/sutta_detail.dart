@@ -647,12 +647,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
       if (cursor >= cleanSelect.length) return null;
 
       String cleanDb = dbText
+          // 1. UBAH <j> JADI ENTER DULU (Kunci format cantik)
+          .replaceAll(RegExp(r'<j\s*/?>', caseSensitive: false), '\n')
+          // 2. Baru hapus tag lain, segmen, dan marker
           .replaceAll(SuttaTextHelper.htmlTagRegex, '')
           .replaceAll(segmentRegex, '')
           .replaceAll(markerRegex, '')
           .trim();
 
       if (cleanDb.isEmpty) return null;
+
+      // Logic selanjutnya biarkan tetap sama (normDb akan mengubah \n tadi jadi spasi
+      // untuk pencocokan, tapi cleanDb tetap punya \n untuk hasil return-nya)
       String normDb = cleanDb.toLowerCase().replaceAll(wsRegex, ' ');
       String remainingUser = cleanSelect.substring(cursor).trimLeft();
 
