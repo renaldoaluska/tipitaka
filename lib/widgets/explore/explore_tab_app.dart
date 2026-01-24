@@ -24,16 +24,11 @@ class ExploreTabApp extends StatelessWidget {
 
       {"title": "Terjemahan Indonesia", "isHeader": "true"},
 
-      {
-        "title": "DhammaCitta\nTipiṭaka",
-        "desc": "Tipiṭaka Indonesia versi DhammaCitta",
-        "url": "https://dhammacitta.org/definisi/teks-buddhisme.html",
-      },
-      {
-        "title": "DhammaCitta\nPencarian",
-        "desc": "Pencarian sutta dan sumber daya lainnya",
-        "url": "https://dhammacitta.org/pencarian.html",
-      },
+      //   {
+      //   "title": "DhammaCitta\nPencarian",
+      //   "desc": "Pencarian sutta dan sumber daya lainnya",
+      //    "url": "https://dhammacitta.org/pencarian.html",
+      //  },
       {
         "title": "Pāḷi & Aṭṭhakathā Nissaya",
         "desc": "Tipiṭaka Indonesia versi Dhammavihārī Buddhist Studies",
@@ -43,6 +38,12 @@ class ExploreTabApp extends StatelessWidget {
         "title": "Samaggi Phala:\nTipiṭaka",
         "desc": "Tipiṭaka Indonesia versi Samaggi Phala",
         "url": "https://samaggi-phala.or.id/tipitaka/",
+      },
+
+      {
+        "title": "DhammaCitta: Tipiṭaka",
+        "desc": "Tipiṭaka Indonesia versi DhammaCitta",
+        "url": "https://dhammacitta.org/definisi/teks-buddhisme.html",
       },
 
       {"title": "Terjemahan Inggris", "isHeader": "true"},
