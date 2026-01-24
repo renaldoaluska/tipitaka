@@ -474,17 +474,18 @@ class _SettingsPageState extends State<SettingsPage> {
                         children: [
                           const TextSpan(
                             text:
-                                "Aplikasi gratis dan tanpa iklan ini dikembangkan secara terbuka dengan ",
+                                "Aplikasi gratis dan tanpa iklan ini dikembangkan secara terbuka dengan semangat ",
                           ),
                           // 2. Kata 'viriya' (Miring)
                           const TextSpan(
-                            text: "viriya",
+                            text: "puñña",
                             style: TextStyle(fontStyle: FontStyle.italic),
                           ),
-                          const TextSpan(text: " atas "),
+                          // 2. Kata 'viriya' (Miring)
+                          const TextSpan(text: " dan "),
                           // 3. Kata 'puñña' (Miring)
                           const TextSpan(
-                            text: "puñña",
+                            text: "pāramī",
                             style: TextStyle(fontStyle: FontStyle.italic),
                           ),
                           const TextSpan(text: "."),
