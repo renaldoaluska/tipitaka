@@ -1887,12 +1887,77 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
   }
 
-  // 2. Fungsi Eksekusi Scroll
+  // 2. Fungsi Eksekusi Scroll (UPDATED: SMART FALLBACK)
   void _scrollToParagraph(String num, {bool showSnackBar = true}) {
     if (!_itemScrollController.isAttached) return;
 
-    final index = _findTafsirSectionIndex(num);
-    //final colors = _currentStyle;
+    // A. CARI EXACT MATCH DULU (Logika Lama)
+    int? index = _findTafsirSectionIndex(num);
+    String targetLabel = num; // Label yang akan muncul di SnackBar
+
+    // B. LOGIKA BARU: SMART SCANNING / FALLBACK
+    // Jika nomor persis (misal 81) gak ketemu, cari angka berikutnya (82, 83...)
+    if (index == null) {
+      int? startSeq;
+      int? endSeq;
+
+      // 1. Parse Range Input (misal: "81-85" atau "81")
+      try {
+        if (num.contains('-')) {
+          final parts = num.split('-');
+          if (parts.length >= 2) {
+            startSeq = int.tryParse(parts[0]);
+
+            // Handle logic range pendek (misal "101-5" artinya "101-105")
+            final String startStr = parts[0];
+            final String endStr = parts[1];
+
+            if (startSeq != null) {
+              if (endStr.length < startStr.length) {
+                final prefix = startStr.substring(
+                  0,
+                  startStr.length - endStr.length,
+                );
+                endSeq = int.tryParse(prefix + endStr);
+              } else {
+                endSeq = int.tryParse(endStr);
+              }
+            }
+          }
+        } else {
+          startSeq = int.tryParse(num);
+          // Kalau input cuma angka tunggal ("81"), kita kasih toleransi scan
+          // misal +5 angka ke depan untuk jaga-jaga beda penomoran sedikit.
+          if (startSeq != null) endSeq = startSeq + 5;
+        }
+
+        // 2. Jalankan Loop Scanning
+        if (startSeq != null && endSeq != null && endSeq > startSeq) {
+          // Safety: Batasi loop max 20 langkah biar ga ngelag kalau rangenya "1-1000"
+          int scanLimit = (endSeq - startSeq).clamp(0, 20);
+
+          for (int i = 1; i <= scanLimit; i++) {
+            int nextCandidate = startSeq + i;
+            String nextKey = nextCandidate.toString();
+
+            // Cek ke Database (Map) apakah angka tetangga ini ada?
+            // Fungsi _findTafsirSectionIndex sudah pinter, dia bisa ngecek
+            // kalau kita cari "82" tapi di DB adanya "82-85", dia bakal return indexnya.
+            int? fallbackIndex = _findTafsirSectionIndex(nextKey);
+
+            if (fallbackIndex != null) {
+              index = fallbackIndex;
+              targetLabel =
+                  nextKey; // Update label jadi yang ketemu (misal "82")
+              break; // STOP LOOP, KETEMU!
+            }
+          }
+        }
+      } catch (e) {
+        // Silent error parsing, lanjut ke logic error biasa
+      }
+    }
+
     final colors = _currentStyle;
 
     if (index != null) {
@@ -1901,10 +1966,16 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       if (showSnackBar) {
         ScaffoldMessenger.of(context).clearSnackBars();
+
+        // Cek apakah ini hasil fallback? (Input user != Target yang ketemu)
+        final bool isFallback = targetLabel != num;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Melompat ke §$num",
+              isFallback
+                  ? "Melompat ke §$targetLabel (Terdekat)" // Kasih tau user kalau digeser dikit
+                  : "Melompat ke §$targetLabel",
               style: TextStyle(color: colors.bg),
             ),
             duration: const Duration(milliseconds: 800),
@@ -1924,7 +1995,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
       if (showSnackBar) {
         // 1. CEK ANTI-SPAM
         if (_lastErrorTime != null &&
-            // UBAH JADI (Tambah pengecekan null):
             (_lastErrorTime != null &&
                 DateTime.now().difference(_lastErrorTime!) <
                     const Duration(seconds: 2))) {
@@ -1966,7 +2036,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
               left: 16,
               right: 16,
             ),
-            duration: const Duration(seconds: 4), // Tetap set 5 detik
+            duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'Kembali',
               textColor: Colors.white,
