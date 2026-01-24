@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,7 +16,7 @@ class ShareService {
   static final ScreenshotController _controller = ScreenshotController();
 }
 
-// 🔥 UBAH NAMA CLASS JADI PUBLIC (Hapus tanda '_' di depan)
+//  UBAH NAMA CLASS JADI PUBLIC (Hapus tanda '_' di depan)
 class QuoteEditorPage extends StatefulWidget {
   final String text, acronym, title;
   final Color nikayaColor;
@@ -57,8 +58,23 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
   bool _isBold = false;
   bool _isItalic = false;
   int _fontIndex = 0;
-  final List<String> _fontFamilies = ['serif', 'sans-serif', 'monospace'];
+
   final List<String> _fontLabels = ['Serif', 'Sans', 'Mono'];
+  // PENGGANTI _fontFamilies
+  // Kita paksa pakai font yang support Pāli 100%
+  String? get _currentFontFamily {
+    switch (_fontIndex) {
+      case 0: // Serif
+        return GoogleFonts.notoSerif().fontFamily;
+      case 1: // Sans
+        return GoogleFonts.inter().fontFamily;
+      case 2: // Mono
+        // Pakai Noto Sans Mono biar karakter Pāli tetep kebaca di mode coding
+        return GoogleFonts.notoSansMono().fontFamily;
+      default:
+        return GoogleFonts.notoSerif().fontFamily;
+    }
+  }
 
   TextAlign _textAlign = TextAlign.left;
 
@@ -81,7 +97,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
     _customAccentColor = widget.nikayaColor;
 
     _displayText = _formatQuoteText(widget.text);
-    // 🔥 UBAH INI: Pake LockedTextController biar berwarna
+    //  UBAH INI: Pake LockedTextController biar berwarna
     _textController = LockedTextController(text: _displayText);
     _calculateInitialFontSize(); // Dipisah biar bisa dipanggil tombol reset
     _loadPreferences();
@@ -138,23 +154,45 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      // Pastikan max slider update dulu sebelum load preferensi
+      // 1. Hitung max slider dulu (PENTING)
       _calculateInitialFontSize();
+
+      // 2. Load Boolean (Aman)
       _showShadow = prefs.getBool('quote_share_v4_show_shadow') ?? false;
+      _isBold = prefs.getBool('quote_share_v4_is_bold') ?? false;
+      _isItalic = prefs.getBool('quote_share_v4_is_italic') ?? false;
+
+      // 3. Load Double (Aman dengan default)
+      // Khusus font size di-clamp biar gak meledak
       _fontSize = (prefs.getDouble('quote_share_v4_font_size') ?? _fontSize)
           .clamp(20.0, _sliderMax);
+
       _lineHeight = prefs.getDouble('quote_share_v4_line_height') ?? 1.5;
       _letterSpacing = prefs.getDouble('quote_share_v4_letter_spacing') ?? 0.0;
       _paragraphSpacing =
           prefs.getDouble('quote_share_v4_para_spacing') ?? 40.0;
-      _isBold = prefs.getBool('quote_share_v4_is_bold') ?? false;
-      _isItalic = prefs.getBool('quote_share_v4_is_italic') ?? false;
-      _fontIndex = prefs.getInt('quote_share_v4_font_index') ?? 0;
+
+      // 4. Load List Index (HARUS DI-CLAMP BIAR GAK CRASH)
+
+      // Background (Sudah benar ada clamp)
       _bgStyle = (prefs.getInt('quote_share_v4_bg_style') ?? 0).clamp(
         0,
         _bgNames.length - 1,
       );
-      int alignIdx = prefs.getInt('quote_share_v4_text_align') ?? 0;
+
+      //  Font Index (TAMBAHKAN CLAMP INI)
+      // Biar kalau indexnya 99, dipaksa turun ke max font yang ada
+      _fontIndex = (prefs.getInt('quote_share_v4_font_index') ?? 0).clamp(
+        0,
+        _fontLabels.length - 1,
+      );
+
+      //  Text Align (TAMBAHKAN CLAMP INI)
+      // Biar gak error RangeError kalau enum TextAlign berubah
+      int alignIdx = (prefs.getInt('quote_share_v4_text_align') ?? 0).clamp(
+        0,
+        TextAlign.values.length - 1,
+      );
       _textAlign = TextAlign.values[alignIdx];
     });
   }
@@ -230,7 +268,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                 // Satpam Integritas (Tetap Ada)
                 inputFormatters: [ImmutableTextFormatter()],
 
-                // 🔥 MENU PINTAR SAAT SELEKSI (CONTEXT MENU)
+                //  MENU PINTAR SAAT SELEKSI (CONTEXT MENU)
                 contextMenuBuilder: (context, editableTextState) {
                   // 1. Ambil menu bawaan (Copy, Select All)
                   final List<ContextMenuButtonItem> buttonItems =
@@ -302,7 +340,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                // 🔥 TAMBAHAN DI BARIS TERAKHIR:
+                //  TAMBAHAN DI BARIS TERAKHIR:
                 "• *teks* = Tebal\n"
                 "• _teks_ = Miring\n"
                 "• //teks// = Warna Aksen\n"
@@ -362,7 +400,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
       );
     }
 
-    // 🔥 kuncinya di sini: campur warna latar sama warna aksen
+    //  kuncinya di sini: campur warna latar sama warna aksen
     // accentMix1: 15% warna aksen (halus buat pijar/sorot)
     // accentMix2: 35% warna aksen (lebih tegas buat esensi)
     final Color accentMix1 = Color.lerp(
@@ -526,7 +564,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
       } else if (marker == '_') {
         newStyle = newStyle.copyWith(fontStyle: FontStyle.italic);
       } else if (marker == '//') {
-        // 🔥 UPDATE DI SINI: Hapus fontStyle.italic
+        //  UPDATE DI SINI: Hapus fontStyle.italic
         newStyle = newStyle.copyWith(
           //  color: widget.nikayaColor,
           color: _customAccentColor, // Gunakan variabel state kustom kita
@@ -1216,7 +1254,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                           Icons.format_quote_rounded,
                           //  color: widget.nikayaColor,
                           color:
-                              _customAccentColor, // 🔥 Pakai warna aksen kustom
+                              _customAccentColor, //  Pakai warna aksen kustom
                           size: 120,
                           // Shadow buat ikon
                           //    shadows: safeShadows,
@@ -1259,7 +1297,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                               entry.value,
                               TextStyle(
                                 color:
-                                    _customTextColor, // 🔥 Pakai warna teks kustom
+                                    _customTextColor, //  Pakai warna teks kustom
                                 //color: mainTextColor,
                                 fontSize: _fontSize,
                                 fontStyle: _isItalic
@@ -1268,7 +1306,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                                 fontWeight: _isBold
                                     ? FontWeight.bold
                                     : FontWeight.normal,
-                                fontFamily: _fontFamilies[_fontIndex],
+                                fontFamily: _currentFontFamily,
                                 height: _lineHeight,
                                 letterSpacing: _letterSpacing,
                                 shadows: quoteShadows, // APPLY SHADOW
@@ -1303,7 +1341,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                     // HAPUS 'color' DI SINI, PINDAH KE DALAM DECORATION
                     decoration: BoxDecoration(
                       // color: widget.nikayaColor, // <--- Pindah ke sini
-                      color: _customAccentColor, // 🔥 Pakai warna aksen kustom
+                      color: _customAccentColor, //  Pakai warna aksen kustom
                       boxShadow: isTransparent
                           ? [
                               BoxShadow(
@@ -1321,8 +1359,8 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                     style: TextStyle(
                       fontSize: 42,
                       fontWeight: FontWeight.bold,
-                      color: _customAccentColor, // 🔥 Ganti ke Aksen
-                      // color: _customTextColor, // 🔥 Pakai warna teks kustom
+                      color: _customAccentColor, //  Ganti ke Aksen
+                      // color: _customTextColor, //  Pakai warna teks kustom
                       // color: isWhiteBG ? Colors.black : Colors.white,
                       //  shadows: quoteShadows, // APPLY SHADOW
                     ),
@@ -1344,7 +1382,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                           //style: TextStyle(color: widget.nikayaColor),
                           style: TextStyle(
                             color: _customAccentColor,
-                          ), // 🔥 Pakai warna aksen kustom
+                          ), //  Pakai warna aksen kustom
                         ),
                         if (widget.verseNum != null)
                           TextSpan(
@@ -1369,7 +1407,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                           TextSpan(
                             text: _getFormattedTranslator(widget.translator),
                             style: TextStyle(
-                              // 🔥 Ganti ke Aksen Redup
+                              //  Ganti ke Aksen Redup
                               color: _customAccentColor.withValues(alpha: 1),
                               // color: _customTextColor.withValues(alpha: 0.7),
                               //          color: isWhiteBG ? Colors.black87 : Colors.white,
@@ -1385,7 +1423,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
                   Text(
                     "via myDhamma",
                     style: TextStyle(
-                      // 🔥 Ganti ke Aksen Tipis
+                      //  Ganti ke Aksen Tipis
                       color: _customAccentColor,
                       fontWeight: FontWeight.w300,
                       // color: _customTextColor.withValues(alpha: 0.5),
@@ -1491,7 +1529,7 @@ class _CheckerBoardPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// 🔥 SATPAM INTEGRITAS AYAT
+//  SATPAM INTEGRITAS AYAT
 // Class ini memastikan user TIDAK BISA mengubah satu huruf pun dari ayat asli.
 // User cuma boleh nambah/hapus: Spasi, Enter, Bintang (*), Underscore (_), dan Garis Miring (/).
 class ImmutableTextFormatter extends TextInputFormatter {
@@ -1522,7 +1560,7 @@ class ImmutableTextFormatter extends TextInputFormatter {
   }
 }
 
-// 🔥 CONTROLLER PINTAR: SPASI KUNING (ENTER POLOS)
+//  CONTROLLER PINTAR: SPASI KUNING (ENTER POLOS)
 class LockedTextController extends TextEditingController {
   LockedTextController({super.text});
 
