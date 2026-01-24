@@ -726,8 +726,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
     BuildContext context,
     SelectableRegionState selectableRegionState,
   ) {
+    // --- PERBAIKAN: HAPUS IF NULL CHECK YANG ERROR ---
+    // Langsung ambil items-nya saja.
     final List<ContextMenuButtonItem> buttonItems =
         selectableRegionState.contextMenuButtonItems;
+
+    // --- TAMBAHAN SAFETY LOGIC ---
+    // Kalau tidak ada tombol yang harus ditampilkan (misal seleksi kosong),
+    // kembalikan widget kosong biar gak error saat render.
+    if (buttonItems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    // -----------------------------
 
     // Hapus Share bawaan agar tidak redundan
     buttonItems.removeWhere(
@@ -737,7 +747,6 @@ class _SuttaDetailState extends State<SuttaDetail> {
     );
 
     final List<ContextMenuButtonItem> customButtons = [];
-
     // 1. Tombol Bagikan (Selalu ada & Posisi Pertama)
     customButtons.add(
       ContextMenuButtonItem(
@@ -2674,6 +2683,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
     bool isNext = true, // Default animasi slide dari kanan (Next)
     bool isNavigatedAction = false, // Flag kalau ini hasil pencetan Next/Prev
   }) async {
+    // --- TAMBAHAN 3: BERSIHKAN STATE SELEKSI ---
+    // Mencegah error saat widget lama dibuang (dispose)
+    _currentSelectedText = '';
+    FocusManager.instance.primaryFocus?.unfocus();
+    // -------------------------------------------
+
     setState(() {
       _isLoading = true;
       _connectionError = false;
@@ -4147,9 +4162,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
     } else if (isSegmented) {
       body = RepaintBoundary(
         child: SelectionArea(
-          onSelectionChanged: (content) =>
-              _currentSelectedText = content?.plainText ?? '',
-          contextMenuBuilder: _buildMyContextMenu, // <--- sebaris juga!
+          key: ValueKey(widget.uid),
+          onSelectionChanged: (content) {
+            // Tambahan safety: cek null content
+            _currentSelectedText = content?.plainText ?? '';
+          },
+          contextMenuBuilder: _buildMyContextMenu,
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) => notification.depth != 0,
             // child:
@@ -4220,9 +4238,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
       }
       body = RepaintBoundary(
         child: SelectionArea(
-          onSelectionChanged: (content) =>
-              _currentSelectedText = content?.plainText ?? '',
-          contextMenuBuilder: _buildMyContextMenu, // <--- cuma sebaris!
+          key: ValueKey(widget.uid),
+          onSelectionChanged: (content) {
+            // Tambahan safety: cek null content
+            _currentSelectedText = content?.plainText ?? '';
+          },
+          contextMenuBuilder: _buildMyContextMenu,
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) => notification.depth != 0,
             //  child: Scrollbar(
@@ -4742,9 +4763,12 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
       body = RepaintBoundary(
         child: SelectionArea(
-          onSelectionChanged: (content) =>
-              _currentSelectedText = content?.plainText ?? '',
-          contextMenuBuilder: _buildMyContextMenu, // <--- sebaris juga!
+          key: ValueKey(widget.uid),
+          onSelectionChanged: (content) {
+            // Tambahan safety: cek null content
+            _currentSelectedText = content?.plainText ?? '';
+          },
+          contextMenuBuilder: _buildMyContextMenu,
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) => notification.depth != 0,
             //  child: Scrollbar(
@@ -4997,9 +5021,14 @@ class _SuttaDetailState extends State<SuttaDetail> {
 
             //  UPDATE BAGIAN INI: Reset pas dilepas
             onHorizontalDragEnd: (details) {
+              // --- TAMBAHAN 2: MATIKAN FOKUS SEBELUM LOGIKA NAVIGASI ---
+              // Ini otomatis menghilangkan seleksi teks & menu popup
+              FocusManager.instance.primaryFocus?.unfocus();
+              // --------------------------------------------------------
+
               final double distance = _currentDragX - _dragStartX;
 
-              // Logic Navigasi (Copy yang lama gapapa, atau pake ini)
+              // Logic Navigasi (tetap sama)
               if (distance.abs() > _minDragDistance) {
                 if (distance > 0) {
                   if (!_isLoading && !_isFirst) _goToPrevSutta();
