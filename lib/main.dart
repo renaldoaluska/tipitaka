@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'services/tafsir.dart';
 import 'utils/system_ui_helper.dart';
 //import 'package:tipitaka/services/tafsir.dart';
 import 'data/tematik_data.dart';
@@ -22,6 +23,9 @@ import 'firebase_options.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Hapus file download-an lama (sekali jalan doang)
+  TafsirService.deleteOldOfflineFiles();
+  
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeManager(),

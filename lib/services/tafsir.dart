@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xml/xml.dart';
 
 enum TafsirType { mul, att, tik }
@@ -50,7 +51,8 @@ class TafsirService {
     26: [10],
     27: [10],
     28: [10],
-    29: [10, 40],
+    // 29: [10, 40],
+    29: [50],
     30: [46],
     31: [112],
     32: [57],
@@ -100,14 +102,14 @@ class TafsirService {
     56: [10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 30],
   };
 
-  static const Map<int, List<List<(int, String)>>> _anStructure = {
+  /* static const Map<int, List<List<(int, String)>>> _anStructure = {
     1: [
       [
         (10, "Cittapariyādāna"), (10, "Nīvaraṇa"), (10, "Akammaniya"),
         (10, "Adanta"), (10, "Paṇihita"), (10, "Accharā"),
         (10, "Vīriyārambha"), (10, "Kalyāṇamitta"), (16, "Pamāda"),
         (42, "Dutiyapamāda"), (10, "Adhamma"), (20, "Anāpatti"),
-        (19, "Ekapuggala"), // 🔥 Naikin jadi 19 biar totalnya 187
+        (19, "Ekapuggala"), // ðŸ”¥ Naikin jadi 19 biar totalnya 187
         (80, "Etadagga"),
         (28, "Aṭṭhāna"),
         (52, "Ekadhamma"),
@@ -181,7 +183,7 @@ class TafsirService {
         (10, "Kusināra"),
         (13, "Yodhājīva"),
         (10, "Maṅgala"),
-        (7, "Acelaka"), (20, "Kammapatha"), // 👈 TAMBAHIN INI (163-182 VRI)
+        (7, "Acelaka"), (20, "Kammapatha"), // ðŸ‘ˆ TAMBAHIN INI (163-182 VRI)
         (2, "Rāga"),
       ],
     ],
@@ -361,18 +363,347 @@ class TafsirService {
       [(10, "Nissaya"), (11, "Anussati"), (49, "Sāmañña")],
     ],
   };
+*/
+
+  static const Map<int, List<List<(int, String)>>> _anStructure = {
+    1: [
+      [
+        (10, "Cittapariyādāna"),
+        (10, "Nīvaraṇa"),
+        (10, "Akammaniya"),
+        (10, "Adanta"),
+        (10, "Paṇihita"),
+        (10, "Accharā"),
+        (10, "Vīriyārambha"),
+        (11, "Kalyāṇamitta"),
+        (16, "Pamāda"),
+        (42, "Dutiyapamāda"),
+        (10, "Adhamma"),
+        (20, "Anāpatti"),
+        (18, "Ekapuggala"),
+        (80, "Etadagga"),
+        (28, "Aṭṭhāna"),
+        (82, "Ekadhamma"),
+        (16, "Pasādakara"),
+        (181, "Aparaaccharā"),
+        (41, "Kāyagatāsati"),
+        (12, "Amata"),
+      ],
+    ],
+    2: [
+      [
+        (10, "Kammakaraṇa"),
+        (10, "Adhikaraṇa"),
+        (11, "Bāla"),
+        (10, "Samacitta"),
+        (10, "Parisa"),
+      ], // P1
+      [
+        (12, "Puggala"),
+        (13, "Sukha"),
+        (10, "Sanimitta"),
+        (11, "Dhamma"),
+        (20, "Bāla"),
+      ], // P2
+      [
+        (12, "Āsāduppajaha"),
+        (11, "Āyācana"),
+        (10, "Dāna"),
+        (12, "Santhāra"),
+        (17, "Samāpatti"),
+      ], // P3
+      [
+        (50, "Kodhapeyyāla"),
+        (50, "Akusalapeyyāla"),
+        (30, "Vinayapeyyāla"),
+        (170, "Rāgapeyyāla"),
+      ], // Peyyala
+    ],
+    3: [
+      [
+        (10, "Bāla"),
+        (10, "Rathakāra"),
+        (10, "Puggala"),
+        (10, "Devadūta"),
+        (10, "Cūḷa"), //ini 11 karena tampungan 2 dijadiin 1
+      ], // P1
+      [
+        (10, "Brāhmaṇa"),
+        (10, "Mahā"),
+        (10, "Ānanda"),
+        (11, "Samaṇa"),
+        (11, "Loṇakapalla"),
+      ], // P2
+      [
+        (10, "Sambodha"),
+        (10, "Āpāyika"),
+        (10, "Kusināra"),
+        (13, "Yodhājīva"),
+        (10, "Maṅgala"),
+        (7, "Patipadā"),
+        (20, "Kammapatha"),
+        (170, "Rāgadipeyyāla"),
+      ], // P3
+    ],
+    4: [
+      [
+        (10, "Bhaṇḍagāma"),
+        (10, "Cara"),
+        (10, "Uruvela"),
+        (10, "Cakka"),
+        (10, "Rohitassa"),
+      ], // P1
+      [
+        (10, "Puññābhisanda"),
+        (10, "Pattakamma"),
+        (10, "Apaṇṇaka"),
+        (10, "Macala"),
+        (10, "Asura"),
+      ], // P2
+      [
+        (10, "Valāhaka"),
+        (10, "Kesi"),
+        (10, "Bhaya"),
+        (10, "Puggala"),
+        (10, "Ābhā"),
+      ], // P3
+      [
+        (10, "Indriya"),
+        (10, "Paṭipadā"),
+        (10, "Sañcetaniya"),
+        (10, "Brāhmaṇa"),
+        (10, "Mahā"),
+      ], // P4
+      [
+        (10, "Sappurisa"),
+        (10, "Parisā"),
+        (11, "Duccarita"),
+        (11, "Kamma"),
+        (11, "Āpattibhaya"),
+        (10, "Abhiññā"),
+        (10, "Kammapatha"),
+        (510, "Rāgapeyyāla"),
+      ], // P5
+    ],
+    5: [
+      [
+        (10, "Sekhabala"),
+        (10, "Bala"),
+        (10, "Pañcaṅgika"),
+        (10, "Sumana"),
+        (10, "Muṇḍarāja"),
+      ], // P1
+      [
+        (10, "Nīvaraṇa"),
+        (10, "Saññā"),
+        (10, "Yodhājīva"),
+        (10, "Thera"),
+        (10, "Kakudha"),
+      ], // P2
+      [
+        (10, "Phāsuvihāra"),
+        (10, "Andhakavinda"),
+        (10, "Gilāna"),
+        (10, "Rāja"),
+        (10, "Tikaṇḍakī"),
+      ], // P3
+      [
+        (10, "Saddhamma"),
+        (10, "Āghāta"),
+        (10, "Upāsaka"),
+        (10, "Arañña"),
+        (10, "Brāhmaṇa"),
+      ], // P4
+      [
+        (10, "Kimila"),
+        (10, "Akkosaka"),
+        (10, "Dīghacārika"),
+        (10, "Āvāsa"),
+        (10, "Duccarita"),
+      ], // P5
+      [
+        (21, "Upasampadā"),
+        (14, "Sammutipeyyāla"),
+        (17, "Sikkhāpadapeyyāla"),
+        (850, "Rāgapeyyāla"),
+      ], // P6
+    ],
+    6: [
+      [
+        (10, "Āhuneyya"),
+        (10, "Sāraṇīya"),
+        (10, "Anuttariya"),
+        (12, "Devatā"),
+        (12, "Dhammika"),
+      ], // P1
+      [
+        (10, "Mahā"),
+        (10, "Devatā"),
+        (10, "Arahatta"),
+        (11, "Sīti"),
+        (11, "Ānisaṃsa"),
+      ], // P2
+      [
+        (10, "Tika"),
+        (23, "Sāmañña"),
+        (510, "Rāgapeyyāla"),
+      ], // P3 (Samañña 117-139)
+    ],
+    7: [
+      [
+        (10, "Dhana"),
+        (10, "Anusaya"),
+        (11, "Vajjisattaka"),
+        (12, "Devatā"),
+        (10, "Mahāyañña"),
+      ], // P1
+      [
+        (11, "Abyākata"),
+        (10, "Mahā"),
+        (10, "Vinaya"),
+        (10, "Samaṇa"),
+        (520, "Āhuneyya"),
+        (510, "Rāgapeyyāla"),
+      ], // P2
+    ],
+    8: [
+      [
+        (10, "Mettā"),
+        (10, "Mahā"),
+        (10, "Gahapati"),
+        (10, "Dāna"),
+        (10, "Uposatha"),
+      ], // P1
+      [
+        (10, "Gotamī"),
+        (10, "Bhūmicāla"),
+        (10, "Yamaka"),
+        (10, "Sati"),
+        (27, "Sāmañña"),
+        (510, "Rāgapeyyāla"),
+      ], // P2
+    ],
+    9: [
+      [
+        (10, "Sambodhi"),
+        (10, "Sīhanāda"),
+        (11, "Sattāvāsa"),
+        (10, "Mahā"),
+        (10, "Sāmañña"),
+      ], // P1
+      [
+        (11, "Khemā"),
+        (10, "Satipaṭṭhāna"),
+        (10, "Sammappadhāna"),
+        (10, "Iddhipāda"),
+        (340, "Rāgapeyyāla"),
+      ], // P2
+    ],
+    10: [
+      [
+        (10, "Ānisaṃsa"),
+        (10, "Nātha"),
+        (10, "Mahā"),
+        (10, "Upāli"),
+        (10, "Akkosa"),
+      ], // P1
+      [
+        (10, "Sacitta"),
+        (10, "Yamaka"),
+        (10, "Ākaṅkha"),
+        (10, "Thera"),
+        (10, "Upāli"),
+      ], // P2
+      [
+        (12, "Samaṇasaññā"),
+        (10, "Paccorohaṇī"),
+        (11, "Parisuddha"),
+        (11, "Sādhu"),
+        (10, "Ariya"),
+      ], // P3
+      [
+        (12, "Puggala"),
+        (11, "Jāṇussoṇi"),
+        (11, "Sādhu"),
+        (10, "Ariyamagga"),
+        (12, "Ariyapuggala"),
+      ], // P4
+      [(10, "Karajakāya"), (16, "Sāmañña"), (510, "Rāgapeyyāla")], // P5
+    ],
+    11: [
+      [
+        (10, "Nissaya"),
+        (11, "Anussati"),
+        (960, "Sāmañña"),
+        (170, "Rāgapeyyāla"),
+      ], // P1
+    ],
+  };
 
   final Dio _dio = Dio();
 
   static const String _baseUrl =
       "https://raw.githubusercontent.com/renaldoaluska/tipitaka-xml/main/romn";
 
+  // 🔥 1. VARIABEL BARU: Simpan data XML di RAM
+  static final Map<String, String> _ramCache = {};
+
+  // Dipanggil sekali seumur hidup via main.dart
+  static Future<void> deleteOldOfflineFiles() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 1. Cek: Apakah misi penghancuran sudah pernah dilakukan?
+      // Kita pakai key 'legacy_files_deleted' biar jelas.
+      final bool alreadyDeleted =
+          prefs.getBool('legacy_files_deleted') ?? false;
+
+      if (alreadyDeleted) {
+        return; // Misi selesai, gak perlu cek-cek file lagi. Hemat CPU.
+      }
+
+      // 2. Target Lokasi: Folder Dokumen (Tempat file offline lama bersarang)
+      final dir = await getApplicationDocumentsDirectory();
+
+      // List semua file di situ
+      if (dir.existsSync()) {
+        final List<FileSystemEntity> files = dir.listSync();
+
+        int deletedCount = 0;
+        for (var file in files) {
+          // Hapus cuma file .xml (Kitab yang terlanjur didownload user)
+          if (file is File && file.path.endsWith('.xml')) {
+            try {
+              await file.delete();
+              deletedCount++;
+            } catch (e) {
+              debugPrint("Gagal hapus file ${file.path}: $e");
+            }
+          }
+        }
+
+        if (deletedCount > 0) {
+          debugPrint(
+            "🗑️ CLEANUP: Berhasil menghapus $deletedCount file kitab offline lama dari Storage.",
+          );
+        }
+      }
+
+      // 3. TANDAIN MISI SELESAI
+      // Besok-besok pas user buka app, fungsi ini langsung stop di langkah no. 1
+      await prefs.setBool('legacy_files_deleted', true);
+    } catch (e) {
+      debugPrint("Gagal menjalankan cleanup: $e");
+    }
+  }
+
   Future<String?> getContent2(String uid, {required TafsirType type}) async {
+    // 1. Logic Nama File (Sama persis kayak kode lu)
     final mapping = _calculateMapping(uid);
     final String bookCode = mapping['code'] ?? "";
     final String suttaNum = mapping['num'] ?? "";
-    final String mulPart = mapping['mulPart'] ?? ""; // untuk AN
-    final String part = mapping['part'] ?? ""; // ✅ untuk KN
+    final String mulPart = mapping['mulPart'] ?? "";
+    final String part = mapping['part'] ?? "";
 
     if (bookCode.isEmpty) return null;
 
@@ -412,22 +743,47 @@ class TafsirService {
     }
 
     try {
-      String fullXmlString = await _getOrDownloadBook(
-        fileName,
-      ); // ambil string mentah
+      String fullXmlString;
 
-      // PARSE SEKALI DI SINI
+      // 🔥 2. LOGIC CACHE RAM (Anti Boros Kuota)
+      if (_ramCache.containsKey(fileName)) {
+        debugPrint("⚡ RAM HIT: $fileName (Pake memori)");
+        fullXmlString = _ramCache[fileName]!;
+      } else {
+        // 🔥 3. FETCH ONLINE (Kalau belum ada di RAM)
+        debugPrint("🌐 DOWNLOAD: $fileName ...");
+        final url = "$_baseUrl/$fileName";
+
+        final response = await _dio.get(
+          url,
+          options: Options(responseType: ResponseType.bytes),
+        );
+
+        List<int> bytes = response.data as List<int>;
+
+        // Decode bytes (Pake helper _decodeSmart lu yang udah ada)
+        fullXmlString = _decodeSmart(bytes);
+
+        // 🔥 4. SIMPAN KE RAM
+        _ramCache[fileName] = fullXmlString;
+      }
+
+      // 5. PARSE & EXTRACT (Logic Lama)
       final document = XmlDocument.parse(fullXmlString);
-
       String nikaya = _getNikaya(uid);
-
-      // kirim 'document' (objek), bukan 'fullXmlString'
       String extractedXml = _extractSutta(document, suttaNum, nikaya, type);
 
       return _beautifyXml2(extractedXml);
     } catch (e) {
       debugPrint("Error loading $fileName: $e");
-      return "<h3>Gagal memuat</h3><p>Berkas $fileName tidak ditemukan.</p>";
+      return """
+      <h3>Gagal Memuat</h3>
+      <p><b>File:</b> $fileName</p>
+      <p><b>Status:</b> Gagal ambil data online.</p>
+      <p><b>Error:</b> $e</p>
+      
+      <pJika masalah ini terus berlanjut, mohon <i>screenshot</i> dan laporkan ke <b>aluskaindonesia@gmail.com</b></p>
+      """;
     }
   }
 
@@ -444,52 +800,62 @@ class TafsirService {
     // --- 2. HANDLING AN (Cukup pakai root, jauh lebih hemat RAM) ---
     else if (nikaya == 'an') {
       final parts = suttaNum.split('.');
-      if (parts.length < 2) {
-        return root.outerXml; // Ganti xmlString dengan root.outerXml di sini
-      }
+      if (parts.length < 2) return root.outerXml;
 
-      int nipata = int.tryParse(parts[0].replaceAll('an', '')) ?? 0;
+      int nipata =
+          int.tryParse(parts[0].toLowerCase().replaceAll('an', '')) ?? 0;
       String numPart = parts[1];
-      int globalSuttaNum = 0;
-      if (numPart.contains('-')) {
-        globalSuttaNum = int.tryParse(numPart.split('-')[0]) ?? 0;
-      } else {
-        globalSuttaNum = int.tryParse(numPart) ?? 0;
-      }
+      int globalSuttaNum = numPart.contains('-')
+          ? int.tryParse(numPart.split('-')[0]) ?? 0
+          : int.tryParse(numPart) ?? 0;
 
-      final (pannasakaIdx, vaggaInPannasaka, vaggaName, relativeNum, isRange) =
+      // 1. Dapatkan posisi Bab berdasarkan index asli SuttaCentral (Agar bab TIDAK terdorong)
+      final (pIdx, vInP, vName, relNum, originalIsRange) =
           _calculateAnVaggaPosition(nipata, globalSuttaNum, numPart);
+
+      // 2. Lakukan remap untuk mendapatkan angka VRI (Teks yang mau ditarik)
+      final (remappedNumPart, remappedGlobal) = _applyAnRemap(
+        nipata,
+        numPart,
+        globalSuttaNum,
+      );
+
+      // 3. Tentukan apakah hasil remap menjadi range (misal 47 jadi 47-48)
+      bool effectiveIsRange = originalIsRange || remappedNumPart.contains('-');
+
+      // 4. Hitung relativeNum baru berdasarkan selisih pergeseran VRI
+      int finalRelativeNum = relNum + (remappedGlobal - globalSuttaNum);
 
       if (type == TafsirType.mul) {
         return _extractMulaAn(
           root,
           globalSuttaNum,
           nipata,
-          pannasakaIdx,
-          vaggaInPannasaka,
-          relativeNum,
+          pIdx,
+          vInP,
+          finalRelativeNum,
           suttaNum,
-          isRange,
+          effectiveIsRange,
           type,
-          numPart, // tambah numPart
+          remappedNumPart,
         );
       } else {
         return _extractCommentaryAn(
           root,
           globalSuttaNum,
           nipata,
-          pannasakaIdx,
-          vaggaInPannasaka,
-          relativeNum,
-          vaggaName,
-          numPart,
-          isRange,
+          pIdx,
+          vInP,
+          finalRelativeNum,
+          vName,
+          remappedNumPart,
+          effectiveIsRange,
           type,
         );
       }
     }
 
-    // 🔥 BARU DI SINI KITA BIKIN xmlString (Buat MN, KN, SN yang masih pakai regex)
+    // ðŸ”¥ BARU DI SINI KITA BIKIN xmlString (Buat MN, KN, SN yang masih pakai regex)
     final String xmlString = root.outerXml;
 
     if (nikaya == 'mn') {
@@ -632,10 +998,10 @@ class TafsirService {
         // --- 2. KEYWORD OVERRIDES ---
         String? specialKeyword;
         if (samyuttaNum == 23 && globalIdx >= 23) {
-          // 🔥 Fix: nangkep 'Mārasuttādi' atau 'Mārādisutta'
+          // ðŸ”¥ Fix: nangkep 'Mārasuttādi' atau 'Mārādisutta'
           specialKeyword = r'mār.*?sutt.*?ādi';
         } else if (samyuttaNum == 29) {
-          // 🔥 Fix: Mapping lengkap SN 29 biar gak nyasar
+          // ðŸ”¥ Fix: Mapping lengkap SN 29 biar gak nyasar
           if (globalIdx >= 11 && globalIdx <= 20) {
             specialKeyword = r'aṇḍaja.*?sutt.*?ādi';
           } else if (globalIdx >= 21 && globalIdx <= 30) {
@@ -652,7 +1018,7 @@ class TafsirService {
             samyuttaNum == 49 ||
             samyuttaNum == 50 ||
             samyuttaNum == 53) {
-          // 🔥 Fix SN 30-34: Semuanya ulasan kolektif (sepaket satu bab)
+          // ðŸ”¥ Fix SN 30-34: Semuanya ulasan kolektif (sepaket satu bab)
           final Map<int, String> shortSamyuttaKeywords = {
             26: "uppādasaṃyutta",
             27: "kilesasaṃyutta",
@@ -687,7 +1053,7 @@ class TafsirService {
         String result = "tidak ditemukan";
 
         if (specialKeyword != null && type != TafsirType.mul) {
-          // 🔥 Fix: Tambahin 'centre|bodytext' di rend list
+          // ðŸ”¥ Fix: Tambahin 'centre|bodytext' di rend list
           final m = RegExp(
             r'<(p|head)[^>]*rend="(chapter|title|subhead|centre|bodytext)"[^>]*>.*?'
             '$specialKeyword'
@@ -702,7 +1068,7 @@ class TafsirService {
         }
 
         if (result.contains("tidak ditemukan")) {
-          // 🔥 Fix: Kalau isolation gagal, JANGAN cari Relative (biar gak dapet Suddhika)
+          // ðŸ”¥ Fix: Kalau isolation gagal, JANGAN cari Relative (biar gak dapet Suddhika)
           bool isolationFailed = (vaggaXml.length >= samyuttaXml.length * 0.9);
 
           // 1. Cari Global Subhead (Paling Akurat)
@@ -783,10 +1149,10 @@ class TafsirService {
     }
   }
 
-  // 🔥 FUNGSI SAKTI V2: The "Patient" Accumulator
+  // ðŸ”¥ FUNGSI SAKTI V2: The "Patient" Accumulator
   // Dia gak akan ambil match pertama, tapi ngitung dulu slot kursinya.
 
-  // 🔥 FUNGSI SAKTI: Cari Sutta berdasarkan JUDUL (Keyword)
+  // ðŸ”¥ FUNGSI SAKTI: Cari Sutta berdasarkan JUDUL (Keyword)
   // Dipake buat MN 2-10 Tika yang strukturnya "rata tanah" tanpa div.
   String _extractBySpecificTitle(
     String xml,
@@ -857,8 +1223,8 @@ class TafsirService {
     final String targetNum = parts.length > 1 ? parts[1] : parts[0];
     final int targetInt = int.tryParse(targetNum) ?? -1;
 
-    // 🔥 FIX 1: Deteksi range di targetNum user (support semua jenis strip)
-    bool isSubheadRange = targetNum.contains(RegExp(r'[\-\–\—]'));
+    // ðŸ”¥ FIX 1: Deteksi range di targetNum user (support semua jenis strip)
+    bool isSubheadRange = targetNum.contains(RegExp(r'[\-\â€“\â€”]'));
 
     // --- STEP 1: CARI TITIK AWAL (START) ---
     RegExpMatch? startMatch;
@@ -871,19 +1237,19 @@ class TafsirService {
       ).firstMatch(xml);
     } else {
       // A. Coba match angka persis ("6." atau "6 " atau "6-")
-      // 🔥 FIX 2: Regex ini sekarang kenal strip panjang (–) dan em-dash (—)
+      // ðŸ”¥ FIX 2: Regex ini sekarang kenal strip panjang (â€“) dan em-dash (â€”)
       startMatch = RegExp(
         r'<(p|head)[^>]*rend="(subhead|title|chapter|bodytext|centre)"[^>]*>'
         r'(?:\s*<[^>]+>)*\s*(?:\(\s*)?'
-        '${RegExp.escape(targetNum)}' // 🔥 Pakai interpolasi di sini
-        r'[\.\s\-\–\—\)](?![^<]*?(?:vagg|saṃyutt))',
+        '${RegExp.escape(targetNum)}' // ðŸ”¥ Pakai interpolasi di sini
+        r'[\.\s\-\â€“\â€”\)](?![^<]*?(?:vagg|saṃyutt))',
         caseSensitive: false,
       ).firstMatch(xml);
 
       // B. LOGIKA MATEMATIKA: Cari Range yang MENGANDUNG angka target
       if (startMatch == null && targetInt != -1) {
         final rangeRegex = RegExp(
-          r'<(p|head)[^>]*rend="(subhead|title|chapter)"[^>]*>\s*(\d+)\s*[\-\–\—]\s*(\d+)[\.\)]',
+          r'<(p|head)[^>]*rend="(subhead|title|chapter)"[^>]*>\s*(\d+)\s*[\-\â€“\â€”]\s*(\d+)[\.\)]',
           caseSensitive: false,
         );
         // ... rest of logic for (targetInt >= s && targetInt <= e) ...
@@ -902,9 +1268,9 @@ class TafsirService {
 
       // C. Fallback (Adivanna/Peyyala) - DENGAN BLOCKER CHECK
       if (startMatch == null && targetInt != -1) {
-        // 🔥 FIX 4: Fallback scanner juga support strip panjang
+        // ðŸ”¥ FIX 4: Fallback scanner juga support strip panjang
         final fallbackMatches = RegExp(
-          r'<p rend="subhead"[^>]*>[^<]*?(\d+)[\.\-\–\—][^<]*?(ādi|peyyāla)',
+          r'<p rend="subhead"[^>]*>[^<]*?(\d+)[\.\-\â€“\â€”][^<]*?(ādi|peyyāla)',
           caseSensitive: false,
         ).allMatches(xml);
 
@@ -944,7 +1310,7 @@ class TafsirService {
     final int startPos = startMatch.start;
 
     final nextBoundaryPattern = RegExp(
-      // 🔥 Fix: Boundary harus sensitif sama 'vagg' dan 'saṃyutt' juga
+      // ðŸ”¥ Fix: Boundary harus sensitif sama 'vagg' dan 'saṃyutt' juga
       r'<p[^>]*rend="subhead"[^>]*>\s*\d+|<head|<trailer|<p[^>]*rend="(title|centre|chapter)"[^>]*>.*?(vaṇṇanā|vannana|vagg|saṃyutt|niṭṭhita|samatta)|<div[^>]*id=',
       caseSensitive: false,
     );
@@ -981,16 +1347,41 @@ class TafsirService {
     }
   }
 
-  Future<String> _getOrDownloadBook(String fileName) async {
+  /*Future<String> _getOrDownloadBook(String fileName) async {
     final directory = await getApplicationDocumentsDirectory();
     final String filePath = '${directory.path}/$fileName';
     final File file = File(filePath);
 
     List<int> bytes;
+    bool shouldDownload = true; // Defaultnya kita anggap harus download
 
+    // 1. Cek dulu kalau file ada di HP
     if (await file.exists()) {
       bytes = await file.readAsBytes();
+
+      // --- TAMBAHAN: VALIDASI ISI FILE (SATPAM) ---
+      // Kita cek 50 huruf pertama. Kalau isinya HTML error, berarti file sampah.
+      String header = String.fromCharCodes(bytes.take(50));
+
+      if (bytes.length < 50 ||
+          header.contains("<!DOCTYPE") ||
+          header.contains("404")) {
+        // Kalau file rusak/sampah, hapus biar nanti didownload ulang
+        await file.delete();
+        shouldDownload = true;
+      } else {
+        // Kalau file aman, gak usah download
+        shouldDownload = false;
+      }
+      // -------------------------------------------
     } else {
+      // Kalau file emang gak ada, ya download
+      shouldDownload = true;
+      bytes = []; // Init aja biar gak error
+    }
+
+    // 2. Proses Download (Cuma jalan kalau file gak ada atau file rusak)
+    if (shouldDownload) {
       final String url = "$_baseUrl/$fileName";
 
       try {
@@ -999,6 +1390,8 @@ class TafsirService {
           options: Options(responseType: ResponseType.bytes),
         );
         bytes = response.data as List<int>;
+
+        // Simpan file yang baru didownload
         await file.writeAsBytes(bytes);
       } catch (e) {
         throw Exception("File $fileName not found at $url");
@@ -1007,7 +1400,7 @@ class TafsirService {
 
     return _decodeSmart(bytes);
   }
-
+*/
   String _decodeSmart(List<int> bytes) {
     if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
       return _decodeUtf16LE(bytes.sublist(2));
@@ -1303,7 +1696,7 @@ class TafsirService {
   }
 
   Map<String, String> _calculateMapping(String uid) {
-    final cleanUid = uid.toLowerCase();
+    final cleanUid = uid.toLowerCase(); //  Pastikan semua lowercase di sini
     final int n =
         int.tryParse(RegExp(r'\d+').firstMatch(cleanUid)?.group(0) ?? '1') ?? 1;
 
@@ -1328,7 +1721,7 @@ class TafsirService {
 
       final String suttaPart = parts.length > 1 ? parts[1] : "1";
 
-      // ❌ KODE LAMA (BIANG KEROK): Ini yang motong "93-213" jadi "93"
+      //  KODE LAMA (BIANG KEROK): Ini yang motong "93-213" jadi "93"
       // final suttaMatch = RegExp(r'\d+').firstMatch(suttaPart);
       // final int sutta = int.tryParse(suttaMatch?.group(0) ?? '1') ?? 1;
 
@@ -1358,59 +1751,57 @@ class TafsirService {
         localSamyutta = samyutta - 44;
       }
 
-      // ✅ FIX: Pake 'suttaPart' langsung (isinya "93-213") biar range-nya kebawa!
+      // âœ… FIX: Pake 'suttaPart' langsung (isinya "93-213") biar range-nya kebawa!
       return {'code': code, 'num': 'sn${bookNum}_$localSamyutta:$suttaPart'};
     }
 
-    // AN
-    if (uid.startsWith('an')) {
-      final parts = uid.split('.');
+    // AN (Ganti 'uid' dengan 'cleanUid')
+    if (cleanUid.startsWith('an')) {
+      final parts = cleanUid.split('.');
       if (parts.length < 2) return {'code': '', 'num': ''};
 
       String bookStr = parts[0].replaceAll('an', '');
       int bookNum = int.tryParse(bookStr) ?? 0;
 
       String bookCode = "";
+      String mulPart = ""; // Kita hitung lagi part-nya!
 
-      // Mapping File Gabungan (PENTING BUAT ATT & TIK)
+      // Mapping File
       switch (bookNum) {
         case 1:
           bookCode = "s0401";
+          // AN 1 gak punya part pecahan, biarkan kosong
           break;
         case 2:
         case 3:
         case 4:
           bookCode = "s0402";
-          break; // Gabungan AN 2-4
+          // Rumus: AN 2 -> m1, AN 3 -> m2, AN 4 -> m3
+          mulPart = (bookNum - 1).toString();
+          break;
         case 5:
         case 6:
         case 7:
           bookCode = "s0403";
-          break; // Gabungan AN 5-7
+          // Rumus: AN 5 -> m1, AN 6 -> m2, AN 7 -> m3
+          mulPart = (bookNum - 4).toString();
+          break;
         case 8:
         case 9:
         case 10:
         case 11:
           bookCode = "s0404";
-          break; // Gabungan AN 8-11
+          // Rumus: AN 8 -> m1, ... AN 11 -> m4
+          mulPart = (bookNum - 7).toString();
+          break;
         default:
           return {'code': '', 'num': ''};
       }
 
-      // Logic 'mulPart' tetep disimpen buat Mula (kalau Mula-nya dipisah)
-      String mulPart = "";
-      if (bookNum >= 2 && bookNum <= 4) {
-        mulPart = (bookNum - 1).toString();
-      } else if (bookNum >= 5 && bookNum <= 7) {
-        mulPart = (bookNum - 4).toString();
-      } else if (bookNum >= 8 && bookNum <= 11) {
-        mulPart = (bookNum - 7).toString();
-      }
-
       return {
         'code': bookCode,
-        'num': uid,
-        'mulPart': mulPart, // Dipake cuma kalo type == mul
+        'num': cleanUid,
+        'mulPart': mulPart, // ✅ SEKARANG SUDAH TERISI (Misal: "2" untuk AN 3)
       };
     }
 
@@ -1481,7 +1872,7 @@ class TafsirService {
         return {
           'code': bookCode,
           'num': '${entry.key}_$suttaIdx',
-          'part': part, // ✅ KN tetap pakai 'part'
+          'part': part, // âœ… KN tetap pakai 'part'
         };
       }
     }
@@ -1502,10 +1893,10 @@ class TafsirService {
     TafsirType type,
   ) {
     // =======================================================================
-    // 🛠️ STEP 0: PATCH MAPPING (STANDARD)
+    // ðŸ› ï¸ STEP 0: PATCH MAPPING (STANDARD)
     // =======================================================================
     // ... (Mapping standar lainnya tetap ada buat safety) ...
-    if (isRange) {
+    /*if (isRange) {
       final (newNumPart, newGlobalSutta) = _applyAnRemap(
         nipata,
         numPart,
@@ -1523,7 +1914,7 @@ class TafsirService {
         vaggaInPannasaka = newV;
         relativeNum = newRel;
       }
-    }
+    }*/
 
     // =======================================================================
     // 1. ISOLASI NIPATA
@@ -1540,7 +1931,7 @@ class TafsirService {
     }
 
     // =======================================================================
-    // 🔥 STEP 2: THE "HARDCODE" BYPASS (AN 1 & AN 2 - ATT & TIK) 🔥
+    // ðŸ”¥ STEP 2: THE "HARDCODE" BYPASS (AN 1 & AN 2 - ATT & TIK) ðŸ”¥
     // =======================================================================
     // Kita izinkan Nipata 1 & 2, dan Tipe selain MUL (bisa Att/Tik)
     if ((nipata == 1 || nipata == 2 || nipata == 3) && type != TafsirType.mul) {
@@ -1645,7 +2036,7 @@ class TafsirService {
       // Kalau salah satu kondisi di atas ngisi 'hardcodedTarget', jalanin ini:
       // ===========================================================
       if (hardcodedTarget != null) {
-        // 🔥 FITUR 1: MAKSA KOSONGIN TIKA (Kalo target Qwertyuiop)
+        // ðŸ”¥ FITUR 1: MAKSA KOSONGIN TIKA (Kalo target Qwertyuiop)
         if (hardcodedTarget.contains("Qwertyuiop")) {
           return _generateErrorHtml(
             type,
@@ -1906,12 +2297,12 @@ class TafsirService {
     return result;
   }
 
-  // 🔥 SMART RANGE V2 (AGGRESSIVE SCANNER)
+  // ðŸ”¥ SMART RANGE V2 (AGGRESSIVE SCANNER)
   // Pastikan pakai versi ini biar "3-4" dan "5-10" ketangkep
   String _extractBySmartRange(String vaggaXml, int targetNum) {
     // Regex: <p rend="subhead">3-4. Cintisutta...</p>
     final rangePattern = RegExp(
-      r'<p[^>]*rend="subhead"[^>]*>\s*(\d+)\s*[\-\–\—]\s*(\d+)',
+      r'<p[^>]*rend="subhead"[^>]*>\s*(\d+)\s*[\-\â€“\â€”]\s*(\d+)',
       caseSensitive: false,
     );
 
@@ -1979,7 +2370,7 @@ class TafsirService {
 
   // Panggil ini di _extractSutta bagian SN kalau result "tidak ditemukan"
 
-  // 🔪 HELPER: Iris Sutta dari dalam Vagga XML (By Subhead Number)
+  // ðŸ”ª HELPER: Iris Sutta dari dalam Vagga XML (By Subhead Number)
   String _extractSuttaFromVaggaXml(String vaggaXml, int relativeNum) {
     // Cari <p rend="subhead">X.</p>  atau  <p rend="subhead">X-Y.</p>
     // Regex: Angka di awal subhead harus match relativeNum
@@ -2032,27 +2423,6 @@ class TafsirService {
     TafsirType type,
     String numPart,
   ) {
-    // 1. remap tetep jalan duluan sesuai plottingan lu
-    if (isRange) {
-      final (newNumPart, newGlobalSutta) = _applyAnRemap(
-        nipata,
-        numPart,
-        globalSuttaNum,
-      );
-      numPart = newNumPart;
-      globalSuttaNum = newGlobalSutta;
-
-      final (newP, newV, _, newRel, _) = _calculateAnVaggaPosition(
-        nipata,
-        globalSuttaNum,
-        numPart,
-      );
-      pannasakaIdx = newP;
-      vaggaInPannasaka = newV;
-      relativeNum = newRel;
-    }
-
-    // 2. cari targetelement dengan filter id + type (biar gak ketuker pannasaka/vagga)
     int globalVaggaIdx = 0;
     final List<List<(int, String)>> structure = _anStructure[nipata] ?? [];
     for (int i = 0; i < pannasakaIdx - 1; i++) {
@@ -2060,45 +2430,44 @@ class TafsirService {
     }
     globalVaggaIdx += vaggaInPannasaka;
 
-    String vaggaIdFull = "an${nipata}_${pannasakaIdx}_$vaggaInPannasaka";
-    String vaggaIdSimple = "an${nipata}_$globalVaggaIdx";
-    String vaggaIdPeyyala = "an${nipata}_$pannasakaIdx";
+    String vaggaIdXml = "a$nipata-$globalVaggaIdx"; // ID format berkas kamu
+
+    String vaggaXml = ""; // Deklarasi agar tidak "Undefined name"
 
     XmlElement? targetElement;
-    String vaggaXml = "";
-
     try {
-      // FIX: prioritaskan id yang spesifik dulu, dan cek 'type' biar nggak nangkep pannasaka
+      final idsToTry = {
+        "an${nipata}_${pannasakaIdx}_$vaggaInPannasaka",
+        "an${nipata}_$globalVaggaIdx",
+        vaggaIdXml,
+        "a$nipata-$globalVaggaIdx",
+      };
+
       targetElement = root.descendants.whereType<XmlElement>().firstWhere(
-        (e) =>
-            e.getAttribute('id') == vaggaIdFull ||
-            e.getAttribute('id') == vaggaIdSimple,
-        orElse: () => root.descendants.whereType<XmlElement>().firstWhere(
-          (e) =>
-              e.getAttribute('id') == vaggaIdPeyyala &&
-              (e.getAttribute('type') == 'peyyala' ||
-                  e.getAttribute('type') == 'vagga'),
-          orElse: () => throw Exception('not found'),
-        ),
+        (e) => idsToTry.contains(e.getAttribute('id')),
+        orElse: () {
+          // Fallback
+          return root.descendants.whereType<XmlElement>().firstWhere(
+            (e) => e.getAttribute('id') == "an$nipata",
+            orElse: () => root.descendants.whereType<XmlElement>().first,
+          );
+        },
       );
 
-      String targetId = targetElement.getAttribute('id') ?? "";
-      String nextId = (targetId == vaggaIdFull)
-          ? "an${nipata}_${pannasakaIdx}_${vaggaInPannasaka + 1}"
-          : (targetId == vaggaIdPeyyala
-                ? "an${nipata}_${pannasakaIdx + 1}"
-                : "an${nipata}_${globalVaggaIdx + 1}");
-
-      vaggaXml = _cutXmlByNextId(root, targetId, nextId);
+      vaggaXml = targetElement.outerXml;
     } catch (e) {
-      if (nipata == 1 || nipata == 2) vaggaXml = root.outerXml;
+      if (kDebugMode) {
+        print("   💥 Exception: $e");
+      }
+      targetElement = null;
+      vaggaXml = root.outerXml;
     }
 
-    // 3. penentuan scope (biar isi sutta gak ilang pas range)
-    // buat an 1-2, kalo range pake root biar aman antar-vagga, tapi header tetep dari targetelement
-    String scope = (isRange && (nipata == 1 || nipata == 2))
+    String targetId = targetElement?.getAttribute('id') ?? "";
+    // Jika ID bab tidak ketemu, gunakan seluruh isi file sebagai scope
+    String scope = (targetId.isEmpty)
         ? root.outerXml
-        : (vaggaXml.isNotEmpty ? vaggaXml : root.outerXml);
+        : _cutXmlByNextId(root, targetId, "");
 
     String content = "";
     if (isRange) {
@@ -2107,21 +2476,19 @@ class TafsirService {
       content = _extractSuttaFromVaggaXml(scope, relativeNum);
     }
 
-    if (content.isEmpty || content.contains("tidak ditemukan")) return vaggaXml;
+    if (content.isEmpty || content.contains("tidak ditemukan")) {
+      return vaggaXml.isNotEmpty ? vaggaXml : root.outerXml;
+    }
 
-    // --- 4. HEADER LOGIC (FIX DOBEL PANNASAKA & VAGGO) ---
+    // --- Header Logic ---
     String headerHtml = "";
-
     if (targetElement != null) {
-      // Ambil judul Pannasaka (Pannasaka 3 dkk)
       final pHead = targetElement.parent?.children
           .whereType<XmlElement>()
           .firstWhere(
             (e) => e.name.local == 'head' && e.getAttribute('rend') == 'title',
             orElse: () => XmlElement(XmlName('empty')),
           );
-
-      // Ambil judul Vagga (Cuma dipake kalo BUKAN range / single sutta)
       final vHead = targetElement.children.whereType<XmlElement>().firstWhere(
         (e) =>
             (e.name.local == 'head' && e.getAttribute('rend') == 'chapter') ||
@@ -2136,39 +2503,9 @@ class TafsirService {
           ? pHead.outerXml
           : "";
       String vHtml = (vHead.name.local != 'empty') ? vHead.outerXml : "";
-
-      if (isRange) {
-        // 🔥 FIX DOBEL: Kalo start range bener-bener di awal (Vagga 1, Sutta 1),
-        // look-back di _extractByParanum bakal nangkep judul Pannasaka otomatis.
-        // Jadi kita kosongin pHtml di sini biar gak muncul dua kali.
-        headerHtml = (relativeNum == 1 && vaggaInPannasaka == 1) ? "" : pHtml;
-      } else {
-        // Kalo single sutta, kita tetep butuh keduanya biar konteksnya jelas
-        headerHtml = "$pHtml\n$vHtml";
-      }
-
-      // Hack AN 1 buat ngerubah <p> jadi <head> biar dibaca H1 sama beautify
-      if (nipata == 1 && headerHtml.contains('<p')) {
-        headerHtml = headerHtml
-            .replaceAll('<p', '<head')
-            .replaceAll('</p>', '</head>');
-      }
-    }
-
-    // Fallback Regex: HANYA jalan kalo bukan AN 1 Range
-    if (!(nipata == 1 && isRange) &&
-        (headerHtml.trim().isEmpty || headerHtml.contains("empty"))) {
-      final pattern = (nipata == 1)
-          ? r'<p[^>]*rend="(title|chapter|centre)"[^>]*>.*?</p>'
-          : r'<head[^>]*rend="chapter"[^>]*>.*?</head>';
-
-      headerHtml = RegExp(pattern, dotAll: true).stringMatch(vaggaXml) ?? "";
-
-      if (nipata == 1 && headerHtml.startsWith('<p')) {
-        headerHtml = headerHtml
-            .replaceFirst('<p', '<head')
-            .replaceFirst('</p>', '</head>');
-      }
+      headerHtml = (isRange && relativeNum == 1 && vaggaInPannasaka == 1)
+          ? ""
+          : "$pHtml\n$vHtml";
     }
 
     return "$headerHtml\n$content";
@@ -2214,7 +2551,7 @@ class TafsirService {
   }
 
   String _extractByParanum(String xml, String suttaNum, TafsirType type) {
-    // 🔥 FIX UTAMA: Cara bersihin ID yang lebih pinter.
+    // ðŸ”¥ FIX UTAMA: Cara bersihin ID yang lebih pinter.
     // Dulu cuma: replaceAll('an\d+.', '') -> Akibatnya 'sn_123' gak kebersih, jadi error.
     // Sekarang: Ambil angka paling belakang setelah underscore (_) atau titik (.).
     String cleanSuttaNum = suttaNum;
@@ -2240,10 +2577,10 @@ class TafsirService {
     RegExpMatch? endMatch;
 
     // =========================================================================
-    // 🕵️ CARA 1: Cari via atribut n="..." (Support Range "18-20")
+    // ðŸ•µï¸ CARA 1: Cari via atribut n="..." (Support Range "18-20")
     // =========================================================================
     final paraPattern = RegExp(
-      r'<p[^>]*\bn="([\d\-\–\—]+)"[^>]*>(.*?)</p>', // Fix: Support dash aneh di atribut n
+      r'<p[^>]*\bn="([\d\-\â€“\â€”]+)"[^>]*>(.*?)</p>', // Fix: Support dash aneh di atribut n
       caseSensitive: false,
       dotAll: true,
     );
@@ -2253,7 +2590,7 @@ class TafsirService {
       String nAttr = m.group(1) ?? '';
       // Bersihkan string: ganti en-dash/em-dash jadi strip biasa, hapus spasi
       String cleanAttr = nAttr
-          .replaceAll(RegExp(r'[–—]'), '-')
+          .replaceAll(RegExp(r'[â€“â€”]'), '-')
           .replaceAll(' ', '');
 
       int rangeStart = 0, rangeEnd = 0;
@@ -2279,13 +2616,13 @@ class TafsirService {
     }
 
     // =========================================================================
-    // 🕵️ CARA 2: Cari via Teks Awal Paragraf (RANGE AWARE SCANNER)
+    // ðŸ•µï¸ CARA 2: Cari via Teks Awal Paragraf (RANGE AWARE SCANNER)
     // =========================================================================
     if (startPos == -1) {
       final textNumScanner = RegExp(
-        // 🔥 Fix: Larang nangkep rend="title/chapter/centre" biar gak nangkep nomor di judul Vagga
+        // ðŸ”¥ Fix: Larang nangkep rend="title/chapter/centre" biar gak nangkep nomor di judul Vagga
         r'<p(?![^>]*rend="(?:title|chapter|centre|subhead)")'
-        r'[^>]*>(?:\s*<[^>]+>)*\s*(\d+)(?:\s*[\-–—]\s*(\d+))?\s*[\.]',
+        r'[^>]*>(?:\s*<[^>]+>)*\s*(\d+)(?:\s*[\-â€“â€”]\s*(\d+))?\s*[\.]',
         caseSensitive: false,
       );
 
@@ -2309,7 +2646,7 @@ class TafsirService {
     }
 
     // =========================================================================
-    // 🕵️ CARA 3: Fallback <hi rend="paranum">
+    // ðŸ•µï¸ CARA 3: Fallback <hi rend="paranum">
     // =========================================================================
     if (startPos == -1) {
       final hiPattern = RegExp(
@@ -2320,7 +2657,7 @@ class TafsirService {
       for (var m in hiMatches) {
         String hiNum = m.group(1) ?? '';
         String cleanHi = hiNum
-            .replaceAll(RegExp(r'[–—]'), '-')
+            .replaceAll(RegExp(r'[â€“â€”]'), '-')
             .replaceAll(' ', '');
 
         int nStart = 0, nEnd = 0;
@@ -2406,16 +2743,16 @@ class TafsirService {
     }
     final nextBoundary = RegExp(
       r'(<hi rend="paranum">\s*(?!'
-      '${RegExp.escape(endStr)}' // 🔥 Ganti operator '+' jadi interpolasi
+      '${RegExp.escape(endStr)}' // ðŸ”¥ Ganti operator '+' jadi interpolasi
       r')\d+'
       r'|<p rend="subhead"[^>]*>\s*(?!'
-      '${RegExp.escape(endStr)}' // 🔥 Sini juga
+      '${RegExp.escape(endStr)}' // ðŸ”¥ Sini juga
       r')\d+'
       r'|<p[^>]*\bn="(?!'
-      '${RegExp.escape(endStr)}' // 🔥 Dan sini
+      '${RegExp.escape(endStr)}' // ðŸ”¥ Dan sini
       r')\d+"'
       r'|<p[^>]*>\s*(?:<[^>]+>)*\s*(?!'
-      '${RegExp.escape(endStr)}' // 🔥 Terakhir sini
+      '${RegExp.escape(endStr)}' // ðŸ”¥ Terakhir sini
       r')\d+[\.\-]'
       r'|<p[^>]*rend="(title|centre|chapter)"[^>]*>.*?(vaṇṇanā|vannana|vagg|saṃyutt|niṭṭhita|samatta)'
       r'|<div[^>]*?id="|<head)',
@@ -2446,7 +2783,7 @@ class TafsirService {
   }
 
   String _isolateVaggaSn(String samyuttaXml, int vaggaIdx, int samyuttaNum) {
-    // 🔥 Fix: Kalau nyari Vagga > 1, JANGAN cari kata 'samyutta' biar gak match judul Samyutta.
+    // ðŸ”¥ Fix: Kalau nyari Vagga > 1, JANGAN cari kata 'samyutta' biar gak match judul Samyutta.
     final String typePattern = (vaggaIdx > 1) ? 'vagg' : r'(?:vagg|saṃyutt)';
 
     final vPattern = RegExp(
@@ -2501,7 +2838,7 @@ class TafsirService {
     return 44 + localIdx;
   }
 
-  // 🔥 HELPER BARU: Pesan Error Keren & Informatif (Versi Rapi & Rapet)
+  // ðŸ”¥ HELPER BARU: Pesan Error Keren & Informatif (Versi Rapi & Rapet)
   String _generateErrorHtml(TafsirType type, String id) {
     String label = "Mūla";
     if (type == TafsirType.att) label = "Aṭṭhakathā";
@@ -2532,7 +2869,7 @@ class TafsirService {
   }
 
   // ============================================
-  // 🔍 DEBUGGING TOOLS - TAMBAH DI SINI
+  // ðŸ” DEBUGGING TOOLS - TAMBAH DI SINI
   // ============================================
 
   void testAnMapping(String uid) {
@@ -2551,7 +2888,7 @@ class TafsirService {
       bool mulOk = mul != null && !mul.contains("tidak ditemukan");
 
       if (mulOk) {
-        // 🔍 PREVIEW: Ambil 300 karakter pertama
+        // ðŸ” PREVIEW: Ambil 300 karakter pertama
         String preview = mul.substring(0, mul.length > 300 ? 300 : mul.length);
         preview = preview.replaceAll(RegExp(r'\s+'), ' '); // Kompres whitespace
       } else if (mul != null) {
@@ -2593,7 +2930,7 @@ class TafsirService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ EXCEPTION: $e');
+        print('âŒ EXCEPTION: $e');
       }
     }
   }
@@ -2601,7 +2938,11 @@ class TafsirService {
   (String, int) _applyAnRemap(int nipata, String numPart, int globalSuttaNum) {
     final parts = numPart.split('-');
     int scStart = int.tryParse(parts[0]) ?? 0;
-    int scEnd = int.tryParse(parts[1]) ?? scStart;
+
+    //  PERBAIKAN: Cek dulu panjangnya, jangan main asal ambil parts[1]
+    int scEnd = (parts.length > 1)
+        ? (int.tryParse(parts[1]) ?? scStart)
+        : scStart;
 
     // Pindahkan semua logika IF-ELSE AN 1 dan AN 2 kamu ke sini
     if (nipata == 1) {
@@ -2692,14 +3033,25 @@ class TafsirService {
       } else if (scStart == 280 && scEnd == 309) {
         numPart = "201-230";
         globalSuttaNum = 201;
-      } else if (scStart == 310 && scEnd == 479) {
-        numPart =
-            "231-246"; // Kamu memetakan 170 Sutta SC ke cuma 15 Sutta VRI!
-        globalSuttaNum = 231;
       }
+      //else if (scStart == 310 && scEnd == 479) {
+      //  numPart =
+      //     "231-246"; // Kamu memetakan 170 Sutta SC ke cuma 15 Sutta VRI!
+      // globalSuttaNum = 231;
+      // }
     } else if (nipata == 3) {
+      // 1. Kasus Stacking (Saṅkhata & Asaṅkhata)
+      if (globalSuttaNum == 47) {
+        numPart = "47-48"; // Ambil dua sutta VRI sekaligus
+        globalSuttaNum = 47; // Tetap di index 47 agar tetap di Cūḷavagga
+      }
+      // 2. Kasus Offset Global (+1 untuk SEMUA sutta DALAM VAGGA setelah stacking)
+      else if (globalSuttaNum >= 48 && globalSuttaNum <= 50) {
+        globalSuttaNum += 1; // SC 48 jadi VRI 49, SC 51 jadi VRI 52, dst.
+        numPart = globalSuttaNum.toString();
+      }
       // Plotting Pengecualian AN 3
-      if (scStart == 156 && scEnd == 162) {
+      else if (scStart == 156 && scEnd == 162) {
         numPart = "157-163";
         globalSuttaNum = 157;
       } else if (scStart == 163 && scEnd == 182) {

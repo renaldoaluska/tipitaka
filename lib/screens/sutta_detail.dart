@@ -94,6 +94,9 @@ class _SuttaDetailState extends State<SuttaDetail> {
   final Map<String, int> _tafsirSectionMap = {};
   final List<String> _tafsirAvailableSections = [];
 
+  // Index ke-0 di list ini adalah target scroll buat tombol ke-0 di Grid
+  final List<int> _tafsirSectionTargetIndices = [];
+
   //  TAMBAHAN BARU: CACHE PINTAR BUAT SCROLL
   final List<int> _sortedTafsirIndices = []; // Daftar nomor baris yang punya §
   final Map<int, String> _indexToTafsirLabel =
@@ -1003,6 +1006,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
     _sortedTafsirIndices.clear();
     _indexToTafsirLabel.clear();
 
+    _tafsirSectionTargetIndices.clear();
+
     if (widget.textData == null) return;
 
     // 1. Reset Data Lama
@@ -1067,10 +1072,15 @@ class _SuttaDetailState extends State<SuttaDetail> {
         // Karena Header udah ada di Daftar Isi (TOC)
         if (label.startsWith('0.')) continue;
 
-        // 3. Masukin ke Map
-        // Kunci: Label ("1.1") -> Value: Index List (i)
+        // MASIH PAKE MAP (Buat pencarian manual/range)
         _tafsirSectionMap[label] = i;
+
+        // MASUKIN KE LIST TAMPILAN
         _tafsirAvailableSections.add(label);
+
+        // 🔥 ISI LIST TARGET (Ini kuncinya: simpan 'i' apa adanya)
+        // Walaupun labelnya '1' lagi, kita simpan 'i' yang baru (misal index 500)
+        _tafsirSectionTargetIndices.add(i);
 
         //  TAMBAHAN BARU: ISI REVERSE MAP
         _sortedTafsirIndices.add(i);
@@ -1252,6 +1262,8 @@ class _SuttaDetailState extends State<SuttaDetail> {
     // 3. Reset Data
     _tocList.clear();
     _htmlSegments.clear();
+    // CLEAR DI SINI JUGA
+    _tafsirSectionTargetIndices.clear();
     _tafsirSectionMap.clear();
     _tafsirAvailableSections.clear();
 
@@ -1305,6 +1317,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
             String num = numMatch.group(1)!;
             _tafsirSectionMap[num] = currentIndex;
             _tafsirAvailableSections.add(num);
+            _tafsirSectionTargetIndices.add(currentIndex);
 
             //  AMAN: Para Num pasti ada isinya
             _sortedTafsirIndices.add(currentIndex);
@@ -1320,7 +1333,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
               if (label.isNotEmpty) {
                 _tafsirSectionMap[label] = currentIndex;
                 _tafsirAvailableSections.add(label);
-
+                _tafsirSectionTargetIndices.add(currentIndex);
                 //  PINDAHIN KE DALAM SINI BANG
                 // Biar index cuma nambah kalau labelnya beneran ada
                 _sortedTafsirIndices.add(currentIndex);
@@ -1622,12 +1635,18 @@ class _SuttaDetailState extends State<SuttaDetail> {
                   itemCount: _tafsirAvailableSections.length,
                   itemBuilder: (context, index) {
                     final num = _tafsirAvailableSections[index];
+                    final int targetIndex = _tafsirSectionTargetIndices[index];
+
+                    // BIKIN NOMOR URUT (Index + 1)
+                    final String sequence = "(${index + 1})";
+
                     return InkWell(
                       onTap: () async {
                         Navigator.pop(context);
                         await Future.delayed(const Duration(milliseconds: 300));
                         if (!mounted) return;
-                        _scrollToParagraph(num);
+                        //_scrollToParagraph(num);
+                        _scrollToParagraphByIndex(targetIndex, num);
                       },
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
@@ -1638,15 +1657,37 @@ class _SuttaDetailState extends State<SuttaDetail> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         alignment: Alignment.center,
-                        child: Text(
-                          // Kalau bukan tafsir (biasanya SC 1, Verse 2), tampilkan apa adanya
-                          _isTafsirMode ? "§$num" : num,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.secondary,
-                          ),
+                        // Biar nomor urutnya kecil, nomor aslinya gede
+                        child: RichText(
                           textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.secondary,
+                              height: 1.2,
+                            ),
+                            children: [
+                              // 1. Nomor Urut Kecil di atas/depan (Pudar dikit)
+                              TextSpan(
+                                text: "$sequence ",
+                                style: TextStyle(
+                                  fontSize: 10, // Kecilin dikit
+                                  fontWeight: FontWeight.normal,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
+                                      .withValues(alpha: 0.6),
+                                ),
+                              ),
+                              // 2. Nomor Asli (Tebal)
+                              TextSpan(
+                                text: _isTafsirMode ? "§$num" : num,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -1819,6 +1860,33 @@ class _SuttaDetailState extends State<SuttaDetail> {
     return null;
   }
 
+  // Fungsi baru buat Grid (Langsung tembak index, gak perlu nyari)
+  void _scrollToParagraphByIndex(int index, String label) {
+    if (!_itemScrollController.isAttached) return;
+
+    final colors = _currentStyle;
+
+    _itemScrollController.jumpTo(index: index, alignment: 0.15);
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Melompat ke §$label",
+          style: TextStyle(color: colors.bg),
+        ),
+        duration: const Duration(milliseconds: 800),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: colors.text,
+        margin: EdgeInsets.only(
+          bottom: _getSnackBarBottomMargin(),
+          left: 16,
+          right: 16,
+        ),
+      ),
+    );
+  }
+
   // 2. Fungsi Eksekusi Scroll
   void _scrollToParagraph(String num, {bool showSnackBar = true}) {
     if (!_itemScrollController.isAttached) return;
@@ -1836,7 +1904,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Melompat ke bagian §$num",
+              "Melompat ke §$num",
               style: TextStyle(color: colors.bg),
             ),
             duration: const Duration(milliseconds: 800),
@@ -1948,7 +2016,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(
-            'Bagian §$num',
+            '§$num',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           content: Column(
