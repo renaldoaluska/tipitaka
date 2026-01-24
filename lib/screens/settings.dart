@@ -461,14 +461,34 @@ class _SettingsPageState extends State<SettingsPage> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    Text(
-                      "Aplikasi ini dikembangkan secara terbuka dengan semangat berbagi kebajikan.",
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.4,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.75),
+                    Text.rich(
+                      TextSpan(
+                        // 1. Style Utama (Default tegak)
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.75),
+                        ),
+                        children: [
+                          const TextSpan(
+                            text:
+                                "Aplikasi gratis dan tanpa iklan ini dikembangkan secara terbuka dengan ",
+                          ),
+                          // 2. Kata 'viriya' (Miring)
+                          const TextSpan(
+                            text: "viriya",
+                            style: TextStyle(fontStyle: FontStyle.italic),
+                          ),
+                          const TextSpan(text: " atas "),
+                          // 3. Kata 'puñña' (Miring)
+                          const TextSpan(
+                            text: "puñña",
+                            style: TextStyle(fontStyle: FontStyle.italic),
+                          ),
+                          const TextSpan(text: "."),
+                        ],
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -681,11 +701,24 @@ class _SettingsPageState extends State<SettingsPage> {
 
         // 3. VERSI APLIKASI (REAL)
         // Kalau belum ke-load, tampilkan strip dulu
-        Text(
-          "myDhamma ${_appVersion.isEmpty ? '...' : _appVersion}",
-          style: textStyle.copyWith(
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
+        Text.rich(
+          TextSpan(
+            // Style Induk (Default buat "myDhamma")
+            style: textStyle.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+            children: [
+              const TextSpan(text: "myDhamma "),
+
+              // Bagian Versi (Warna Primary)
+              TextSpan(
+                text: _appVersion.isEmpty ? '...' : _appVersion,
+                style: TextStyle(
+                  color: colorScheme.primary, // 🔥 Ini kuncinya
+                ),
+              ),
+            ],
           ),
         ),
 
@@ -696,7 +729,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Text.rich(
           TextSpan(
             children: [
-              const TextSpan(text: "Developed with "),
+              const TextSpan(text: "Dengan "),
               const WidgetSpan(
                 alignment: PlaceholderAlignment.middle,
                 child: Icon(
@@ -705,7 +738,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   color: Colors.pinkAccent,
                 ),
               ),
-              const TextSpan(text: " by "),
+              const TextSpan(text: " oleh "),
               TextSpan(
                 text: "Alfa Renaldo Aluska",
                 style: TextStyle(
@@ -724,7 +757,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Text(
-            "\"Idaṁ no ñātīnaṁ hotu,\nsukhitā hontu ñātayo.\"",
+            "\"Idaṁ vo ñātīnaṁ hotu,\nsukhitā hontu ñātayo.\"",
             textAlign: TextAlign.center,
             style: textStyle.copyWith(
               fontStyle: FontStyle.italic,
