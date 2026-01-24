@@ -303,7 +303,9 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                         if (!(_showSettings && !widget.settingsOnly))
                           const SizedBox(width: 12),
                         Text(
-                          _showSettings ? "Pengaturan AI" : "Terjemahan AI",
+                          _showSettings
+                              ? "Pengaturan Terjemah AI"
+                              : "Terjemahan AI",
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

@@ -7,6 +7,8 @@ import '../widgets/ai_translation_history.dart';
 import '../widgets/ai_translation_sheet.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../widgets/dpd_view.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -61,6 +63,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     children: [
                       _buildDarkModeCard(),
                       const SizedBox(height: 4),
+
+                      _buildDictionaryHistoryCard(),
+                      const SizedBox(height: 4),
+
                       _buildAISettingsCard(),
                       const SizedBox(height: 4),
                       _buildHistoryAICard(),
@@ -211,6 +217,66 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildDictionaryHistoryCard() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        // Cukup panggil tanpa parameter text, otomatis nampilin histori
+        onTap: () => PaliDictionaryManager.show(context),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.cyan.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.book_outlined,
+                  color: Colors.cyan,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Riwayat Kamus DPD",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      "Pencarian Pāḷi terakhir",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: colorScheme.onSurfaceVariant,
+                size: 24,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildModernSwitch(bool isDark) {
     return GestureDetector(
       onTap: () {
@@ -300,7 +366,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Pengaturan AI",
+                      "Pengaturan Terjemah AI",
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -308,7 +374,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     Text(
-                      "Konfigurasi terjemahan AI",
+                      "Konfigurasi API layanan AI",
                       style: TextStyle(
                         fontSize: 12,
                         color: colorScheme.onSurfaceVariant,
@@ -362,7 +428,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Riwayat AI",
+                      "Riwayat Terjemah AI",
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -370,7 +436,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     Text(
-                      "Lihat riwayat terjemahan",
+                      "Lihat riwayat terjemah AI",
                       style: TextStyle(
                         fontSize: 12,
                         color: colorScheme.onSurfaceVariant,

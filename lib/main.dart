@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'services/dpd.dart';
 import 'services/tafsir.dart';
 import 'utils/system_ui_helper.dart';
 //import 'package:tipitaka/services/tafsir.dart';
@@ -20,8 +21,12 @@ import 'screens/suttaplex.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  // 1. Tambahkan async
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. Pre-load histori kamus myDhamma (Wajib di-await)
+  await DpdService().ensureInitialized();
 
   // Hapus file download-an lama (sekali jalan doang)
   TafsirService.deleteOldOfflineFiles();

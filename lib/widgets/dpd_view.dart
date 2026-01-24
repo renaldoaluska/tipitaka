@@ -7,35 +7,40 @@ import 'package:url_launcher/url_launcher.dart';
 class PaliDictionaryManager {
   static void show(
     BuildContext context, {
-    required String text,
+    String text = "",
+    bool showHistory = true,
+    bool isTier1 = true,
     double? fontSize,
     double? lineHeight,
     String? fontFamily,
   }) {
     final cleanText = text.trim();
-    final words = cleanText
-        .split(RegExp(r'[^\p{L}\p{M}]+', unicode: true))
-        .where((w) => w.length > 1)
-        .toList();
 
-    if (words.isEmpty) return;
+    // Pecah kata hanya jika teks tidak kosong
+    final words = cleanText.isEmpty
+        ? <String>[]
+        : cleanText
+              .split(RegExp(r'[^\p{L}\p{M}]+', unicode: true))
+              .where((w) => w.length > 1)
+              .toList();
 
-    if (words.length == 1) {
-      _showDictionarySheet(
-        context,
-        words.first,
-        fontSize,
-        lineHeight,
-        fontFamily,
-      );
-    } else {
-      _showWordPicker(context, words, fontSize, lineHeight, fontFamily);
-    }
+    // 2. Sekarang kita selalu panggil picker supaya histori kelihatan
+    _showWordPicker(
+      context,
+      words,
+      showHistory,
+      isTier1,
+      fontSize,
+      lineHeight,
+      fontFamily,
+    );
   }
 
   static void _showWordPicker(
     BuildContext context,
     List<String> words,
+    bool showHistory,
+    bool isTier1,
     double? fontSize,
     double? lineHeight,
     String? fontFamily,
@@ -44,8 +49,6 @@ class PaliDictionaryManager {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      isDismissible: true,
-      enableDrag: true,
       builder: (sheetContext) => Container(
         height: MediaQuery.of(sheetContext).size.height * 0.6,
         decoration: const BoxDecoration(
@@ -68,65 +71,243 @@ class PaliDictionaryManager {
               decoration: const BoxDecoration(
                 border: Border(bottom: BorderSide(color: Color(0xFF003a4e))),
               ),
+              // Cari di bagian Row judul "Pilih Kata" / "Riwayat Kamus DPD"
               child: Row(
                 children: [
-                  const Icon(Icons.translate, color: Colors.cyan, size: 20),
+                  const Icon(Icons.book_outlined, color: Colors.cyan, size: 20),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Pilih kata untuk dicari (${words.length} kata)",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                  Text(
+                    words.isNotEmpty ? "Pilih Kata" : "Riwayat Kamus DPD",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ],
               ),
             ),
-            // ✅ BIKIN SCROLLABLE BIAR GAK KEPOTONG
-            // ✅ BIKIN SCROLLABLE BIAR GAK KEPOTONG
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
-                  // 1. Bungkus Wrap dengan Column
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      alignment: WrapAlignment.start,
-                      children: words
-                          .map(
-                            (w) => ActionChip(
-                              label: Text(w),
-                              backgroundColor: const Color(0xFF001a2e),
-                              labelStyle: const TextStyle(color: Colors.cyan),
-                              side: const BorderSide(color: Color(0xFF003a4e)),
-                              onPressed: () {
-                                Navigator.of(context, rootNavigator: true).push(
-                                  MaterialPageRoute(
-                                    builder: (ctx) =>
-                                        DictionaryWrapper(word: w),
-                                  ),
-                                );
-                              },
-                            ),
-                          )
-                          .toList(),
-                    ),
+                    // --- BAGIAN 1: KATA TERPILIH (Dari Sutta) ---
+                    if (words.isNotEmpty) ...[
+                      const Text(
+                        "KATA TERPILIH",
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: words
+                            .map(
+                              (w) => ActionChip(
+                                label: Text(w),
+                                backgroundColor: const Color(0xFF001a2e),
+                                labelStyle: const TextStyle(color: Colors.cyan),
+                                side: const BorderSide(
+                                  color: Color(0xFF003a4e),
+                                ),
+                                // Pakai !isTier1 supaya kalau dari Sutta (Tier 1) dia GAK pop
+                                onPressed: () => _openWord(
+                                  sheetContext,
+                                  w,
+                                  // shouldPop: !isTier1,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      const SizedBox(height: 24),
+                      const Divider(color: Colors.white10),
+                      const SizedBox(height: 12),
+                    ],
 
-                    // 2. 🔥 FOOTER DISINI (DI DALAM SCROLL VIEW)
+                    // --- BAGIAN 2: HISTORI (Maksimal 10 Kata) ---
+                    if (showHistory) ...[
+                      const Text(
+                        "RIWAYAT TERAKHIR",
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      ValueListenableBuilder<List<String>>(
+                        valueListenable: DpdService().historyNotifier,
+                        // 🔥 Ganti 'context' jadi '_' atau 'innerCtx' agar tidak shadowing
+                        builder: (innerCtx, liveHistory, _) {
+                          if (liveHistory.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 20),
+                              child: Text(
+                                "Belum ada riwayat pencarian",
+                                style: TextStyle(
+                                  color: Colors.white24,
+                                  fontSize: 13,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: liveHistory
+                                .map(
+                                  (w) => ActionChip(
+                                    label: Text(w),
+
+                                    backgroundColor: const Color(0xFF001a2e),
+                                    labelStyle: const TextStyle(
+                                      color: Colors.white70,
+                                    ),
+                                    side: const BorderSide(
+                                      color: Colors.white10,
+                                    ),
+                                    // Pakai sheetContext supaya yang di-pop itu DIALOG-nya, bukan HALAMAN-nya
+                                    onPressed: () => _openWord(
+                                      sheetContext,
+                                      w,
+                                      //   shouldPop: !isTier1,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        },
+                      ), // --- BAGIAN 3: KATA FAVORIT (Di bawah Histori) ---
+                      const SizedBox(height: 24),
+                      const Divider(color: Colors.white10),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "KATA FAVORIT",
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      ValueListenableBuilder<List<String>>(
+                        valueListenable: DpdService().favoritesNotifier,
+                        builder: (innerCtx, favorites, _) {
+                          if (favorites.isEmpty) {
+                            return const Text(
+                              "Belum ada kata favorit",
+                              style: TextStyle(
+                                color: Colors.white24,
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            );
+                          }
+
+                          return Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: favorites
+                                .map(
+                                  (w) => InputChip(
+                                    label: Text(w),
+                                    backgroundColor: const Color(0xFF001a2e),
+                                    labelStyle: const TextStyle(
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    side: const BorderSide(
+                                      color: Color(0xFF003a4e),
+                                    ),
+                                    deleteIcon: const Icon(
+                                      Icons.cancel,
+                                      size: 16,
+                                      color: Colors.white38,
+                                    ),
+                                    // 🔥 FITUR APUS SATUAN
+                                    // Di dalam InputChip pada baris 180-an
+                                    onDeleted: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (confirmCtx) => AlertDialog(
+                                          backgroundColor: const Color(
+                                            0xFF001520,
+                                          ),
+                                          title: const Text(
+                                            "Hapus Favorit?",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          content: Text(
+                                            "Yakin ingin menghapus '$w' dari daftar favorit?",
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(confirmCtx),
+                                              child: const Text(
+                                                "Batal",
+                                                style: TextStyle(
+                                                  color: Colors.white38,
+                                                ),
+                                              ),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                DpdService().toggleFavorite(
+                                                  w,
+                                                ); // Eksekusi hapus
+                                                Navigator.pop(confirmCtx);
+                                              },
+                                              child: const Text(
+                                                "Hapus",
+                                                style: TextStyle(
+                                                  color: Colors.redAccent,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                    onPressed: () => _openWord(
+                                      sheetContext,
+                                      w,
+                                      // shouldPop: false,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        },
+                      ),
+                    ],
                     const Padding(
-                      padding: EdgeInsets.only(top: 32, bottom: 16),
+                      padding: EdgeInsets.only(top: 40, bottom: 16),
                       child: Center(
                         child: Text(
                           "Didukung oleh Digital Pāli Dictionary",
                           style: TextStyle(
                             color: Colors.white24,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -142,15 +323,12 @@ class PaliDictionaryManager {
     );
   }
 
-  static void _showDictionarySheet(
-    BuildContext context,
-    String word,
-    double? fontSize,
-    double? lineHeight,
-    String? fontFamily,
-  ) {
+  static void _openWord(BuildContext context, String word) {
+    // Hapus parameter yang gak kepake
+    if (!context.mounted) return;
     Navigator.of(
       context,
+      rootNavigator: true,
     ).push(MaterialPageRoute(builder: (ctx) => DictionaryWrapper(word: word)));
   }
 }
@@ -170,22 +348,32 @@ class DictionaryWrapper extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.white70),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            const Icon(Icons.book, color: Colors.cyan, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                word,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+        title: Text(
+          word,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+
+        actions: [
+          ValueListenableBuilder<List<String>>(
+            valueListenable: DpdService().favoritesNotifier,
+            builder: (context, favorites, _) {
+              final isFav = favorites.contains(word);
+              return IconButton(
+                icon: Icon(
+                  isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: isFav ? Colors.amber : Colors.white38,
+                ),
+                onPressed: () => DpdService().toggleFavorite(word),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: Divider(color: Color(0xFF003a4e), height: 1),
@@ -310,6 +498,8 @@ class _DictionaryContentState extends State<DictionaryContent> {
       PaliDictionaryManager.show(
         context,
         text: url.replaceFirst('lookup:', ''),
+        showHistory: false,
+        isTier1: false,
       );
     } else if (url.startsWith('#')) {
       _scrollToSection(url.substring(1));
@@ -361,7 +551,12 @@ class _DictionaryContentState extends State<DictionaryContent> {
             onPressed: () {
               ContextMenuController.removeAny();
               if (_selectedText.isNotEmpty && context.mounted) {
-                PaliDictionaryManager.show(context, text: _selectedText);
+                PaliDictionaryManager.show(
+                  context,
+                  text: _selectedText,
+                  showHistory: false,
+                  isTier1: false,
+                );
               }
             },
           ),

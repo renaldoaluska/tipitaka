@@ -78,7 +78,7 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                         ),
                         const SizedBox(width: 12),
                         const Text(
-                          "Riwayat Terjemahan",
+                          "Riwayat Terjemahan AI",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

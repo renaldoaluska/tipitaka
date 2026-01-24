@@ -1,68 +1,116 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DpdService {
   static const String _baseUrl = "https://www.dpdict.net";
+  static const String _historyKey =
+      "dpd_search_history"; // Key buat SharedPreferences
 
-  // ✅ SINGLETON PATTERN BIAR GAK BIKIN INSTANCE BANYAK
+  static const String _favoritesKey = "dpd_favorites_key";
+
+  // 1. Ganti List biasa jadi ValueNotifier
+  final ValueNotifier<List<String>> historyNotifier =
+      ValueNotifier<List<String>>([]);
+  final ValueNotifier<List<String>> favoritesNotifier =
+      ValueNotifier<List<String>>([]);
+
+  // Internal list buat bantu olah data
+  final List<String> _historyList = [];
+
+  static const int _maxHistorySize = 10;
+  static const int _maxCacheSize = 100;
+
+  // --- LOGIKA FAVORIT ---
+  Future<void> loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> saved = prefs.getStringList(_favoritesKey) ?? [];
+    favoritesNotifier.value = List.unmodifiable(saved);
+  }
+
+  //  SINGLETON PATTERN BIAR GAK BIKIN INSTANCE BANYAK
   static final DpdService _instance = DpdService._internal();
   factory DpdService() => _instance;
   DpdService._internal();
 
-  // ✅ IN-MEMORY CACHE BUAT HASIL LOOKUP
+  // 1. TAMBAHKAN FLAG INITIALIZATION
+  bool _isInitialized = false;
+  Future<void> ensureInitialized() async {
+    if (_isInitialized) return;
+    await _loadHistoryFromDisk(); // Load history
+    await loadFavorites(); //  Tambah ini biar favorit juga ke-load
+    _isInitialized = true; // Indikator sudah siap
+  }
+
+  //  IN-MEMORY CACHE BUAT HASIL LOOKUP
   final Map<String, Map<String, dynamic>?> _cache = {};
 
-  // ✅ REUSABLE HTTP CLIENT (lebih efisien dari bikin baru terus)
+  //  REUSABLE HTTP CLIENT (lebih efisien dari bikin baru terus)
   final http.Client _client = http.Client();
 
-  // ✅ TRACKING REQUEST YANG LAGI JALAN BIAR GAK DUPLICATE
+  //  TRACKING REQUEST YANG LAGI JALAN BIAR GAK DUPLICATE
   final Map<String, Future<Map<String, dynamic>?>> _ongoingRequests = {};
 
-  // ✅ MAX CACHE SIZE BIAR GAK MAKAN MEMORY KEBANYAKAN
-  static const int _maxCacheSize = 100;
+  // Shortcut buat dapetin list-nya aja
+  List<String> get history => historyNotifier.value;
 
-  /// Lookup kata dengan caching + deduplication
+  Future<void> _loadHistoryFromDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHistory = prefs.getStringList(_historyKey);
+    if (savedHistory != null) {
+      _historyList.clear();
+      _historyList.addAll(savedHistory); // Sinkronkan ke internal list
+      historyNotifier.value = List.unmodifiable(_historyList); // Update UI
+    }
+  }
+
+  /// Lookup kata dengan caching + deduplication + safety
   Future<Map<String, dynamic>?> lookup(String word) async {
-    final cleanWord = _sanitizePaliWord(word);
+    // --- TAMBAHAN SAFETY 1 ---
+    // Pastikan data lama sudah terbaca dari disk sebelum operasi apapun
+    if (!_isInitialized) await ensureInitialized();
 
+    final cleanWord = _sanitizePaliWord(word);
     if (cleanWord.isEmpty) return null;
 
-    // ✅ CEK CACHE DULU
+    // 1. CEK CACHE
     if (_cache.containsKey(cleanWord)) {
-      if (kDebugMode) {
-        print("💾 Cache hit: $cleanWord");
-      }
-
-      // TAMBAHAN: Pindahin ke "paling baru" biar jadi True LRU
       final data = _cache[cleanWord];
-      _cache.remove(cleanWord); // Hapus posisi lama
-      _cache[cleanWord] = data; // Masukin lagi di posisi paling belakang
 
+      // Update LRU Position
+      _cache.remove(cleanWord);
+      _cache[cleanWord] = data;
+
+      // --- TAMBAHAN LOGIKA 2 ---
+      // Hanya masukkan ke histori jika kata tersebut valid (bukan null)
+      if (data != null) {
+        _addToHistory(cleanWord);
+      }
       return data;
     }
 
-    // ✅ CEK ADA REQUEST YANG SAMA LAGI JALAN GAK
+    // 2. CEK ONGOING REQUEST
     if (_ongoingRequests.containsKey(cleanWord)) {
-      if (kDebugMode) {
-        print("⏳ Nunggu request yang udah jalan: $cleanWord");
-      }
       return _ongoingRequests[cleanWord];
     }
 
-    // ✅ BIKIN REQUEST BARU
     final request = _performLookup(cleanWord);
     _ongoingRequests[cleanWord] = request;
 
     try {
       final result = await request;
-
-      // ✅ SIMPEN KE CACHE
       _addToCache(cleanWord, result);
+
+      // --- TAMBAHAN LOGIKA 3 ---
+      // Hanya simpan ke histori kalau kata ditemukan
+      if (result != null) {
+        _addToHistory(cleanWord);
+      }
 
       return result;
     } finally {
-      // ✅ BERSIHIN TRACKING
       _ongoingRequests.remove(cleanWord);
     }
   }
@@ -80,7 +128,7 @@ class DpdService {
             Uri.parse(url),
             headers: {
               "Accept": "application/json",
-              "User-Agent": "DPD-Flutter-App", // ✅ Good practice
+              "User-Agent": "DPD-Flutter-App", //  Good practice
             },
           )
           .timeout(
@@ -97,7 +145,7 @@ class DpdService {
       }
 
       if (response.statusCode == 200) {
-        // ✅ HANDLE EMPTY RESPONSE
+        //  HANDLE EMPTY RESPONSE
         if (response.body.isEmpty) {
           if (kDebugMode) {
             print("❌ Empty response body");
@@ -115,36 +163,36 @@ class DpdService {
         }
 
         if (kDebugMode) {
-          print("✅ Ditemukan!");
+          print(" Ditemukan!");
         }
         return data as Map<String, dynamic>;
       } else if (response.statusCode == 404) {
-        // ✅ HANDLE 404 EXPLICITLY
+        //  HANDLE 404 EXPLICITLY
         if (kDebugMode) {
           print("❌ Kata tidak ditemukan (404)");
         }
         return null;
       } else if (response.statusCode >= 500) {
-        // ✅ SERVER ERROR
+        //  SERVER ERROR
         throw DpdServerException('Server error (${response.statusCode})');
       } else {
-        // ✅ OTHER HTTP ERRORS
+        //  OTHER HTTP ERRORS
         throw DpdHttpException(
           'HTTP Error: ${response.statusCode}',
           statusCode: response.statusCode,
         );
       }
     } on DpdException {
-      // ✅ RE-THROW CUSTOM EXCEPTIONS
+      //  RE-THROW CUSTOM EXCEPTIONS
       rethrow;
     } on http.ClientException catch (e) {
-      // ✅ NETWORK ERRORS
+      //  NETWORK ERRORS
       throw DpdNetworkException('Network error: ${e.message}');
     } on FormatException catch (e) {
-      // ✅ JSON PARSE ERRORS
+      //  JSON PARSE ERRORS
       throw DpdParseException('Failed to parse response: ${e.message}');
     } catch (e) {
-      // ✅ CATCH-ALL
+      //  CATCH-ALL
       if (kDebugMode) {
         print("💥 Unexpected error: $e");
       }
@@ -154,7 +202,7 @@ class DpdService {
 
   /// Add to cache with LRU-like behavior
   void _addToCache(String word, Map<String, dynamic>? result) {
-    // ✅ KALO CACHE PENUH, HAPUS YANG PALING LAMA
+    //  KALO CACHE PENUH, HAPUS YANG PALING LAMA
     if (_cache.length >= _maxCacheSize) {
       final firstKey = _cache.keys.first;
       _cache.remove(firstKey);
@@ -197,7 +245,53 @@ class DpdService {
         .trim();
   }
 
-  /// ✅ DISPOSE METHOD BUAT CLEANUP
+  // Panggil ini di constructor DpdService buat muat data dari disk
+
+  Future<void> toggleFavorite(String word) async {
+    final List<String> current = List.from(favoritesNotifier.value);
+
+    if (current.contains(word)) {
+      current.remove(word);
+    } else {
+      current.insert(0, word); // Yang baru ditambah ada di paling atas
+    }
+
+    favoritesNotifier.value = List.unmodifiable(current);
+    await _saveFavoritesToDisk();
+  }
+
+  Future<void> clearAllFavorites() async {
+    favoritesNotifier.value = [];
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_favoritesKey); // Hapus permanen dari disk
+  }
+
+  Future<void> _saveFavoritesToDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_favoritesKey, favoritesNotifier.value);
+  }
+
+  void _addToHistory(String word) {
+    _historyList.remove(word); // Hapus biar gak duplikat
+    _historyList.insert(0, word); // Taruh paling atas
+
+    if (_historyList.length > _maxHistorySize) {
+      _historyList.removeLast();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      historyNotifier.value = List.unmodifiable(_historyList);
+    });
+
+    _saveHistoryToDisk(_historyList);
+  }
+
+  Future<void> _saveHistoryToDisk(List<String> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_historyKey, list);
+  }
+
+  ///  DISPOSE METHOD BUAT CLEANUP
   void dispose() {
     _client.close();
     _cache.clear();
@@ -208,7 +302,7 @@ class DpdService {
   }
 }
 
-// ✅ CUSTOM EXCEPTIONS BUAT ERROR HANDLING YANG LEBIH BAIK
+//  CUSTOM EXCEPTIONS BUAT ERROR HANDLING YANG LEBIH BAIK
 class DpdException implements Exception {
   final String message;
   DpdException(this.message);
