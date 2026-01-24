@@ -143,7 +143,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            // 🔥 OPTIMASI: Hanya pasang blur jika sedang di-scroll
+            //  OPTIMASI: Hanya pasang blur jika sedang di-scroll
             child: _isScrolled
                 ? BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
@@ -160,7 +160,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
-    // 🔥 RepaintBoundary mengisolasi perubahan visual lokal
+    //  RepaintBoundary mengisolasi perubahan visual lokal
     return RepaintBoundary(
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -214,7 +214,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildModernSwitch(bool isDark) {
     return GestureDetector(
       onTap: () {
-        // 🔥 Jeda 100ms agar animasi saklar tidak tabrakan dengan rebuild sistem
+        //  Jeda 100ms agar animasi saklar tidak tabrakan dengan rebuild sistem
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted) {
             context.read<ThemeManager>().toggleTheme(isDark);
@@ -532,7 +532,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Column(
                   children: [
-                    // 🔥 1. TOMBOL QRIS (PALING ATAS BIAR MENCOLOK)
+                    //  1. TOMBOL QRIS (PALING ATAS BIAR MENCOLOK)
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -716,7 +716,7 @@ class _SettingsPageState extends State<SettingsPage> {
               TextSpan(
                 text: _appVersion.isEmpty ? '...' : _appVersion,
                 style: TextStyle(
-                  color: colorScheme.primary, // 🔥 Ini kuncinya
+                  color: colorScheme.primary, //  Ini kuncinya
                 ),
               ),
             ],
@@ -811,6 +811,10 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+
+        //  1. Tambahkan ini agar dialog bisa discroll kalau layar pendek (landscape)
+        scrollable: true,
+
         contentPadding: const EdgeInsets.all(20),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -823,32 +827,40 @@ class _SettingsPageState extends State<SettingsPage> {
             // Gambar QRIS
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                'assets/qris.jpeg', // Pastikan file ini ada & terdaftar di pubspec
-                width: 250,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 250,
-                    height: 250,
-                    color: Colors.grey[100],
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(
-                          Icons.broken_image_rounded,
-                          color: Colors.grey,
-                          size: 48,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          "Gambar QRIS belum ada",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+              //  2. Bungkus dengan ConstrainedBox agar tinggi gambar responsif
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  // Maksimal tinggi gambar 60% dari layar, atau fix 250 kalau layar tinggi
+                  maxHeight: MediaQuery.of(context).size.height * 0.6,
+                ),
+                child: Image.asset(
+                  'assets/qris.jpeg',
+                  width: 250,
+                  // Gunakan contain agar gambar mengecil proporsional jika mentok tinggi
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 250,
+                      height: 250,
+                      color: Colors.grey[100],
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(
+                            Icons.broken_image_rounded,
+                            color: Colors.grey,
+                            size: 48,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "Gambar QRIS belum ada",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 20),
