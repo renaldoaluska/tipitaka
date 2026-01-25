@@ -1678,7 +1678,13 @@ class TafsirService {
   }
 
   Future<bool> hasTafsir(String uid) async {
-    final cleanUid = uid.toLowerCase();
+    final cleanUid = uid.toLowerCase().trim();
+
+    // 1. Ambil karakter huruf dan tanda hubung saja di awal string
+    // Regex ini akan berhenti tepat sebelum angka pertama.
+    // Contoh: "sn22.1" -> "sn", "snp1.1" -> "snp", "tha-ap12" -> "tha-ap"
+    final match = RegExp(r'^[a-z-]+').stringMatch(cleanUid) ?? '';
+
     final validPrefixes = [
       'dn',
       'mn',
@@ -1705,7 +1711,8 @@ class TafsirService {
       // 'pe',
     ];
 
-    return validPrefixes.any((prefix) => cleanUid.startsWith(prefix));
+    // Cek apakah hasil extraksi prefix tadi ada di dalam list validPrefixes
+    return validPrefixes.contains(match);
   }
 
   Map<String, String> _calculateMapping(String uid) {

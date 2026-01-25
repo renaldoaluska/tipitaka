@@ -567,11 +567,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     _buildCompactItem(
                       ctx,
-                      Icons.money_rounded,
-                      "Dāna seikhlasnya",
-                    ),
-                    _buildCompactItem(
-                      ctx,
                       Icons.code_rounded,
                       "Menyumbang kode",
                     ),
@@ -579,6 +574,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       ctx,
                       Icons.share_rounded,
                       "Sebarkan ke sesama",
+                    ),
+
+                    _buildCompactItem(
+                      ctx,
+                      Icons.money_rounded,
+                      "Donasi seikhlasnya",
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -602,13 +603,19 @@ class _SettingsPageState extends State<SettingsPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => _showQrisDialog(context),
-                        icon: const Icon(
-                          Icons.qr_code_scanner_rounded,
-                          size: 18,
-                        ),
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          launchUrl(
+                            Uri.parse(
+                              "https://github.com/renaldoaluska/tipitaka",
+                            ),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+
+                        icon: const Icon(Icons.code_rounded, size: 18),
                         label: const Text(
-                          "Dāna via QRIS",
+                          "GitHub",
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
@@ -663,18 +670,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.of(ctx).pop();
-                              launchUrl(
-                                Uri.parse(
-                                  "https://github.com/renaldoaluska/tipitaka",
-                                ),
-                                mode: LaunchMode.externalApplication,
-                              );
-                            },
-                            icon: const Icon(Icons.code_rounded, size: 16),
+                            onPressed: () => _showQrisDialog(context),
+                            icon: const Icon(
+                              Icons.qr_code_scanner_rounded,
+                              size: 16,
+                            ),
                             label: const Text(
-                              "GitHub",
+                              "QRIS",
                               style: TextStyle(fontSize: 13),
                             ),
                             style: OutlinedButton.styleFrom(
@@ -807,7 +809,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const TextSpan(text: " oleh "),
               TextSpan(
-                text: "Alfa Renaldo Aluska",
+                text: "Aluska",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: colorScheme.primary, // Warnanya ngikut tema
