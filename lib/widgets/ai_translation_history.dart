@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/ai_translation.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'; // ✅ 1. IMPORT WAJIB
+import '../services/ai_translation.dart';
 
 class TranslationHistorySheet extends StatefulWidget {
   const TranslationHistorySheet({super.key});
@@ -167,7 +168,6 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
     );
   }
 
-  // ✅ HELPER UNTUK WARNA PROVIDER (BIAR GAK BINGUNG)
   Color _getProviderColor(String providerName) {
     final name = providerName.toLowerCase();
     if (name.contains('gemini')) return Colors.blue.shade600;
@@ -177,16 +177,16 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
     if (name.contains('anthropic') || name.contains('claude')) {
       return Colors.orange.shade800;
     }
-    return Colors.purple.shade400; // Default
+    return Colors.purple.shade400;
   }
 
   Widget _buildHistoryItem(TranslationHistory item, ColorScheme colorScheme) {
-    final dateFormat = DateFormat('dd MMM, HH:mm'); // Format lebih ringkas
+    final dateFormat = DateFormat('dd MMM, HH:mm');
     final providerColor = _getProviderColor(item.provider);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0, // Flat design biar lebih modern
+      elevation: 0,
       color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -200,14 +200,12 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Provider Badge, Model, Time
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
                     child: Row(
                       children: [
-                        // PROVIDER BADGE BERWARNA
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -243,7 +241,6 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                       ],
                     ),
                   ),
-                  // Tanggal di kanan atas biar rapi
                   Text(
                     dateFormat.format(item.timestamp),
                     style: TextStyle(
@@ -256,8 +253,6 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Original Text (Truncated)
               Text(
                 item.originalText,
                 style: TextStyle(
@@ -269,12 +264,11 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-
               const SizedBox(height: 6),
 
-              // Translated Text (Truncated)
+              // Preview Terjemahan (Bersih tanpa karakter markdown)
               Text(
-                item.translatedText,
+                item.translatedText.replaceAll('**', '').replaceAll('*', ''),
                 style: TextStyle(
                   fontSize: 14,
                   color: colorScheme.onSurface,
@@ -326,124 +320,178 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
     );
   }
 
+  // ✅ UPDATE: VISUAL FEEDBACK LANGSUNG DI TOMBOL (TANPA SNACKBAR)
   void _showDetailDialog(TranslationHistory item, ColorScheme colorScheme) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.history, size: 20, color: colorScheme.primary),
-            const SizedBox(width: 8),
-            const Text("Detail Riwayat", style: TextStyle(fontSize: 16)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Info Box Kecil
-              Container(
-                padding: const EdgeInsets.all(8),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.3,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
+      builder: (context) {
+        // Kita butuh state lokal di dalam dialog untuk ubah tombol jadi hijau
+        bool isCopied = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.history, size: 20, color: colorScheme.primary),
+                  const SizedBox(width: 8),
+                  const Text("Detail Riwayat", style: TextStyle(fontSize: 16)),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      "${item.provider} • ${item.model}",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: colorScheme.onSurfaceVariant,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.3,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            "${item.provider} • ${item.model}",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            DateFormat('dd MMM HH:mm').format(item.timestamp),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const Spacer(),
+
                     Text(
-                      DateFormat('dd MMM HH:mm').format(item.timestamp),
+                      'TEKS ASLI',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SelectableText(
+                      item.originalText,
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontStyle: FontStyle.italic,
+                        fontSize: 14,
                         color: colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
+                    ),
+
+                    const Divider(height: 24),
+
+                    Text(
+                      'TERJEMAHAN',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    SelectionArea(
+                      child: MarkdownBody(
+                        data: item.translatedText,
+                        selectable: false,
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(
+                            fontSize: 15,
+                            height: 1.6,
+                            color: colorScheme.onSurface,
+                          ),
+                          strong: TextStyle(
+                            fontFamily: 'serif',
+                            fontWeight: FontWeight.normal,
+                            fontStyle: FontStyle.italic,
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
+                          em: TextStyle(
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.normal,
+                            color: colorScheme.secondary,
+                          ),
+                          listBullet: TextStyle(
+                            fontSize: 15,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          blockSpacing: 12,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _deleteItem(item.id);
+                  },
+                  child: Text(
+                    'Hapus',
+                    style: TextStyle(color: Colors.red.shade400),
+                  ),
+                ),
 
-              // Original Text
-              Text(
-                'TEKS ASLI',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                  letterSpacing: 1.0,
-                ),
-              ),
-              const SizedBox(height: 6),
-              SelectableText(
-                item.originalText,
-                style: TextStyle(
-                  fontFamily: 'serif',
-                  fontStyle: FontStyle.italic,
-                  fontSize: 14,
-                  color: colorScheme.onSurfaceVariant,
-                  height: 1.5,
-                ),
-              ),
+                // 🔥 TOMBOL SALIN YANG BERUBAH WARNA
+                FilledButton.icon(
+                  onPressed: () async {
+                    // 1. Salin ke Clipboard
+                    await Clipboard.setData(
+                      ClipboardData(text: item.translatedText),
+                    );
 
-              const Divider(height: 24),
+                    // 2. Ubah tampilan tombol jadi Hijau "Tersalin!"
+                    setDialogState(() {
+                      isCopied = true;
+                    });
 
-              // Translated Text
-              Text(
-                'TERJEMAHAN',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                  letterSpacing: 1.0,
+                    // 3. Tunggu 1 detik biar user sadar
+                    await Future.delayed(const Duration(milliseconds: 1000));
+
+                    // 4. Baru tutup dialog
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
+                  },
+                  // Logika Warna: Kalau isCopied = Hijau, Kalau belum = Default Primary
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isCopied ? Colors.green : null,
+                    foregroundColor: isCopied ? Colors.white : null,
+                    animationDuration: const Duration(milliseconds: 300),
+                  ),
+                  icon: Icon(
+                    isCopied ? Icons.check_circle : Icons.copy,
+                    size: 16,
+                  ),
+                  label: Text(isCopied ? 'Tersalin!' : 'Salin'),
                 ),
-              ),
-              const SizedBox(height: 6),
-              SelectableText(
-                item.translatedText,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: colorScheme.onSurface,
-                  height: 1.6,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          // Tombol Hapus Item Ini
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteItem(item.id);
-            },
-            child: Text('Hapus', style: TextStyle(color: Colors.red.shade400)),
-          ),
-          FilledButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: item.translatedText));
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Terjemahan disalin'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
-            icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Salin'),
-          ),
-        ],
-      ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

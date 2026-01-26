@@ -232,61 +232,80 @@ class AITranslationService {
   // ============================================
   // PROMPTS (BAHASA INDONESIA)
   // ============================================
-
   static const String _systemInstruction =
-      "Anda adalah penerjemah ahli bahasa Pāli ke Bahasa Indonesia, dengan spesialisasi teks-teks Theravāda (Tipitaka, Aṭṭhakathā, Ṭīkā).\n\n"
-      "ATURAN KRUSIAL:\n"
-      "1. JANGAN terjemahkan istilah teknis Pāli yang mendalam (seperti: jhāna, vipassanā, samādhi, kamma, arahant, dukkha, anattā, dll). Biarkan dalam bahasa aslinya.\n"
-      "2. Gunakan terminologi khas Theravāda (Gunakan 'Sutta', JANGAN 'Sutra'; Gunakan ejaan Pāli, bukan Sanskerta/Mahayana).\n"
-      "3. Untuk teks Aṭṭhakathā (Komentar) yang mendefinisikan istilah: Pertahankan istilah Pāli yang sedang didefinisikan, lalu terjemahkan penjelasannya. Jika perlu, sertakan istilah Pāli dalam kurung.\n"
-      "4. PERTAHANKAN diakritik Pāli dengan akurat (ā, ī, ū, ṃ, ṅ, ñ, ṭ, ḍ, ṇ, ḷ).\n"
-      "5. Gaya Bahasa: Formal, mengalir alami, dan hormat sesuai konteks Buddhis di Indonesia.\n"
-      "6. HANYA berikan hasil terjemahan akhirnya saja tanpa pengantar atau penutup.";
+      "Task: Translate Pāli to Indonesian (Formal/Respectful).\n"
+      "Mode: SENTENCE-BY-SENTENCE STUDY.\n\n"
+      "Strict Rules:\n"
+      "1. NO introductory text. Direct output only.\n"
+      "2. Format per point:\n"
+      "   • **[Pāli Source]** (Use 2 stars)\n"
+      "   [Translation]\n"
+      "3. Use double newlines between points.\n"
+      "4. Inside translation, Pāli terms must use 1 star (*italic*).\n\n"
+      "Example:\n"
+      "In: Asevanā ca bālānaṁ.\n"
+      "Out:\n"
+      "• **Asevanā ca bālānaṁ.**\n\n"
+      "  Tidak bergaul dengan orang bodoh (*bāla*).";
 
   static Future<AITranslationResult> _translateWithGemini(
     String text,
     String apiKey,
     String model,
   ) async {
-    try {
-      final url = Uri.https(
-        'generativelanguage.googleapis.com',
-        '/v1beta/models/$model:generateContent',
-        {'key': apiKey},
-      );
+    final url = Uri.https(
+      'generativelanguage.googleapis.com',
+      '/v1beta/models/$model:generateContent',
+      {'key': apiKey},
+    );
 
-      final response = await http.post(
+    // Fungsi Helper untuk kirim request
+    Future<http.Response> sendRequest({bool strictMode = true}) {
+      final Map<String, dynamic> body = {
+        "contents": [
+          {
+            "parts": [
+              {"text": "$_systemInstruction\n\nTeks Pāli:\n\"$text\""},
+            ],
+          },
+        ],
+        // Safety settings standar
+        "safetySettings": [
+          {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+          {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+          {
+            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "threshold": "BLOCK_NONE",
+          },
+          {
+            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "threshold": "BLOCK_NONE",
+          },
+        ],
+      };
+
+      // Hanya kirim config jika strictMode = true
+      if (strictMode) {
+        body["generationConfig"] = {
+          "temperature": 0.3,
+          "maxOutputTokens": 4096, // SUDAH DINAIKKAN (sebelumnya 2000)
+        };
+      }
+
+      return http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {
-                  "text":
-                      "$_systemInstruction\n\nTeks untuk diterjemahkan:\n\"$text\"",
-                },
-              ],
-            },
-          ],
-          "safetySettings": [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-            {
-              "category": "HARM_CATEGORY_HATE_SPEECH",
-              "threshold": "BLOCK_NONE",
-            },
-            {
-              "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-              "threshold": "BLOCK_NONE",
-            },
-            {
-              "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-              "threshold": "BLOCK_NONE",
-            },
-          ],
-          "generationConfig": {"temperature": 0.3, "maxOutputTokens": 2000},
-        }),
+        body: jsonEncode(body),
       );
+    }
+
+    try {
+      var response = await sendRequest(strictMode: true);
+
+      if (response.statusCode == 400) {
+        response = await sendRequest(strictMode: false);
+      }
+
       return _handleGeminiResponse(response);
     } catch (e) {
       return AITranslationResult(
@@ -302,28 +321,47 @@ class AITranslationService {
     String apiKey,
     String model,
   ) async {
-    try {
-      final url = Uri.parse('https://api.openai.com/v1/chat/completions');
-      final response = await http.post(
+    final url = Uri.parse('https://api.openai.com/v1/chat/completions');
+
+    // --- HELPER FUNCTION UNTUK KIRIM REQUEST ---
+    Future<http.Response> sendRequest({bool useTemperature = true}) {
+      final Map<String, dynamic> body = {
+        "model": model,
+        "messages": [
+          {"role": "system", "content": _systemInstruction},
+          {"role": "user", "content": "Terjemahkan teks Pāli ini:\n\n$text"},
+        ],
+        // Param lain (max_completion_tokens lebih aman buat model baru drpd max_tokens)
+        // Tapi max_tokens biasanya masih backward compatible.
+      };
+
+      // Hanya masukkan temperature jika diminta
+      if (useTemperature) {
+        body["temperature"] = 0.3;
+      }
+
+      return http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $apiKey',
         },
-        body: jsonEncode({
-          "model": model,
-          "messages": [
-            {"role": "system", "content": _systemInstruction},
-            {
-              "role": "user",
-              "content":
-                  "Terjemahkan teks Pāli ini ke Bahasa Indonesia:\n\n$text",
-            },
-          ],
-          "temperature": 0.3,
-          "max_tokens": 2000,
-        }),
+        body: jsonEncode(body),
       );
+    }
+
+    try {
+      // PERCOBAAN 1: Kirim dengan settingan ideal (pakai temperature)
+      var response = await sendRequest(useTemperature: true);
+
+      // Jika error 400 (Bad Request), kemungkinan besar karena parameter tidak didukung
+      // oleh model tersebut (misal: o1, gpt-5, atau gpt-6 nanti).
+      if (response.statusCode == 400) {
+
+        // PERCOBAAN 2: Retry otomatis tanpa parameter temperature (Safe Mode)
+        response = await sendRequest(useTemperature: false);
+      }
+
       return _handleOpenAIResponse(response);
     } catch (e) {
       return AITranslationResult(
@@ -339,25 +377,37 @@ class AITranslationService {
     String apiKey,
     String model,
   ) async {
+    final url = Uri.parse('https://api.anthropic.com/v1/messages');
+    final headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    };
+
+    Future<http.Response> sendRequest({bool useTemperature = true}) {
+      final Map<String, dynamic> body = {
+        "model": model,
+        "max_tokens": 4096, // SUDAH DINAIKKAN (sebelumnya 2000)
+        "system": _systemInstruction,
+        "messages": [
+          {"role": "user", "content": "Terjemahkan teks ini:\n$text"},
+        ],
+      };
+
+      if (useTemperature) {
+        body["temperature"] = 0.3;
+      }
+
+      return http.post(url, headers: headers, body: jsonEncode(body));
+    }
+
     try {
-      final url = Uri.parse('https://api.anthropic.com/v1/messages');
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: jsonEncode({
-          "model": model,
-          "max_tokens": 2000,
-          "system":
-              _systemInstruction, // Anthropic supports system parameter directly
-          "messages": [
-            {"role": "user", "content": "Terjemahkan teks ini:\n$text"},
-          ],
-        }),
-      );
+      var response = await sendRequest(useTemperature: true);
+
+      if (response.statusCode == 400) {
+        response = await sendRequest(useTemperature: false);
+      }
+
       return _handleAnthropicResponse(response);
     } catch (e) {
       return AITranslationResult(
@@ -368,36 +418,62 @@ class AITranslationService {
     }
   }
 
+  // ============================================
+  // UPDATE 1: GANTI TOKEN LIMIT (Lakukan di method Gemini, OpenAI, Claude juga)
+  // Ganti angka 2000 menjadi 4096 di semua tempat 'max_tokens' atau 'maxOutputTokens'
+  // ============================================
+
+  // Contoh di Gemini: "maxOutputTokens": 4096
+  // Contoh di OpenAI/Claude: "max_tokens": 4096
+
+  // ============================================
+  // UPDATE 2: OPENROUTER YANG LEBIH PINTAR (ANTI ERROR 400)
+  // ============================================
+
   static Future<AITranslationResult> _translateWithOpenRouter(
     String text,
     String apiKey,
     String model,
   ) async {
+    final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $apiKey',
+      'HTTP-Referer': 'https://github.com/renaldoaluska/tipitaka',
+      'X-Title': 'myDhamma Pali Translator',
+    };
+
+    Future<http.Response> sendRequest({bool strictMode = true}) {
+      final Map<String, dynamic> body = {
+        "model": model,
+        "messages": [
+          {"role": "system", "content": _systemInstruction},
+          {
+            "role": "user",
+            "content":
+                "Terjemahkan teks Pāli ini ke Bahasa Indonesia:\n\n$text",
+          },
+        ],
+      };
+
+      if (strictMode) {
+        body["temperature"] = 0.3;
+        body["max_tokens"] = 4096;
+      }
+
+      return http.post(url, headers: headers, body: jsonEncode(body));
+    }
+
     try {
-      final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
-          'HTTP-Referer': 'https://github.com/yourusername/yourapp',
-          'X-Title': 'Pali Translation App',
-        },
-        body: jsonEncode({
-          "model": model,
-          "messages": [
-            {"role": "system", "content": _systemInstruction},
-            {
-              "role": "user",
-              "content":
-                  "Terjemahkan teks Pāli ini ke Bahasa Indonesia:\n\n$text",
-            },
-          ],
-          "temperature": 0.3,
-          "max_tokens": 2000,
-        }),
-      );
-      return _handleOpenAIResponse(response);
+      var response = await sendRequest(strictMode: true);
+
+      if (response.statusCode == 400) {
+        response = await sendRequest(strictMode: false);
+      }
+
+      // 🔥 GANTI INI: Panggil handler khusus OpenRouter
+      return _handleOpenRouterResponse(response);
     } catch (e) {
       return AITranslationResult(
         translatedText: '',
@@ -411,6 +487,9 @@ class AITranslationService {
   // RESPONSE HANDLERS & HELPERS (TIDAK BERUBAH)
   // ... Paste sisa kode (handleResponse dan helpers) disini ...
   // ============================================
+  // ============================================
+  // RESPONSE HANDLERS (SUDAH DIPERBAIKI BIAR GAK CUMA "ERROR 404")
+  // ============================================
 
   static AITranslationResult _handleGeminiResponse(http.Response response) {
     if (response.statusCode == 200) {
@@ -421,27 +500,41 @@ class AITranslationService {
       }
       return AITranslationResult(
         translatedText: '',
-        error: 'Tidak ada respons dari AI',
+        error: 'AI tidak memberikan jawaban.',
+        success: false,
+      );
+    }
+    // 🔥 HANDLE ERROR SPESIFIK
+    else if (response.statusCode == 404) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'Model tidak ditemukan (404). Cek ejaan nama model.',
         success: false,
       );
     } else if (response.statusCode == 429) {
       return AITranslationResult(
         translatedText: '',
-        error: 'Rate limit tercapai. Tunggu sebentar.',
+        error: 'Limit kuota habis (429). Tunggu sebentar.',
         success: false,
       );
     } else if (response.statusCode == 400) {
       final data = jsonDecode(response.body);
-      final errorMsg = data['error']?['message'] ?? 'Bad request';
+      final errorMsg = data['error']?['message'] ?? 'Request tidak valid.';
       return AITranslationResult(
         translatedText: '',
-        error: 'Error: $errorMsg',
+        error: 'Error 400: $errorMsg',
+        success: false,
+      );
+    } else if (response.statusCode == 403) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'Akses ditolak (403). Cek API Key atau Lokasi.',
         success: false,
       );
     } else {
       return AITranslationResult(
         translatedText: '',
-        error: 'Error ${response.statusCode}',
+        error: 'Server Error (${response.statusCode})',
         success: false,
       );
     }
@@ -452,22 +545,32 @@ class AITranslationService {
       final data = jsonDecode(response.body);
       final result = data['choices'][0]['message']['content'];
       return AITranslationResult(translatedText: result ?? '', success: true);
-    } else if (response.statusCode == 429) {
+    }
+    // 🔥 HANDLE ERROR SPESIFIK
+    else if (response.statusCode == 404) {
       return AITranslationResult(
         translatedText: '',
-        error: 'Rate limit exceeded',
+        error: 'Model tidak ditemukan (404). Cek ejaan nama model.',
         success: false,
       );
     } else if (response.statusCode == 401) {
       return AITranslationResult(
         translatedText: '',
-        error: 'API Key tidak valid',
+        error: 'API Key salah/tidak valid (401).',
+        success: false,
+      );
+    } else if (response.statusCode == 429) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'Limit kuota habis (429). Cek saldo OpenAI.',
         success: false,
       );
     } else {
+      final data = jsonDecode(response.body);
+      final msg = data['error']?['message'] ?? 'Error ${response.statusCode}';
       return AITranslationResult(
         translatedText: '',
-        error: 'Error ${response.statusCode}',
+        error: msg,
         success: false,
       );
     }
@@ -478,24 +581,101 @@ class AITranslationService {
       final data = jsonDecode(response.body);
       final result = data['content'][0]['text'];
       return AITranslationResult(translatedText: result ?? '', success: true);
-    } else if (response.statusCode == 429) {
+    }
+    // 🔥 HANDLE ERROR SPESIFIK
+    else if (response.statusCode == 404) {
       return AITranslationResult(
         translatedText: '',
-        error: 'Rate limit exceeded',
+        error: 'Model tidak ditemukan (404). Cek ejaan nama model.',
         success: false,
       );
     } else if (response.statusCode == 401) {
       return AITranslationResult(
         translatedText: '',
-        error: 'API Key tidak valid',
+        error: 'API Key salah/tidak valid (401).',
+        success: false,
+      );
+    } else if (response.statusCode == 429) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'Limit kuota habis (429).',
         success: false,
       );
     } else {
+      final data = jsonDecode(response.body);
+      final msg = data['error']?['message'] ?? 'Error ${response.statusCode}';
       return AITranslationResult(
         translatedText: '',
-        error: 'Error ${response.statusCode}',
+        error: msg,
         success: false,
       );
+    }
+  }
+
+  // 🔥 HANDLER KHUSUS OPENROUTER
+  static AITranslationResult _handleOpenRouterResponse(http.Response response) {
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // OpenRouter kadang return error di dalam body meski status 200 (jarang, tapi mungkin)
+      if (data['error'] != null) {
+        final msg = data['error']['message'] ?? 'Unknown OpenRouter Error';
+        return AITranslationResult(
+          translatedText: '',
+          error: 'OpenRouter: $msg',
+          success: false,
+        );
+      }
+      final result = data['choices']?[0]?['message']?['content'];
+      return AITranslationResult(translatedText: result ?? '', success: true);
+    }
+    // Error Spesifik OpenRouter
+    else if (response.statusCode == 401) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'API Key OpenRouter salah/tidak valid.',
+        success: false,
+      );
+    } else if (response.statusCode == 402) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'Saldo OpenRouter habis (Insufficient Credits).',
+        success: false,
+      );
+    } else if (response.statusCode == 404) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'Model tidak ditemukan di OpenRouter. Cek nama model.',
+        success: false,
+      );
+    } else if (response.statusCode == 429) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'Rate Limit OpenRouter tercapai.',
+        success: false,
+      );
+    } else if (response.statusCode == 502 || response.statusCode == 503) {
+      return AITranslationResult(
+        translatedText: '',
+        error: 'Provider model sedang down/sibuk. Coba model lain.',
+        success: false,
+      );
+    } else {
+      // Fallback pesan error dari body response
+      try {
+        final data = jsonDecode(response.body);
+        final msg = data['error']?['message'] ?? 'Error ${response.statusCode}';
+        return AITranslationResult(
+          translatedText: '',
+          error: msg,
+          success: false,
+        );
+      } catch (_) {
+        return AITranslationResult(
+          translatedText: '',
+          error: 'Error ${response.statusCode}',
+          success: false,
+        );
+      }
     }
   }
 
@@ -528,13 +708,13 @@ class AITranslationService {
   static String getModelPlaceholder(AIProvider provider) {
     switch (provider) {
       case AIProvider.gemini:
-        return 'Contoh: gemini-2.0-flash-exp';
+        return 'Contoh: gemini-2.5-flash';
       case AIProvider.openai:
-        return 'Contoh: gpt-4o-mini';
+        return 'Contoh: gpt-4.1';
       case AIProvider.anthropic:
         return 'Contoh: claude-3-5-haiku-20241022';
       case AIProvider.openrouter:
-        return 'Contoh: google/gemini-2.0-flash-exp:free';
+        return 'Contoh: google/gemini-2.5-flash:free';
     }
   }
 }

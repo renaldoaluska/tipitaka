@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../services/ai_translation.dart';
 import 'ai_translation_history.dart';
 
@@ -23,10 +24,7 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
   AIProvider? _currentProvider;
   bool _isCopied = false;
 
-  // Cache status provider (mana yang ready, mana yang belum)
   final Map<AIProvider, bool> _providerReadiness = {};
-
-  // Controllers untuk form
   final Map<AIProvider, TextEditingController> _apiKeyControllers = {};
   final Map<AIProvider, TextEditingController> _modelControllers = {};
 
@@ -56,38 +54,38 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
   }
 
   Future<void> _initialize() async {
-    _currentProvider = await AITranslationService.getActiveProvider();
-
-    // Load saved data & check readiness
+    final active = await AITranslationService.getActiveProvider();
     for (var provider in AIProvider.values) {
       final key = await AITranslationService.getApiKey(provider);
       final model = await AITranslationService.getModelName(provider);
 
-      _apiKeyControllers[provider]?.text = key ?? '';
-      _modelControllers[provider]?.text = model ?? '';
+      if (_apiKeyControllers[provider]?.text != key) {
+        _apiKeyControllers[provider]?.text = key ?? '';
+      }
+      if (_modelControllers[provider]?.text != model) {
+        _modelControllers[provider]?.text = model ?? '';
+      }
 
       final isReady = await AITranslationService.isProviderReady(provider);
       _providerReadiness[provider] = isReady;
     }
 
-    if (widget.settingsOnly) {
-      setState(() => _showSettings = true);
-    } else {
-      // Kalau provider aktif belum ready, paksa masuk settings
-      if (_providerReadiness[_currentProvider] != true) {
-        setState(() => _showSettings = true);
-      }
+    if (mounted) {
+      setState(() {
+        _currentProvider = active;
+        if (widget.settingsOnly) {
+          _showSettings = true;
+        } else if (_providerReadiness[_currentProvider] != true) {
+          _showSettings = true;
+        }
+      });
     }
-    setState(() {}); // Refresh UI
   }
 
-  // Tambahkan method ini di dalam _AITranslationSheetState
   Future<void> _startTranslation() async {
     if (widget.settingsOnly) return;
 
-    // 1. CEK HISTORY DULU
     final history = await AITranslationService.getHistory();
-    // Cari yang teks aslinya sama persis, abaikan spasi/enter di ujung
     final duplicate = history.firstWhere(
       (h) => h.originalText.trim() == widget.text.trim(),
       orElse: () => TranslationHistory(
@@ -100,7 +98,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
       ),
     );
 
-    // 2. KALO KETEMU DUPLIKAT
     if (duplicate.id.isNotEmpty && mounted) {
       final useOld = await showDialog<bool>(
         context: context,
@@ -115,9 +112,7 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Teks ini ada di riwayat Anda. Menggunakan hasil lama akan menghemat kuota AI.',
-              ),
+              const Text('Teks ini ada di riwayat Anda. Gunakan hasil lama?'),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(8),
@@ -148,13 +143,11 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, false), // False = Terjemahkan Ulang
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Terjemahkan Ulang'),
             ),
             FilledButton.icon(
-              onPressed: () =>
-                  Navigator.pop(context, true), // True = Pakai Hasil Lama
+              onPressed: () => Navigator.pop(context, true),
               icon: const Icon(Icons.restore),
               label: const Text('Gunakan Hasil Lama'),
             ),
@@ -162,14 +155,11 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
         ),
       );
 
-      // User batal milih (klik luar) -> jangan ngapa-ngapain
       if (useOld == null) return;
 
-      // Kalo user pilih "Lihat Hasil Lama"
       if (useOld) {
         setState(() {
           _showSettings = false;
-          // Kita "palsukan" future-nya biar langsung sukses dengan data lama
           _translationFuture = Future.value(
             AITranslationResult(
               translatedText: duplicate.translatedText,
@@ -177,57 +167,42 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             ),
           );
         });
-        return; // STOP DISINI, JANGAN PANGGIL API
+        return;
       }
     }
 
-    // 3. FLOW NORMAL (PANGGIL API)
     setState(() {
       _showSettings = false;
       _translationFuture = AITranslationService.translate(widget.text);
     });
   }
 
-  void _handleCloseOrBack() {
+  void _handleCloseOrBack() async {
     if (widget.settingsOnly) {
       Navigator.pop(context);
       return;
     }
 
     if (_showSettings) {
-      // Back ke Main View
+      await _initialize();
       setState(() {
         _showSettings = false;
       });
-      // Refresh readiness pas balik dari settings
-      _refreshReadiness();
     } else {
-      // Close Sheet
       Navigator.pop(context);
     }
   }
 
-  Future<void> _refreshReadiness() async {
-    for (var provider in AIProvider.values) {
-      final isReady = await AITranslationService.isProviderReady(provider);
-      _providerReadiness[provider] = isReady;
-    }
-    setState(() {});
-  }
-
-  // Logic Quick Switcher
   Future<void> _onQuickProviderChange(AIProvider? newProvider) async {
     if (newProvider == null) return;
 
     if (_providerReadiness[newProvider] == true) {
-      // KASUS 1: Provider udah setup -> Langsung ganti
       await AITranslationService.setActiveProvider(newProvider);
+      await _initialize();
       setState(() {
-        _currentProvider = newProvider;
-        _translationFuture = null; // Reset hasil sebelumnya
+        _translationFuture = null;
       });
     } else {
-      // KASUS 2: Provider belum setup -> Buka settings &arahin ke provider itu
       setState(() {
         _currentProvider = newProvider;
         _showSettings = true;
@@ -249,17 +224,9 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
           decoration: BoxDecoration(
             color: colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                spreadRadius: 2,
-              ),
-            ],
           ),
           child: Column(
             children: [
-              // DRAG HANDLE
               Center(
                 child: Container(
                   width: 32,
@@ -271,14 +238,11 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                   ),
                 ),
               ),
-
-              // HEADER
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // KIRI (Back / Icon)
                     Row(
                       children: [
                         if (_showSettings && !widget.settingsOnly)
@@ -289,7 +253,7 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                               padding: const EdgeInsets.only(right: 8.0),
                               child: Icon(
                                 Icons.arrow_back,
-                                size: 22, // Ukuran disamakan
+                                size: 22,
                                 color: colorScheme.onSurface,
                               ),
                             ),
@@ -300,26 +264,19 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                             color: Colors.deepPurple.shade300,
                             size: 22,
                           ),
-                        if (!(_showSettings && !widget.settingsOnly))
-                          const SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         Text(
-                          _showSettings
-                              ? "Pengaturan Terjemah AI"
-                              : "Terjemahan AI",
+                          _showSettings ? "Pengaturan AI" : "Terjemahan AI",
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
                           ),
                         ),
                       ],
                     ),
-
-                    // KANAN (Actions)
-                    Row(
-                      children: [
-                        // CUMA MUNCUL DI MAIN VIEW (History & Close)
-                        if (!_showSettings && !widget.settingsOnly) ...[
+                    if (!_showSettings && !widget.settingsOnly)
+                      Row(
+                        children: [
                           InkWell(
                             onTap: () {
                               showModalBottomSheet(
@@ -340,13 +297,8 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          // Settings Icon dihapus karena bisa lewat Dropdown
-                          // Atau kalau mau tetap ada buat advanced settings:
                           InkWell(
-                            onTap: () {
-                              setState(() => _showSettings = true);
-                            },
+                            onTap: () => setState(() => _showSettings = true),
                             borderRadius: BorderRadius.circular(20),
                             child: Padding(
                               padding: const EdgeInsets.all(8.0),
@@ -357,9 +309,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-
-                          // TOMBOL CLOSE (X) - Cuma ada di Main View
                           InkWell(
                             onTap: _handleCloseOrBack,
                             borderRadius: BorderRadius.circular(20),
@@ -373,17 +322,11 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                             ),
                           ),
                         ],
-
-                        // DI SETTINGS VIEW: KANAN KOSONG (Karena nav via Back kiri)
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // CONTENT
               Expanded(
                 child: _showSettings
                     ? _buildSettingsView(scrollController)
@@ -396,9 +339,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
     );
   }
 
-  // ============================================
-  // TRANSLATION VIEW (DENGAN QUICK SWITCHER)
-  // ============================================
   Widget _buildTranslationView(ScrollController scrollController) {
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -407,7 +347,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       physics: const BouncingScrollPhysics(),
       children: [
-        // INFO BOX DENGAN DROPDOWN SWITCHER
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           margin: const EdgeInsets.only(bottom: 16),
@@ -421,7 +360,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Baris Provider (Dropdown)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -433,7 +371,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // QUICK SWITCHER DROPDOWN
                   Expanded(
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<AIProvider>(
@@ -479,8 +416,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                   ),
                 ],
               ),
-
-              // Baris Model (Static info)
               const Divider(height: 12, thickness: 0.5),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,7 +430,10 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      _modelControllers[_currentProvider]?.text ?? '-',
+                      _modelControllers[_currentProvider]?.text.isNotEmpty ==
+                              true
+                          ? _modelControllers[_currentProvider]!.text
+                          : '-',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -509,8 +447,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             ],
           ),
         ),
-
-        // TEKS ASLI
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -547,10 +483,7 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             ],
           ),
         ),
-
         const SizedBox(height: 24),
-
-        // LOGIC TOMBOL TRANSLATE VS HASIL
         if (_translationFuture == null)
           _buildStartButton(colorScheme)
         else
@@ -612,12 +545,11 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            elevation: 2,
           ),
         ),
         const SizedBox(height: 12),
         Text(
-          "Klik tombol untuk mulai menerjemahkan.\nIni akan menggunakan kuota/token API Anda.",
+          "Klik tombol untuk mulai menerjemahkan.",
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,
@@ -628,18 +560,12 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
     );
   }
 
-  // ============================================
-  // SETTINGS VIEW
-  // ============================================
   Widget _buildSettingsView(ScrollController scrollController) {
     final colorScheme = Theme.of(context).colorScheme;
-
     return ListView(
       controller: scrollController,
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-      physics: const BouncingScrollPhysics(),
       children: [
-        // DROPDOWN PILIH PROVIDER
         Text(
           'AI Provider',
           style: TextStyle(
@@ -657,10 +583,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
               alpha: 0.3,
             ),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
           ),
           items: AIProvider.values.map((provider) {
             return DropdownMenuItem(
@@ -675,18 +597,10 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             );
           }).toList(),
           onChanged: (provider) {
-            if (provider != null) {
-              setState(() {
-                _currentProvider = provider;
-                // Reset controllers if needed logic here
-              });
-            }
+            if (provider != null) setState(() => _currentProvider = provider);
           },
         ),
-
         const SizedBox(height: 20),
-
-        // API KEY
         Text(
           'API Key',
           style: TextStyle(
@@ -700,32 +614,15 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
           controller: _apiKeyControllers[_currentProvider],
           decoration: InputDecoration(
             hintText: 'Paste API key di sini...',
-            hintStyle: const TextStyle(fontSize: 13),
             filled: true,
             fillColor: colorScheme.surfaceContainerHighest.withValues(
               alpha: 0.3,
             ),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            contentPadding: const EdgeInsets.all(14),
-            suffixIcon: _apiKeyControllers[_currentProvider]!.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () {
-                      setState(() {
-                        _apiKeyControllers[_currentProvider]!.clear();
-                      });
-                    },
-                  )
-                : null,
           ),
           obscureText: true,
-          style: const TextStyle(fontSize: 14),
-          onChanged: (_) => setState(() {}),
         ),
-
         const SizedBox(height: 16),
-
-        // MODEL
         Text(
           'Model',
           style: TextStyle(
@@ -741,99 +638,14 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             hintText: AITranslationService.getModelPlaceholder(
               _currentProvider!,
             ),
-            hintStyle: TextStyle(
-              fontSize: 13,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
             filled: true,
             fillColor: colorScheme.surfaceContainerHighest.withValues(
               alpha: 0.3,
             ),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            contentPadding: const EdgeInsets.all(14),
-            suffixIcon: _modelControllers[_currentProvider]!.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () {
-                      setState(() {
-                        _modelControllers[_currentProvider]!.clear();
-                      });
-                    },
-                  )
-                : null,
-          ),
-          style: const TextStyle(fontSize: 14),
-          onChanged: (_) => setState(() {}),
-        ),
-
-        const SizedBox(height: 16),
-
-        // LINK DAFTAR
-        InkWell(
-          onTap: () {
-            final url = AITranslationService.getProviderSignupUrl(
-              _currentProvider!,
-            );
-            Clipboard.setData(ClipboardData(text: 'https://$url'));
-
-            // DIALOG COPY LINK
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (ctx) => AlertDialog(
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                content: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.green),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text('Link disalin! Buka browser untuk daftar.'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-
-            Future.delayed(const Duration(milliseconds: 1500), () {
-              if (mounted && Navigator.canPop(context)) {
-                Navigator.pop(context);
-              }
-            });
-          },
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: colorScheme.primary.withValues(alpha: 0.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 16, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Tap untuk copy link: ${AITranslationService.getProviderSignupUrl(_currentProvider!)}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                Icon(Icons.copy, size: 14, color: colorScheme.primary),
-              ],
-            ),
           ),
         ),
-
         const SizedBox(height: 24),
-
-        // TOMBOL UTAMA (Simpan Pengaturan)
         FilledButton.icon(
           onPressed: _canSave() ? _saveSettings : null,
           icon: const Icon(Icons.save, size: 20),
@@ -842,41 +654,26 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
         ),
-
-        // DELETE BUTTON
-        FutureBuilder<bool>(
-          future: AITranslationService.isProviderReady(_currentProvider!),
-          builder: (context, snapshot) {
-            if (snapshot.data == true) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: TextButton.icon(
-                  onPressed: _deleteSettings,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    size: 18,
-                    color: Colors.red,
-                  ),
-                  label: const Text(
-                    'Hapus Setup',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          },
-        ),
+        if (_providerReadiness[_currentProvider] == true)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: TextButton(
+              onPressed: _deleteSettings,
+              child: const Text(
+                'Hapus Setup',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  bool _canSave() {
-    return _apiKeyControllers[_currentProvider]!.text.trim().isNotEmpty &&
-        _modelControllers[_currentProvider]!.text.trim().isNotEmpty;
-  }
+  bool _canSave() =>
+      _apiKeyControllers[_currentProvider]!.text.trim().isNotEmpty &&
+      _modelControllers[_currentProvider]!.text.trim().isNotEmpty;
 
-  // FUNGSI SIMPAN BARU: SIMPAN & BALIK
+  // 🔥 UPDATE: METHOD SAVE SETTINGS (RESET ERROR LAMA)
   Future<void> _saveSettings() async {
     final key = _apiKeyControllers[_currentProvider]!.text.trim();
     final model = _modelControllers[_currentProvider]!.text.trim();
@@ -885,39 +682,22 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
     await AITranslationService.saveModelName(_currentProvider!, model);
     await AITranslationService.setActiveProvider(_currentProvider!);
 
-    // Refresh readiness cache
-    await _refreshReadiness();
+    await _initialize();
 
     if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green),
-              const SizedBox(width: 12),
-              const Expanded(child: Text('Pengaturan berhasil disimpan!')),
-            ],
-          ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pengaturan berhasil disimpan!'),
+          duration: Duration(seconds: 1),
         ),
       );
 
-      // Auto-close dialog & back to main view
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (mounted && Navigator.canPop(context)) {
-          Navigator.pop(context); // Tutup Dialog
-        }
-        if (mounted && !widget.settingsOnly) {
-          setState(() {
-            _showSettings = false; // Balik ke halaman Translate
-          });
-        }
-      });
+      if (!widget.settingsOnly) {
+        setState(() {
+          _showSettings = false;
+          _translationFuture = null; // ✅ INI RESET ERRORNYA
+        });
+      }
     }
   }
 
@@ -926,9 +706,7 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Hapus Setup?'),
-        content: Text(
-          'API Key dan Model untuk ${AITranslationService.getProviderDisplayName(_currentProvider!)} akan dihapus.',
-        ),
+        content: const Text('API Key dan Model akan dihapus.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -949,59 +727,12 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
         _apiKeyControllers[_currentProvider]!.clear();
         _modelControllers[_currentProvider]!.clear();
       });
-      await _refreshReadiness();
-
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.green),
-                const SizedBox(width: 12),
-                const Expanded(child: Text('Setup berhasil dihapus')),
-              ],
-            ),
-          ),
-        );
-
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted && Navigator.canPop(context)) {
-            Navigator.pop(context);
-          }
-        });
-      }
+      await _initialize();
+      if (mounted) Navigator.pop(context);
     }
   }
 
   Widget _buildErrorState(String msg) {
-    String displayMsg = msg;
-    String? suggestion;
-
-    if (msg.contains('API Key tidak valid') || msg.contains('401')) {
-      displayMsg = 'API Key tidak valid';
-      suggestion = 'Periksa kembali API key Anda';
-    } else if (msg.contains('Rate limit') || msg.contains('429')) {
-      displayMsg = 'Rate limit tercapai';
-      suggestion = 'Tunggu beberapa saat atau gunakan provider lain';
-    } else if (msg.contains('Model') || msg.contains('404')) {
-      displayMsg = 'Model tidak ditemukan';
-      suggestion = 'Periksa nama model (contoh: gemini-2.0-flash-exp)';
-    } else if (msg.contains('Error: ')) {
-      final match = RegExp(r'Error: (.+)').firstMatch(msg);
-      if (match != null) {
-        displayMsg = match.group(1) ?? msg;
-      }
-    } else if (msg.contains('Koneksi gagal')) {
-      displayMsg = 'Koneksi gagal';
-      suggestion = 'Periksa koneksi internet Anda';
-    }
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1010,60 +741,15 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
         border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayMsg,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (suggestion != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        suggestion,
-                        style: TextStyle(
-                          color: Colors.red.shade700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+          Text(msg, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () => setState(() => _showSettings = true),
+            icon: const Icon(Icons.settings),
+            label: const Text('Perbaiki Pengaturan'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
           ),
-          if (msg.contains('belum diatur') ||
-              msg.contains('belum dipilih') ||
-              msg.contains('tidak valid') ||
-              msg.contains('tidak ditemukan')) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  setState(() => _showSettings = true);
-                },
-                icon: const Icon(Icons.settings),
-                label: const Text('Atur Sekarang'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1092,19 +778,12 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             InkWell(
               onTap: () async {
                 await Clipboard.setData(ClipboardData(text: text));
-
                 setState(() => _isCopied = true);
-
-                // Reset setelah 2 detik
                 Future.delayed(const Duration(seconds: 2), () {
-                  if (mounted) {
-                    setState(() => _isCopied = false);
-                  }
+                  if (mounted) setState(() => _isCopied = false);
                 });
               },
-              borderRadius: BorderRadius.circular(20),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+              child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 6,
@@ -1118,11 +797,9 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                     color: _isCopied
                         ? Colors.green
                         : colorScheme.primary.withValues(alpha: 0.3),
-                    width: 1,
                   ),
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       _isCopied ? Icons.check : Icons.copy_rounded,
@@ -1136,7 +813,6 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: _isCopied ? Colors.green : colorScheme.primary,
-                        letterSpacing: 0.5,
                       ),
                     ),
                   ],
@@ -1146,35 +822,44 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
           ],
         ),
         const SizedBox(height: 12),
-        SelectableText(
-          text,
-          style: TextStyle(
-            fontSize: 16,
-            height: 1.7,
-            color: colorScheme.onSurface,
+        SelectionArea(
+          child: MarkdownBody(
+            data: text,
+            selectable: false,
+            styleSheet: MarkdownStyleSheet(
+              // Teks Biasa (Hitam)
+              p: TextStyle(
+                fontSize: 16,
+                height: 1.6,
+                color: colorScheme.onSurface,
+              ),
+
+              // STRONG (**Teks**) -> KITA BAJAK JADI PALI UTAMA (ABU-ABU)
+              strong: TextStyle(
+                fontFamily: 'serif',
+                fontWeight: FontWeight.normal, // JANGAN BOLD
+                fontStyle: FontStyle.italic, // TAPI MIRING
+                color: colorScheme.onSurfaceVariant, // WARNA ABU
+                fontSize: 14,
+              ),
+
+              // EM (*Teks*) -> UNTUK SISIPAN (HITAM MIRING)
+              em: TextStyle(
+                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.normal,
+                color: colorScheme.secondary,
+              ),
+
+              // Bullet Point
+              listBullet: TextStyle(
+                fontSize: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              blockSpacing: 12,
+            ),
           ),
         ),
         const SizedBox(height: 32),
-        // DISCLAIMER
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.auto_awesome,
-              size: 12,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              "Dibuat dengan AI. Cek ulang untuk akurasi.",
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
       ],
     );
   }
