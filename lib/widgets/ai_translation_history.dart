@@ -344,10 +344,11 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // INFO BOX (PROVIDER & MODEL - VERTIKAL)
+                    // INFO BOX (LAYOUT BARU: Provider & Tanggal Sejajar, Model di Bawah)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                        // horizontal: 12,
+                        vertical: 12,
                       ),
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
@@ -356,53 +357,78 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Row(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start, // Rata atas
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // KIRI: Provider & Model (Disusun Vertikal)
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Nama Provider (Lebih Menonjol)
-                                Text(
-                                  item.provider,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme.primary,
+                          // BARIS 1: Provider (Kiri) & Tanggal (Kanan)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Nama Provider
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.dns_rounded,
+                                    size: 12,
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.7,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                // Nama Model (Di bawahnya, lebih kecil)
-                                Text(
-                                  item.model,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: colorScheme.onSurfaceVariant,
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    item.provider,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.primary,
+                                    ),
                                   ),
-                                  maxLines: 2, // Bisa 2 baris kalau kepanjangan
-                                  overflow: TextOverflow.ellipsis,
+                                ],
+                              ),
+
+                              // Tanggal
+                              Text(
+                                DateFormat(
+                                  'dd MMM, HH:mm',
+                                ).format(item.timestamp),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.6),
+                                  fontWeight: FontWeight.w500,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
 
-                          // KANAN: Tanggal
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12, top: 1),
-                            child: Text(
-                              DateFormat(
-                                'dd MMM, HH:mm',
-                              ).format(item.timestamp),
+                          const SizedBox(
+                            height: 6,
+                          ), // Jarak antara Header dan Model
+                          // BARIS 2: Nama Model (Full Width di Bawah)
+                          // Kita kasih background tipis biar kelihatan kayak "badge"
+                          // ✅ CUKUP GANTI CONTAINER INI AJA
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.05,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: SelectableText(
+                              // 👈 Pakai SelectableText biar bisa dicopy
+                              item.model,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: colorScheme.onSurfaceVariant.withValues(
-                                  alpha: 0.6,
-                                ),
-                                fontWeight: FontWeight.w500,
+                                fontFamily: 'monospace',
+                                color: colorScheme.onSurfaceVariant,
                               ),
+                              // maxLines & overflow dihapus biar kalau panjang, dia turun ke bawah (wrap)
+                              // dan user bisa blok semuanya.
                             ),
                           ),
                         ],
