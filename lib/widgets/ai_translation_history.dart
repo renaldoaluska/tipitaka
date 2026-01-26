@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'; // ✅ 1. IMPORT WAJIB
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'; //  1. IMPORT WAJIB
 import '../services/ai_translation.dart';
 
 class TranslationHistorySheet extends StatefulWidget {
@@ -320,7 +320,7 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
     );
   }
 
-  // ✅ UPDATE: VISUAL FEEDBACK LANGSUNG DI TOMBOL (TANPA SNACKBAR)
+  //  UPDATE: VISUAL FEEDBACK LANGSUNG DI TOMBOL (TANPA SNACKBAR)
   void _showDetailDialog(TranslationHistory item, ColorScheme colorScheme) {
     showDialog(
       context: context,
@@ -343,30 +343,66 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // INFO BOX (PROVIDER & MODEL - VERTIKAL)
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainerHighest.withValues(
                           alpha: 0.3,
                         ),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start, // Rata atas
                         children: [
-                          Text(
-                            "${item.provider} • ${item.model}",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colorScheme.onSurfaceVariant,
+                          // KIRI: Provider & Model (Disusun Vertikal)
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Nama Provider (Lebih Menonjol)
+                                Text(
+                                  item.provider,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                // Nama Model (Di bawahnya, lebih kecil)
+                                Text(
+                                  item.model,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 2, // Bisa 2 baris kalau kepanjangan
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
                           ),
-                          const Spacer(),
-                          Text(
-                            DateFormat('dd MMM HH:mm').format(item.timestamp),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colorScheme.onSurfaceVariant,
+
+                          // KANAN: Tanggal
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12, top: 1),
+                            child: Text(
+                              DateFormat(
+                                'dd MMM, HH:mm',
+                              ).format(item.timestamp),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.6,
+                                ),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
