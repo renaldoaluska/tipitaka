@@ -505,49 +505,51 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                 ),
               ),
               actions: [
-                TextButton(
+                // 1. TOMBOL HAPUS (Icon Only - Merah)
+                IconButton(
                   onPressed: () {
                     Navigator.pop(context);
                     _deleteItem(item.id);
                   },
-                  child: Text(
-                    'Hapus',
-                    style: TextStyle(color: Colors.red.shade400),
-                  ),
+                  icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                  tooltip: 'Hapus Item',
                 ),
 
-                //  TOMBOL SALIN YANG BERUBAH WARNA
-                FilledButton.icon(
+                // 2. TOMBOL SALIN (Icon Only - Animasi Berubah Warna)
+                IconButton(
                   onPressed: () async {
-                    // 1. Salin ke Clipboard
+                    // Logika Salin
                     await Clipboard.setData(
                       ClipboardData(text: item.translatedText),
                     );
 
-                    // 2. Ubah tampilan tombol jadi Hijau "Tersalin!"
+                    // Ubah jadi Hijau (Feedback Visual)
                     setDialogState(() {
                       isCopied = true;
                     });
 
-                    // 3. Tunggu 1 detik biar user sadar
+                    // Tunggu sebentar
                     await Future.delayed(const Duration(milliseconds: 1000));
 
-                    // 4. Baru tutup dialog
+                    // Balikin ke semula (opsional, atau biarkan hijau sampai ditutup)
                     if (context.mounted) {
-                      Navigator.pop(context);
+                      setDialogState(() {
+                        isCopied = false;
+                      });
                     }
                   },
-                  // Logika Warna: Kalau isCopied = Hijau, Kalau belum = Default Primary
-                  style: FilledButton.styleFrom(
-                    backgroundColor: isCopied ? Colors.green : null,
-                    foregroundColor: isCopied ? Colors.white : null,
-                    animationDuration: const Duration(milliseconds: 300),
-                  ),
+                  // Icon berubah: Copy (Primary) -> Ceklis (Hijau)
                   icon: Icon(
                     isCopied ? Icons.check_circle : Icons.copy,
-                    size: 16,
+                    color: isCopied ? Colors.green : colorScheme.primary,
                   ),
-                  label: Text(isCopied ? 'Tersalin!' : 'Salin'),
+                  tooltip: isCopied ? 'Tersalin' : 'Salin Terjemahan',
+                ),
+
+                // 3. TOMBOL TUTUP (Teks Biasa)
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Tutup"),
                 ),
               ],
             );
