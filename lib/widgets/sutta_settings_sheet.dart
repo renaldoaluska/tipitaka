@@ -139,7 +139,7 @@ class _SuttaSettingsSheetState extends State<SuttaSettingsSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 🔥 tinggal looping dari map categories
+                  //  tinggal looping dari map categories
                   ...AppPalettes.categories.entries.map((entry) {
                     return _buildColorCategory(
                       ctx,
@@ -665,7 +665,7 @@ class _SuttaSettingsSheetState extends State<SuttaSettingsSheet> {
                           color: Colors.grey.withValues(alpha: 0.1),
                           height: 0,
                         ),
-                        // 🔥 TOGGLE SHOW/HIDE NOMOR (CONDITIONAL!)
+                        //  TOGGLE SHOW/HIDE NOMOR (CONDITIONAL!)
                         if (_showVerseNumbers != null) ...[
                           SwitchListTile(
                             value: _showVerseNumbers!,

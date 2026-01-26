@@ -25,8 +25,8 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  bool _isEditMode = false; // 🔥 Mode edit
-  final Set<String> _selectedBookmarks = {}; // 🔥 Selected items
+  bool _isEditMode = false; //  Mode edit
+  final Set<String> _selectedBookmarks = {}; //  Selected items
   final List<Map<String, String>> _dhammapadaQuotes = [
     {
       "verse": "183",
@@ -76,7 +76,7 @@ class _HomeState extends State<Home> {
   void initState() {
     super.initState();
     _loadTodayQuote();
-    _loadHistoryAndBookmarks(); // 🔥 TAMBAH INI
+    _loadHistoryAndBookmarks(); //  TAMBAH INI
   }
 
   @override
@@ -112,7 +112,7 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Ambil warna dari Theme, bukan parameter
+    //  Ambil warna dari Theme, bukan parameter
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
     return Scaffold(
       backgroundColor: bgColor,
@@ -134,15 +134,15 @@ class _HomeState extends State<Home> {
                     children: [
                       Expanded(
                         flex: 4,
-                        // 🔥 KIRI: Margin kanan 0
+                        //  KIRI: Margin kanan 0
                         child: _buildQuoteCard(
                           customMargin: const EdgeInsets.fromLTRB(16, 0, 0, 8),
                         ),
                       ), // ← TAMBAH flex: 4
-                      // 🔥 JARAK TENGAH: Cuma ini yang ngasih jarak (24px)
+                      //  JARAK TENGAH: Cuma ini yang ngasih jarak (24px)
                       const SizedBox(width: 24),
                       Expanded(
-                        flex: 6, // 🔥 KANAN: Padding kiri 0
+                        flex: 6, //  KANAN: Padding kiri 0
                         child: _buildQuickAccess(
                           customPadding: const EdgeInsets.only(
                             left: 0,
@@ -160,8 +160,7 @@ class _HomeState extends State<Home> {
                     children: [
                       // Kolom Kiri: Eksplor (makan tinggi penuh)
                       Expanded(
-                        flex:
-                            4, // ← TAMBAH INI (40%)// 🔥 KIRI: Padding kanan 0
+                        flex: 4, // ← TAMBAH INI (40%)//  KIRI: Padding kanan 0
                         child: _buildExploreSection(
                           customPadding: const EdgeInsets.only(
                             left: 16,
@@ -169,13 +168,13 @@ class _HomeState extends State<Home> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 24), // 🔥 Jarak Tengah
+                      const SizedBox(width: 24), //  Jarak Tengah
                       // Kolom Kanan: Terakhir Dilihat + Penanda (stack vertikal)
                       Expanded(
                         flex: 6, // ← TAMBAH INI (60%)
                         child: Column(
                           children: [
-                            // 🔥 KANAN: Padding kiri 0
+                            //  KANAN: Padding kiri 0
                             _buildRecentlyViewed(
                               customPadding: const EdgeInsets.only(
                                 left: 0,
@@ -253,7 +252,7 @@ class _HomeState extends State<Home> {
       pinned: true, // Wajib true biar melayang
       floating: true,
 
-      // ✅ Bikin background aslinya transparan biar flexibleSpace kelihatan
+      //  Bikin background aslinya transparan biar flexibleSpace kelihatan
       backgroundColor: Colors.transparent,
 
       // Matikan bayangan default biar gak numpuk
@@ -264,7 +263,7 @@ class _HomeState extends State<Home> {
 
       toolbarHeight: isLandscape ? 60 : 80,
 
-      // ✅ INI RAHASIANYA: Efek Kaca Buram (Frosted Glass)
+      //  INI RAHASIANYA: Efek Kaca Buram (Frosted Glass)
       flexibleSpace: ClipRRect(
         child: BackdropFilter(
           // Atur tingkat keburaman (makin gede makin ngeblur)
@@ -304,12 +303,12 @@ class _HomeState extends State<Home> {
   Widget _buildQuoteCard({EdgeInsets? customMargin}) {
     if (_todayQuote == null) return const SizedBox.shrink();
 
-    // ✅ Ambil warna dari Theme
+    //  Ambil warna dari Theme
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = Theme.of(context).colorScheme.surface;
 
     return Container(
-      // 🔥 Pake customMargin kalau ada, kalau null pake default
+      //  Pake customMargin kalau ada, kalau null pake default
       margin: customMargin ?? const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Card(
         elevation: 1,
@@ -373,7 +372,7 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildQuickAccess({EdgeInsets? customPadding}) {
-    // 🔥 Pake customPadding kalau ada
+    //  Pake customPadding kalau ada
     final padding = customPadding ?? const EdgeInsets.symmetric(horizontal: 16);
 
     final features = [
@@ -416,7 +415,7 @@ class _HomeState extends State<Home> {
       children: [
         const SizedBox(height: 16),
         Padding(
-          padding: padding, // 🔥 Gunakan padding variabel
+          padding: padding, //  Gunakan padding variabel
           child: Text(
             "Akses Cepat",
             style: TextStyle(
@@ -428,7 +427,7 @@ class _HomeState extends State<Home> {
         ),
         const SizedBox(height: 18),
         Padding(
-          padding: padding, // 🔥 Gunakan padding variabel
+          padding: padding, //  Gunakan padding variabel
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: features.map((f) {
@@ -451,7 +450,7 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildRecentlyViewed({EdgeInsets? customPadding}) {
-    // 🔥 Pake customPadding kalau ada
+    //  Pake customPadding kalau ada
     final padding = customPadding ?? const EdgeInsets.symmetric(horizontal: 16);
 
     final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -463,7 +462,7 @@ class _HomeState extends State<Home> {
       children: [
         const SizedBox(height: 24),
         Padding(
-          padding: padding, // 🔥 Gunakan padding variabel
+          padding: padding, //  Gunakan padding variabel
           child: Text(
             "Terakhir Dilihat",
             style: TextStyle(
@@ -481,7 +480,7 @@ class _HomeState extends State<Home> {
           )
         else if (_recentlyViewed.isEmpty)
           Padding(
-            padding: padding, // 🔥 Gunakan padding variabel
+            padding: padding, //  Gunakan padding variabel
             child: Card(
               color: cardColor,
               elevation: 0,
@@ -520,7 +519,7 @@ class _HomeState extends State<Home> {
           )
         else
           Padding(
-            padding: padding, // 🔥 Gunakan padding variabel
+            padding: padding, //  Gunakan padding variabel
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -606,7 +605,7 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildBookmarks({EdgeInsets? customPadding}) {
-    // 🔥 Pake customPadding kalau ada
+    //  Pake customPadding kalau ada
     final padding = customPadding ?? const EdgeInsets.symmetric(horizontal: 16);
 
     final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -617,7 +616,7 @@ class _HomeState extends State<Home> {
       children: [
         const SizedBox(height: 16),
         Padding(
-          padding: padding, // 🔥 Gunakan padding variabel
+          padding: padding, //  Gunakan padding variabel
           child: Row(
             children: [
               Text(
@@ -661,7 +660,7 @@ class _HomeState extends State<Home> {
           )
         else if (_bookmarks.isEmpty)
           Padding(
-            padding: padding, // 🔥 Gunakan padding variabel
+            padding: padding, //  Gunakan padding variabel
             child: SizedBox(
               height: 56,
               child: Card(
@@ -708,7 +707,7 @@ class _HomeState extends State<Home> {
             height: 135,
             child: ListView.builder(
               padding:
-                  padding, // 🔥 Gunakan padding variabel buat horizontal list
+                  padding, //  Gunakan padding variabel buat horizontal list
               scrollDirection: Axis.horizontal,
               itemCount: _bookmarks.length.clamp(0, 5),
               itemBuilder: (context, index) {
@@ -908,7 +907,7 @@ class _HomeState extends State<Home> {
   }
 
   void _showAllBookmarks(BuildContext context) {
-    // 🔥 Extract unique nikaya yang ada di bookmarks
+    //  Extract unique nikaya yang ada di bookmarks
     final Set<String> availableNikayas = {};
     for (var b in _bookmarks) {
       final displayAcronym = _getDisplayAcronym(b["uid"], b["acronym"]);
@@ -1063,7 +1062,7 @@ class _HomeState extends State<Home> {
                       ),
                     ),
 
-                    // 🔥 FILTER CHIPS
+                    //  FILTER CHIPS
                     if (sortedNikayas.isNotEmpty)
                       Container(
                         height: 60,
@@ -1152,7 +1151,7 @@ class _HomeState extends State<Home> {
                         ),
                       ),
 
-                    // 🔥 LIST BOOKMARKS
+                    //  LIST BOOKMARKS
                     Expanded(
                       child: Builder(
                         builder: (context) {
@@ -1224,7 +1223,7 @@ class _HomeState extends State<Home> {
                                 clipBehavior: Clip.antiAlias,
                                 child: InkWell(
                                   onTap: () async {
-                                    // 🔥 From previous fix
+                                    //  From previous fix
                                     if (_isEditMode) {
                                       setState(() {
                                         if (_selectedBookmarks.contains(
@@ -1246,7 +1245,7 @@ class _HomeState extends State<Home> {
                                       : () async {
                                           final confirm = await showModalBottomSheet<bool>(
                                             context: context,
-                                            // 🔥 FIXED: Add shape for rounding
+                                            //  FIXED: Add shape for rounding
                                             shape: const RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.vertical(
@@ -1254,13 +1253,13 @@ class _HomeState extends State<Home> {
                                                   ),
                                             ),
                                             builder: (ctx) => ClipRRect(
-                                              // 🔥 FIXED: Clip the content to prevent overflow
+                                              //  FIXED: Clip the content to prevent overflow
                                               borderRadius:
                                                   const BorderRadius.vertical(
                                                     top: Radius.circular(16),
                                                   ),
                                               child: Material(
-                                                // 🔥 FIXED: Provide Material for proper ink/ripple behavior
+                                                //  FIXED: Provide Material for proper ink/ripple behavior
                                                 color: Theme.of(
                                                   context,
                                                 ).colorScheme.surface,
@@ -1509,7 +1508,7 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildExploreSection({EdgeInsets? customPadding}) {
-    // 🔥 Pake customPadding kalau ada
+    //  Pake customPadding kalau ada
     final padding = customPadding ?? const EdgeInsets.symmetric(horizontal: 16);
 
     final exploreItems = [
@@ -1565,15 +1564,13 @@ class _HomeState extends State<Home> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurfaceVariant, // 🔥 ABU-ABU
+              color: Theme.of(context).colorScheme.onSurfaceVariant, //  ABU-ABU
             ),
           ),
         ),
         const SizedBox(height: 12),
         Padding(
-          padding: padding, // 🔥 Pakai variabel padding
+          padding: padding, //  Pakai variabel padding
           //padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [

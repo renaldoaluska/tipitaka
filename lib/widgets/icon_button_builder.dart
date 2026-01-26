@@ -25,7 +25,7 @@ class IconButtonBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Ambil dari Theme, bukan parameter
+    //  Ambil dari Theme, bukan parameter
     final textColor = Theme.of(context).colorScheme.onSurface;
 
     // Extract RGB dari color untuk shadow
@@ -65,7 +65,7 @@ class IconButtonBuilder extends StatelessWidget {
               style: TextStyle(
                 fontSize: fontSize,
                 fontWeight: FontWeight.w500,
-                color: textColor, // ✅ Ganti dari isDarkMode logic
+                color: textColor, //  Ganti dari isDarkMode logic
               ),
               textAlign: TextAlign.center,
               maxLines: 1,

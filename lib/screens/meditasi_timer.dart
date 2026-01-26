@@ -944,7 +944,7 @@ class _MeditationTimerPageState extends State<MeditationTimerPage> {
       },
 
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        // 🔥 WRAP
+        //  WRAP
         value: SystemUIHelper.getStyle(context),
         child: Scaffold(
           body: Stack(

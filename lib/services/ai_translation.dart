@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-// 🔥 ENUM PROVIDER
+//  ENUM PROVIDER
 enum AIProvider { gemini, openai, anthropic, openrouter }
 
-// 🔥 MODEL RESPONSE
+//  MODEL RESPONSE
 class AITranslationResult {
   final String translatedText;
   final String? error;
@@ -18,7 +18,7 @@ class AITranslationResult {
   });
 }
 
-// 🔥 HISTORY MODEL
+//  HISTORY MODEL
 class TranslationHistory {
   final String id;
   final String originalText;
@@ -57,7 +57,7 @@ class TranslationHistory {
   }
 }
 
-// 🔥 MAIN SERVICE CLASS
+//  MAIN SERVICE CLASS
 class AITranslationService {
   static const String _keyPrefix = 'ai_api_key_';
   static const String _modelPrefix = 'ai_model_';
@@ -357,7 +357,6 @@ class AITranslationService {
       // Jika error 400 (Bad Request), kemungkinan besar karena parameter tidak didukung
       // oleh model tersebut (misal: o1, gpt-5, atau gpt-6 nanti).
       if (response.statusCode == 400) {
-
         // PERCOBAAN 2: Retry otomatis tanpa parameter temperature (Safe Mode)
         response = await sendRequest(useTemperature: false);
       }
@@ -472,7 +471,7 @@ class AITranslationService {
         response = await sendRequest(strictMode: false);
       }
 
-      // 🔥 GANTI INI: Panggil handler khusus OpenRouter
+      //  GANTI INI: Panggil handler khusus OpenRouter
       return _handleOpenRouterResponse(response);
     } catch (e) {
       return AITranslationResult(
@@ -504,7 +503,7 @@ class AITranslationService {
         success: false,
       );
     }
-    // 🔥 HANDLE ERROR SPESIFIK
+    //  HANDLE ERROR SPESIFIK
     else if (response.statusCode == 404) {
       return AITranslationResult(
         translatedText: '',
@@ -546,7 +545,7 @@ class AITranslationService {
       final result = data['choices'][0]['message']['content'];
       return AITranslationResult(translatedText: result ?? '', success: true);
     }
-    // 🔥 HANDLE ERROR SPESIFIK
+    //  HANDLE ERROR SPESIFIK
     else if (response.statusCode == 404) {
       return AITranslationResult(
         translatedText: '',
@@ -582,7 +581,7 @@ class AITranslationService {
       final result = data['content'][0]['text'];
       return AITranslationResult(translatedText: result ?? '', success: true);
     }
-    // 🔥 HANDLE ERROR SPESIFIK
+    //  HANDLE ERROR SPESIFIK
     else if (response.statusCode == 404) {
       return AITranslationResult(
         translatedText: '',
@@ -612,7 +611,7 @@ class AITranslationService {
     }
   }
 
-  // 🔥 HANDLER KHUSUS OPENROUTER
+  //  HANDLER KHUSUS OPENROUTER
   static AITranslationResult _handleOpenRouterResponse(http.Response response) {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);

@@ -9,7 +9,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// ✅ FIX: Pake Import di atas biar 'Properties' dikenali
+//  FIX: Pake Import di atas biar 'Properties' dikenali
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -26,7 +26,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // ✅ FIX: Migrasi dari kotlinOptions ke compilerOptions (Cara Baru)
+    //  FIX: Migrasi dari kotlinOptions ke compilerOptions (Cara Baru)
     kotlin {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
@@ -43,7 +43,7 @@ android {
 
     signingConfigs {
         create("release") {
-            // ✅ FIX: Pake getProperty biar aman (return String?)
+            //  FIX: Pake getProperty biar aman (return String?)
             keyAlias = keystoreProperties.getProperty("keyAlias")
             keyPassword = keystoreProperties.getProperty("keyPassword")
             

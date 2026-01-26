@@ -8,10 +8,10 @@ class DaftarIsi {
   static const String _baseUrl =
       "https://samaggi-phala.or.id/multimedias/paritta/";
 
-  // 🔥 FIREBASE DATABASE REFERENCE
+  //  FIREBASE DATABASE REFERENCE
   static final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
 
-  // 🔥 CACHE KEYS
+  //  CACHE KEYS
   static const String _audioUrlsCacheKey = 'cached_audio_urls';
   static const String _audioUrlsTimestampKey = 'cached_audio_urls_timestamp';
 
@@ -108,7 +108,7 @@ class DaftarIsi {
     return _audioUrlsMap;
   }
 
-  // 🔥 Realtime listener
+  //  Realtime listener
   static StreamSubscription? _audioListener;
 
   static void setupRealtimeListener({Function(Map<String, String>)? onUpdate}) {

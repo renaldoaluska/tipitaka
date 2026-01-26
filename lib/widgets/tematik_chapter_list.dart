@@ -74,7 +74,7 @@ class _TematikChapterListState extends State<TematikChapterList> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             child: Suttaplex(
               uid: uid,
-              sourceMode: "tematik", // ✅ Mode dari Tematik
+              sourceMode: "tematik", //  Mode dari Tematik
             ),
           ),
         );

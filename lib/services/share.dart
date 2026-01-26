@@ -212,7 +212,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
     );
   }
 
-  // ✅ HELPER: AUTO-WRAP FORMATTING
+  //  HELPER: AUTO-WRAP FORMATTING
   void _applySelectionFormatting(String symbol) {
     final text = _textController.text;
     final selection = _textController.selection;
@@ -385,7 +385,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
     );
   }
 
-  // ✅ CLEANER: JANGAN HAPUS \n\n YANG SUDAH KITA SET DI SUTTA_DETAIL
+  //  CLEANER: JANGAN HAPUS \n\n YANG SUDAH KITA SET DI SUTTA_DETAIL
   String _formatQuoteText(String input) {
     if (input.isEmpty) return "";
     // Cuma hapus kalau enter-nya lebay (3x atau lebih)
@@ -536,7 +536,7 @@ class _QuoteEditorPageState extends State<QuoteEditorPage> {
     return formattedLetters + remainder;
   }
 
-  // ✅ PARSER VISUAL: Update //...// jadi Warna Only
+  //  PARSER VISUAL: Update //...// jadi Warna Only
   List<TextSpan> _parseInlineStyles(String text, TextStyle baseStyle) {
     final List<TextSpan> spans = [];
     final pattern = RegExp(r'(//|\*|_)(.*?)\1'); // Regex tetep sama

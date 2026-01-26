@@ -147,7 +147,7 @@ class PaliDictionaryManager {
 
                       ValueListenableBuilder<List<String>>(
                         valueListenable: DpdService().historyNotifier,
-                        // 🔥 Ganti 'context' jadi '_' atau 'innerCtx' agar tidak shadowing
+                        //  Ganti 'context' jadi '_' atau 'innerCtx' agar tidak shadowing
                         builder: (innerCtx, liveHistory, _) {
                           if (liveHistory.isEmpty) {
                             return const Padding(
@@ -238,7 +238,7 @@ class PaliDictionaryManager {
                                       size: 16,
                                       color: Colors.white38,
                                     ),
-                                    // 🔥 FITUR APUS SATUAN
+                                    //  FITUR APUS SATUAN
                                     // Di dalam InputChip pada baris 180-an
                                     onDeleted: () {
                                       showDialog(

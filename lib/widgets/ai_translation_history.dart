@@ -406,7 +406,7 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                           ), // Jarak antara Header dan Model
                           // BARIS 2: Nama Model (Full Width di Bawah)
                           // Kita kasih background tipis biar kelihatan kayak "badge"
-                          // ✅ CUKUP GANTI CONTAINER INI AJA
+                          //  CUKUP GANTI CONTAINER INI AJA
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(
@@ -516,7 +516,7 @@ class _TranslationHistorySheetState extends State<TranslationHistorySheet> {
                   ),
                 ),
 
-                // 🔥 TOMBOL SALIN YANG BERUBAH WARNA
+                //  TOMBOL SALIN YANG BERUBAH WARNA
                 FilledButton.icon(
                   onPressed: () async {
                     // 1. Salin ke Clipboard

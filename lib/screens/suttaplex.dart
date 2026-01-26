@@ -38,7 +38,7 @@ class Suttaplex extends StatefulWidget {
 }
 
 class _SuttaplexState extends State<Suttaplex> {
-  // 🔥 VARIABLE BARU: Status ketersediaan tafsir
+  //  VARIABLE BARU: Status ketersediaan tafsir
   bool _hasPaliTafsir = false;
   // bool _hasIndoTafsir = false; // Nanti kalau indo udah ada
   Map<String, dynamic>? _sutta;
@@ -49,7 +49,7 @@ class _SuttaplexState extends State<Suttaplex> {
 
   List<Map<String, dynamic>> _extraTranslations = [];
 
-  // ✅ ERROR TYPE DITAMBAH: "server_error"
+  //  ERROR TYPE DITAMBAH: "server_error"
   String? _errorType; // "network", "not_found", "server_error", atau null
 
   static const List<String> priorityLangs = ["pli", "id", "en"];
@@ -82,7 +82,7 @@ class _SuttaplexState extends State<Suttaplex> {
     }
   }
 
-  // 🔥 FUNGSI BARU: Fetch Tafsir -> Format jadi "Fake Sutta" -> Buka SuttaDetail
+  //  FUNGSI BARU: Fetch Tafsir -> Format jadi "Fake Sutta" -> Buka SuttaDetail
   Future<void> _openTafsirInSuttaDetail({
     required String type,
     required String title,
@@ -320,7 +320,7 @@ class _SuttaplexState extends State<Suttaplex> {
           _loading = false;
           final errString = e.toString().toLowerCase();
 
-          // 🔥 LOGIC ERROR HANDLING YANG LEBIH CERDAS
+          //  LOGIC ERROR HANDLING YANG LEBIH CERDAS
           if (errString.contains('socket') ||
               errString.contains('lookup') ||
               errString.contains('unreachable')) {
@@ -438,7 +438,7 @@ class _SuttaplexState extends State<Suttaplex> {
             ? null
             : () async {
                 if (isTafsir) {
-                  // 🔥 PANGGIL FUNGSI BARU DI SINI
+                  //  PANGGIL FUNGSI BARU DI SINI
                   final title = tafsirType == "mul"
                       ? "Mūla"
                       : (tafsirType == "att" ? "Aṭṭhakathā" : "Ṭīkā");
@@ -639,7 +639,7 @@ class _SuttaplexState extends State<Suttaplex> {
     );
   }
 
-  // ✅ HELPER UNTUK KONTEN ERROR BIAR GAK DUPLIKAT KODE
+  //  HELPER UNTUK KONTEN ERROR BIAR GAK DUPLIKAT KODE
   Widget _buildErrorContent() {
     String title;
     IconData icon;
@@ -690,7 +690,7 @@ class _SuttaplexState extends State<Suttaplex> {
         ),
       ];
     } else {
-      // ✅ SERVER ERROR / LAINNYA
+      //  SERVER ERROR / LAINNYA
       title = "Gangguan Teknis";
       icon = Icons.dns_rounded;
       showRetry = true;
@@ -770,7 +770,7 @@ class _SuttaplexState extends State<Suttaplex> {
     bool showTikaButton = tafsirService.hasTika(widget.uid); // Cek dulu
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // 🔥 WRAP
+      //  WRAP
       value: SystemUIHelper.getStyle(context),
       child: Scaffold(
         appBar: AppBar(
@@ -861,14 +861,14 @@ class _SuttaplexState extends State<Suttaplex> {
           ],
         ),
         body: SafeArea(
-          // 🔥 TAMBAH INI
+          //  TAMBAH INI
           top: false, // AppBar udah handle top
           child: Stack(
             children: [
               _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _sutta == null
-                  ? Center(child: _buildErrorContent()) // ✅ PANGGIL HELPER BARU
+                  ? Center(child: _buildErrorContent()) //  PANGGIL HELPER BARU
                   : SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
                       child: Column(

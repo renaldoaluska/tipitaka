@@ -169,7 +169,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
           }
         });
 
-        debugPrint('✅ Cache loaded successfully');
+        debugPrint(' Cache loaded successfully');
         return true;
       }
 
@@ -231,7 +231,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     await _loadDataFromFirebase(manualRefresh: true);
   }
 
-  // ✅ SAVE KE CACHE
+  //  SAVE KE CACHE
   // Cari method _saveToCache, ganti jadi gini:
   Future<void> _saveToCache(
     Map<String, List<dynamic>> data, {
@@ -261,7 +261,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     }
   }
 
-  // ✅ LOAD DARI FIREBASE (dengan error handling untuk offline)
+  //  LOAD DARI FIREBASE (dengan error handling untuk offline)
   // Tambah parameter {bool manualRefresh = false}
   Future<void> _loadDataFromFirebase({bool manualRefresh = false}) async {
     try {
@@ -288,7 +288,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
             _isLoading = false;
           });
         }
-        debugPrint('✅ Firebase data loaded & cached');
+        debugPrint(' Firebase data loaded & cached');
       } else {
         debugPrint('📭 No data available in Firebase');
         if (mounted) {
@@ -302,7 +302,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
       debugPrint('❌ Firebase error (probably offline): $e');
 
       if (mounted) {
-        // ✅ CUKUP SET STATE, NO SNACKBAR
+        //  CUKUP SET STATE, NO SNACKBAR
         setState(() {
           _isOnline = false;
           _isLoading = false;
@@ -411,7 +411,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyUposathaVersion, version);
-      debugPrint('✅ Saved version to SharedPreferences: $version');
+      debugPrint(' Saved version to SharedPreferences: $version');
     } catch (e) {
       debugPrint('❌ Error saving preference: $e');
     }
@@ -678,7 +678,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // 🔥 WRAP
+      //  WRAP
       value: SystemUIHelper.getStyle(context),
       child: Scaffold(
         backgroundColor: bgColor,
@@ -838,7 +838,7 @@ class _UposathaKalenderPageState extends State<UposathaKalenderPage> {
     );
   }
 
-  // ✅ EMPTY STATE (ketika benar-benar tidak ada data)
+  //  EMPTY STATE (ketika benar-benar tidak ada data)
   Widget _buildEmptyState() {
     return Center(
       child: Padding(

@@ -2,7 +2,7 @@ import 'api.dart';
 import 'package:flutter/foundation.dart';
 
 class SuttaService {
-  // ✅ 1. Variable Cache (Nyangkut di RAM)
+  //  1. Variable Cache (Nyangkut di RAM)
   static final Map<String, dynamic> _memoryCache = {};
 
   /// Fungsi bantu buat bersihin cache (opsional, bisa dipanggil kalau mau refresh total)
@@ -209,7 +209,7 @@ class SuttaService {
           merged["root_text"] = {...metadataMap, ...contentMap};
 
           // debugPrint(
-          //   "✅ Merged root_text: ${metadataMap.keys.length} meta keys + ${contentMap.keys.length} content segments",
+          //   " Merged root_text: ${metadataMap.keys.length} meta keys + ${contentMap.keys.length} content segments",
           // );
           // debugPrint("   🔗 Vagga: ${metadataMap['vagga_uid']}");
           // debugPrint("   ⬅️ Prev: ${metadataMap['previous']?['uid']}");
@@ -246,7 +246,7 @@ class SuttaService {
 
           if (contentMap.isNotEmpty) {
             debugPrint(
-              "✅ Merged translation_text: ${metadataMap.keys.length} meta keys + ${contentMap.keys.length} content segments",
+              " Merged translation_text: ${metadataMap.keys.length} meta keys + ${contentMap.keys.length} content segments",
             );
           }
         }

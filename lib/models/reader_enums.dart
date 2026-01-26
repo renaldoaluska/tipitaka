@@ -52,7 +52,7 @@ class ReaderThemeStyle {
         return ReaderThemeStyle(
           bg: customBg ?? Colors.white,
           text: customText ?? Colors.black,
-          // ✅ Gunakan warna customPali yang dipilih user
+          //  Gunakan warna customPali yang dipilih user
           pali: customPali ?? const Color(0xFF8B4513),
         );
     }

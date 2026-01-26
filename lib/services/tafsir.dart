@@ -645,7 +645,7 @@ class TafsirService {
   static const String _baseUrl =
       "https://raw.githubusercontent.com/renaldoaluska/tipitaka-xml/main/romn";
 
-  // 🔥 1. VARIABEL BARU: Simpan data XML di RAM
+  //  1. VARIABEL BARU: Simpan data XML di RAM
   static final Map<String, String> _ramCache = {};
 
   // Dipanggil sekali seumur hidup via main.dart
@@ -745,12 +745,12 @@ class TafsirService {
     try {
       String fullXmlString;
 
-      // 🔥 2. LOGIC CACHE RAM (Anti Boros Kuota)
+      //  2. LOGIC CACHE RAM (Anti Boros Kuota)
       if (_ramCache.containsKey(fileName)) {
         debugPrint("⚡ RAM HIT: $fileName (Pake memori)");
         fullXmlString = _ramCache[fileName]!;
       } else {
-        // 🔥 3. FETCH ONLINE (Kalau belum ada di RAM)
+        //  3. FETCH ONLINE (Kalau belum ada di RAM)
         debugPrint("🌐 DOWNLOAD: $fileName ...");
         final url = "$_baseUrl/$fileName";
 
@@ -764,7 +764,7 @@ class TafsirService {
         // Decode bytes (Pake helper _decodeSmart lu yang udah ada)
         fullXmlString = _decodeSmart(bytes);
 
-        // 🔥 4. SIMPAN KE RAM
+        //  4. SIMPAN KE RAM
         _ramCache[fileName] = fullXmlString;
       }
 
@@ -1821,7 +1821,7 @@ class TafsirService {
       return {
         'code': bookCode,
         'num': cleanUid,
-        'mulPart': mulPart, // ✅ SEKARANG SUDAH TERISI (Misal: "2" untuk AN 3)
+        'mulPart': mulPart, //  SEKARANG SUDAH TERISI (Misal: "2" untuk AN 3)
       };
     }
 

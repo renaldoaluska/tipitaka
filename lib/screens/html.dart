@@ -60,7 +60,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
   double _lineHeight = 1.6;
   String _fontType = 'sans'; // 'sans' (Inter) atau 'serif' (Noto)
-  // ✅ 2. HELPER FONT
+  //  2. HELPER FONT
   String? get _currentFontFamily {
     return _fontType == 'serif'
         ? GoogleFonts.notoSerif().fontFamily
@@ -176,8 +176,8 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
     // 🔧 SETUP CONNECTIVITY LISTENER
     _initConnectivity();
-    _loadAudioUrls(); // ✅ TAMBAH INI
-    _setupRealtimeListener(); // ✅ TAMBAH INI
+    _loadAudioUrls(); //  TAMBAH INI
+    _setupRealtimeListener(); //  TAMBAH INI
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       _updateConnectionStatus,
     );
@@ -209,7 +209,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
   void _updateViewportRatio() {
     // Gunakan postFrameCallback agar maxScrollExtent sudah akurat setelah render
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // 🔥 TAMBAHKAN DELAY KECIL (100-200ms)
+      //  TAMBAHKAN DELAY KECIL (100-200ms)
       // Memberi waktu bagi widget Html untuk menyelesaikan layouting
       await Future.delayed(const Duration(milliseconds: 200));
 
@@ -224,7 +224,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         double targetRatio = pos.viewportDimension / totalContentHeight;
         _viewportRatioVN.value = targetRatio.clamp(0.1, 1.0);
 
-        // 2. 🔥 PAKSA UPDATE PROGRESS (Posisi Jempol)
+        // 2.  PAKSA UPDATE PROGRESS (Posisi Jempol)
         // Agar jempol langsung berada di paling atas (0.0)
         _scrollProgressVN.value = (pos.pixels / pos.maxScrollExtent).clamp(
           0.0,
@@ -301,7 +301,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
           results.isNotEmpty && !results.contains(ConnectivityResult.none);
     });
 
-    // ✅ AUTO RELOAD kalau balik online
+    //  AUTO RELOAD kalau balik online
     if (wasOffline && _isOnline) {
       debugPrint('🌐 Connection restored - reloading audio URLs...');
       _loadAudioUrls(forceRefresh: true);
@@ -316,7 +316,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
 
     try {
       final result = await DaftarIsi.loadAudioUrls(forceRefresh: forceRefresh);
-      // debugPrint('✅ Audio URLs loaded: ${result.length} items');
+      // debugPrint(' Audio URLs loaded: ${result.length} items');
 
       if (result.isNotEmpty) {
         final firstKey = result.keys.first;
@@ -440,7 +440,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         _lineHeight = prefs.getDouble('html_line_height') ?? 1.6;
         _fontType = prefs.getString('html_font_type') ?? 'sans';
         _isBottomMenuVisible =
-            prefs.getBool('html_bottom_menu_visible') ?? true; // ✅ TAMBAH INI
+            prefs.getBool('html_bottom_menu_visible') ?? true; //  TAMBAH INI
 
         // Load Warna Kustom
         // Gunakan key universal tanpa prefix biar sinkron
@@ -853,7 +853,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
       isScrollControlled:
           true, // Wajib true biar keyboard gak nendang layout berantakan
       useSafeArea:
-          true, // ✅ PENTING: Biar aman dari notch/status bar di landscape
+          true, //  PENTING: Biar aman dari notch/status bar di landscape
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.4),
       isDismissible: true,
@@ -886,7 +886,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                   ),
                 ),
                 child: SingleChildScrollView(
-                  // ✅ SCROLLABLE: Kunci anti-overflow di landscape!
+                  //  SCROLLABLE: Kunci anti-overflow di landscape!
                   // Kalau layar kependekan, kontennya bisa digulung.
                   physics: const BouncingScrollPhysics(),
                   child: Padding(
@@ -963,7 +963,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                                       if (val.trim().length >= 2) {
                                         _performSearch(val);
                                       }
-                                      // ✅ FIX: Bungkus try-catch agar tidak crash jika modal sudah tutup
+                                      //  FIX: Bungkus try-catch agar tidak crash jika modal sudah tutup
                                       try {
                                         setSheetState(() {});
                                       } catch (_) {}
@@ -1047,7 +1047,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         //  SEMUANYA MASUKIN SINI BIAR RAPI & UI KE-UPDATE BARENGAN
         setState(() {
           _isSearchModalOpen = false;
-          _isSearchActive = false; // ✅ Penting buat padding bawah
+          _isSearchActive = false; //  Penting buat padding bawah
 
           _debounce?.cancel();
           _currentQuery = "";
@@ -1438,7 +1438,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
                     right: 0,
                     bottom: 0,
                     child: Align(
-                      // ✅ TAMBAHIN INI
+                      //  TAMBAHIN INI
                       alignment: Alignment.bottomCenter,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -1785,7 +1785,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontFamily: mainFont,
         fontWeight: FontWeight.normal,
         fontSize: FontSize(_fontSize * 0.75),
-        color: subtleColor, // ✅ Pake warna turunan teks
+        color: subtleColor, //  Pake warna turunan teks
         fontStyle: FontStyle.normal,
         margin: Margins.only(top: 4),
         lineHeight: LineHeight(1.3),
@@ -1831,7 +1831,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontFamily: mainFont,
         fontStyle: FontStyle.italic,
         fontSize: FontSize(_fontSize * 0.85),
-        color: subtleColor, // ✅ Konsisten
+        color: subtleColor, //  Konsisten
         margin: Margins.only(bottom: 4),
       ),
 
@@ -1905,7 +1905,7 @@ class _HtmlReaderPageState extends State<HtmlReaderPage> {
         fontFamily: serifFont,
         fontSize: FontSize(_fontSize * 0.9),
         fontWeight: FontWeight.bold,
-        color: subtleColor, // ✅ Konsisten
+        color: subtleColor, //  Konsisten
         margin: Margins.only(top: 32, bottom: 8),
       ),
 

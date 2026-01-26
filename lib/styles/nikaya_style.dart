@@ -89,7 +89,7 @@ String normalizeNikayaAcronym(String acronym) {
   // 1. Ubah strip/dash jadi spasi biar konsisten
   String normalized = acronym.replaceAll("-", " ");
 
-  // 2. 🔥 FIX: Buang SEMUA yang ada angka dan teks setelahnya
+  // 2.  FIX: Buang SEMUA yang ada angka dan teks setelahnya
   // Misal: "Tha Ap 1. Upalivagga" → "Tha Ap"
   //        "Bi Pj 1-4" → "Bi Pj"
   //        "Bu Vb Pj 123" → "Bu Vb Pj"

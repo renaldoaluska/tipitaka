@@ -25,8 +25,8 @@ class PatipattiPage extends StatefulWidget {
 
 class _PatipattiPageState extends State<PatipattiPage>
     with AutomaticKeepAliveClientMixin {
-  String? _lastCampaignFetchTimeStr; // ✅ Tambah ini
-  DateTime? _lastDermaClickTime; // ✅ Untuk satpam refresh
+  String? _lastCampaignFetchTimeStr; //  Tambah ini
+  DateTime? _lastDermaClickTime; //  Untuk satpam refresh
 
   // Variabel buat nyatet waktu terakhir refresh Uposatha
   DateTime? _lastUposathaRefreshTime;
@@ -396,7 +396,7 @@ class _PatipattiPageState extends State<PatipattiPage>
     }
   }
 
-  // ✅ METHOD SATPAM BUAT UPOSATHA
+  //  METHOD SATPAM BUAT UPOSATHA
   void _handleUposathaRefresh() {
     final now = DateTime.now();
 
@@ -435,7 +435,7 @@ class _PatipattiPageState extends State<PatipattiPage>
 
     // 2. KALAU LOLOS:
     _lastUposathaRefreshTime = now; // Catat waktu sekarang
-    _loadUposathaFromFirebase(); // 🔥 Panggil fungsi fetch aslinya (Bypass TTL)
+    _loadUposathaFromFirebase(); //  Panggil fungsi fetch aslinya (Bypass TTL)
   }
 
   bool _isTabletLandscape(BuildContext context) {
@@ -521,7 +521,7 @@ class _PatipattiPageState extends State<PatipattiPage>
           }
         });
 
-        debugPrint('✅ Uposatha cache loaded');
+        debugPrint(' Uposatha cache loaded');
         return true;
       }
 
@@ -568,7 +568,7 @@ class _PatipattiPageState extends State<PatipattiPage>
 
       debugPrint('🌐 Fetching Uposatha from Firebase...');
 
-      // ✅ TAMBAH TIMEOUT 10 DETIK
+      //  TAMBAH TIMEOUT 10 DETIK
       final snapshot = await _databaseRef
           .child('uposatha')
           .get()
@@ -588,13 +588,13 @@ class _PatipattiPageState extends State<PatipattiPage>
           _isOnline = true;
           _isLoadingUposatha = false;
         });
-        debugPrint('✅ Firebase Uposatha loaded & cached');
+        debugPrint(' Firebase Uposatha loaded & cached');
       }
     } catch (e) {
       debugPrint('❌ Firebase error (probably offline): $e');
 
       if (mounted) {
-        // ✅ CUKUP SET STATE, NO SNACKBAR
+        //  CUKUP SET STATE, NO SNACKBAR
         setState(() {
           _isOnline = false;
           _isLoadingUposatha = false;
@@ -603,7 +603,7 @@ class _PatipattiPageState extends State<PatipattiPage>
     }
   }
 
-  // ✅ UPDATE: Setup listener dengan error handling
+  //  UPDATE: Setup listener dengan error handling
   /* void _setupRealtimeListener() {
     _databaseRef
         .child('uposatha')
@@ -936,7 +936,7 @@ class _PatipattiPageState extends State<PatipattiPage>
     );
   }
 
-  // ✅ FUNGSI SATPAM - Cegah spam refresh
+  //  FUNGSI SATPAM - Cegah spam refresh
   void _handleDermaRefresh() {
     final now = DateTime.now();
 
@@ -974,7 +974,7 @@ class _PatipattiPageState extends State<PatipattiPage>
 
     // Kalau lolos (udah lebih dari 11 detik atau baru pertama kali):
     _lastDermaClickTime = now;
-    _loadCampaigns(forceRefresh: true); // ✅ PAKSA REFRESH SERVER
+    _loadCampaigns(forceRefresh: true); //  PAKSA REFRESH SERVER
   }
 
   Future<void> _loadCampaigns({
@@ -987,7 +987,7 @@ class _PatipattiPageState extends State<PatipattiPage>
     });
 
     try {
-      // ✅ FETCH SEMUA KATEGORI SEKALIGUS
+      //  FETCH SEMUA KATEGORI SEKALIGUS
       final result = await _danaService
           .fetchAllCampaigns(forceRefresh: forceRefresh)
           .timeout(
@@ -997,13 +997,13 @@ class _PatipattiPageState extends State<PatipattiPage>
             },
           );
 
-      // ✅ DEBUG: Print semua kategori yang ada
+      //  DEBUG: Print semua kategori yang ada
       debugPrint('📋 Categories from API:');
       result.dataByCategory.forEach((key, value) {
         debugPrint('   - "$key" (${value.length} campaigns)');
       });
 
-      // ✅ FILTER berdasarkan kategori yang dipilih
+      //  FILTER berdasarkan kategori yang dipilih
       List<Campaign> displayCampaigns = [];
 
       if (categoryId != null) {
@@ -1024,7 +1024,7 @@ class _PatipattiPageState extends State<PatipattiPage>
         if (result.dataByCategory.containsKey(expectedName)) {
           displayCampaigns = result.dataByCategory[expectedName]!;
           debugPrint(
-            '✅ Exact match found: ${displayCampaigns.length} campaigns',
+            ' Exact match found: ${displayCampaigns.length} campaigns',
           );
         }
         // 3. Kalau ga ada, coba case-insensitive match
@@ -1036,7 +1036,7 @@ class _PatipattiPageState extends State<PatipattiPage>
             if (mapEntry.key.toLowerCase() == lowerExpected) {
               displayCampaigns = mapEntry.value;
               debugPrint(
-                '✅ Case-insensitive match: "${mapEntry.key}" (${displayCampaigns.length})',
+                ' Case-insensitive match: "${mapEntry.key}" (${displayCampaigns.length})',
               );
               found = true;
               break;
@@ -1058,7 +1058,7 @@ class _PatipattiPageState extends State<PatipattiPage>
         // "Semua" → Ambil top 12, sort by HARI TERSISA (terdekat dulu)
         displayCampaigns = result.allCampaigns;
 
-        // ✅ SORT BY DAYS REMAINING (paling sedikit dulu)
+        //  SORT BY DAYS REMAINING (paling sedikit dulu)
         displayCampaigns.sort((a, b) {
           // Campaign yang udah lewat deadline (daysRemaining = 0) → taruh belakang
           if (a.daysRemaining == 0 && b.daysRemaining > 0) return 1;
@@ -1070,11 +1070,11 @@ class _PatipattiPageState extends State<PatipattiPage>
 
         displayCampaigns = displayCampaigns.take(12).toList();
         debugPrint(
-          '✅ "Semua" selected: ${displayCampaigns.length} campaigns (sorted by deadline)',
+          ' "Semua" selected: ${displayCampaigns.length} campaigns (sorted by deadline)',
         );
       }
 
-      // ✅ VALIDASI
+      //  VALIDASI
       if (displayCampaigns.isEmpty) {
         debugPrint('⚠️ No campaigns to display');
       }
@@ -1090,7 +1090,7 @@ class _PatipattiPageState extends State<PatipattiPage>
         );
       }
 
-      // ✅ UPDATE TIMESTAMP CUMA KALAU FETCH SERVER
+      //  UPDATE TIMESTAMP CUMA KALAU FETCH SERVER
       if (mounted && result.wasFetchedFromServer) {
         final now = DateTime.now();
         final timeToDisplay =
@@ -1103,12 +1103,12 @@ class _PatipattiPageState extends State<PatipattiPage>
           _lastCampaignFetchTimeStr = timeToDisplay;
         });
 
-        debugPrint('✅ Fetched from SERVER! Updated timestamp: $timeToDisplay');
+        debugPrint(' Fetched from SERVER! Updated timestamp: $timeToDisplay');
       } else {
         debugPrint('📦 From CACHE. Timestamp NOT updated.');
       }
 
-      // ✅ UPDATE UI
+      //  UPDATE UI
       if (mounted) {
         setState(() {
           _campaigns = validCampaigns;
@@ -1155,7 +1155,7 @@ class _PatipattiPageState extends State<PatipattiPage>
       setState(() => _selectedParittaTradition = savedParittaTradition);
     }
 
-    // ✅ TAMBAH INI: Load waktu update Campaign
+    //  TAMBAH INI: Load waktu update Campaign
     final savedCampaignTime = prefs.getString('last_campaign_update_time');
     if (savedCampaignTime != null) {
       setState(() => _lastCampaignFetchTimeStr = savedCampaignTime);
@@ -1375,7 +1375,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                           ),
                           const SizedBox(width: 8),
                         ],
-                        // 🔥 TOMBOL REFRESH DI SINI
+                        //  TOMBOL REFRESH DI SINI
                         SizedBox(
                           width: 20,
                           height: 20,
@@ -2011,7 +2011,7 @@ class _PatipattiPageState extends State<PatipattiPage>
                           ),
                           const SizedBox(width: 8),
                         ],
-                        // 🔥 TOMBOL REFRESH DI SINI
+                        //  TOMBOL REFRESH DI SINI
                         SizedBox(
                           width: 20,
                           height: 20,
@@ -2693,7 +2693,7 @@ class _PatipattiPageState extends State<PatipattiPage>
         padding: EdgeInsets.zero,
         itemCount: items.length,
         itemBuilder: (context, index) {
-          final item = items[index]; // ✅ Pakai items langsung
+          final item = items[index]; //  Pakai items langsung
           return _buildParittaItem(item, accentColor, lightBg, borderColor);
         },
       );
@@ -2959,7 +2959,7 @@ class _PatipattiPageState extends State<PatipattiPage>
         : lightBg.withValues(alpha: 0.3);
 
     return Material(
-      // ✅ Langsung Material
+      //  Langsung Material
       color: Colors.transparent,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(

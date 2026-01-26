@@ -377,7 +377,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Ambil dari Theme
+    //  Ambil dari Theme
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
 
     return Container(color: bgColor, child: buildKitabList(_getKitabList()));
@@ -586,7 +586,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
                       color: Colors.grey.withValues(alpha: 0.2),
                     ),
 
-                    // 🔥 PERBAIKAN DI SINI (Pakai LayoutBuilder)
+                    //  PERBAIKAN DI SINI (Pakai LayoutBuilder)
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
@@ -774,14 +774,14 @@ class _PariyattiContentState extends State<PariyattiContent> {
         style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 14,
-          color: textColor, // ✅ Dinamis
+          color: textColor, //  Dinamis
         ),
       ),
       subtitle: Text(
         kitab["desc"]!,
         maxLines: acronym.contains("Bu") || acronym.contains("Bi") ? 3 : 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: subtextColor, fontSize: 12), // ✅ Dinamis
+        style: TextStyle(color: subtextColor, fontSize: 12), //  Dinamis
       ),
       trailing: Text(
         kitab["range"]!,
@@ -794,7 +794,7 @@ class _PariyattiContentState extends State<PariyattiContent> {
       onTap: () {
         final uid = kitab["url"] ?? kitab["acronym"]!.toLowerCase();
 
-        // 🔥 LOGIC KHUSUS: Cek apakah ini Patimokkha (Bu/Bi)?
+        //  LOGIC KHUSUS: Cek apakah ini Patimokkha (Bu/Bi)?
         if (uid == "pli-tv-bu-pm" || uid == "pli-tv-bi-pm") {
           // Jika YA, buka Suttaplex (Langsung baca teks)
           showModalBottomSheet(

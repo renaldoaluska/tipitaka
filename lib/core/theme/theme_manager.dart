@@ -24,7 +24,7 @@ class ThemeManager extends ChangeNotifier {
       _themeMode = ThemeMode.system;
     }
 
-    // 🔥 HAPUS if-else kosong, langsung notifyListeners aja
+    //  HAPUS if-else kosong, langsung notifyListeners aja
     notifyListeners();
   }
 
@@ -37,7 +37,7 @@ class ThemeManager extends ChangeNotifier {
       _themeMode == ThemeMode.light ? 'light' : 'dark',
     );
 
-    // 🔥 HAPUS Future.delayed - ga perlu lagi!
+    //  HAPUS Future.delayed - ga perlu lagi!
     notifyListeners();
   }
 

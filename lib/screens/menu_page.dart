@@ -65,7 +65,7 @@ class _MenuPageState extends State<MenuPage> {
         if (widget.parentAcronym.isNotEmpty) {
           _rootAcronym = widget.parentAcronym;
         } else {
-          // 🔥 FIX: Pakai normalizeNikayaAcronym() biar konsisten
+          //  FIX: Pakai normalizeNikayaAcronym() biar konsisten
           String rawAcronym = root?["acronym"] ?? "";
           _rootAcronym = normalizeNikayaAcronym(rawAcronym);
         }
@@ -75,7 +75,7 @@ class _MenuPageState extends State<MenuPage> {
         _loading = false;
       });
 
-      // 🔥 DEBUG LOG (Bisa dihapus kalau udah beres)
+      //  DEBUG LOG (Bisa dihapus kalau udah beres)
       // debugPrint("📋 [MenuPage] UID yang diminta: ${widget.uid}");
       // debugPrint(
       //   "📋 [MenuPage] Parent Acronym (Kiriman): '${widget.parentAcronym}'",
@@ -93,7 +93,7 @@ class _MenuPageState extends State<MenuPage> {
           _loading = false;
           final errString = e.toString().toLowerCase();
 
-          // 🔥 LOGIC ERROR HANDLING YANG LEBIH CERDAS
+          //  LOGIC ERROR HANDLING YANG LEBIH CERDAS
           if (errString.contains('socket') ||
               errString.contains('lookup') ||
               errString.contains('unreachable')) {
@@ -265,7 +265,7 @@ class _MenuPageState extends State<MenuPage> {
                   ),
                   child: Suttaplex(
                     uid: item.uid,
-                    sourceMode: "menu_page", // ✅ Mode dari MenuPage
+                    sourceMode: "menu_page", //  Mode dari MenuPage
                   ),
                 ),
               ),
@@ -293,7 +293,7 @@ class _MenuPageState extends State<MenuPage> {
 
     final isTabletLandscape = _isTabletLandscape(context); // ðŸ"¥ TAMBAH INI
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // 🔥 WRAP
+      //  WRAP
       value: SystemUIHelper.getStyle(context),
       child: Scaffold(
         appBar: null,
@@ -313,7 +313,7 @@ class _MenuPageState extends State<MenuPage> {
                           left: 24,
                           right: 24,
                           bottom: 24,
-                        ), // ✅ UBAH padding
+                        ), //  UBAH padding
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -341,7 +341,7 @@ class _MenuPageState extends State<MenuPage> {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
-                            // ✅ PAKAI RichText
+                            //  PAKAI RichText
                             RichText(
                               textAlign: TextAlign.center,
                               text: TextSpan(
@@ -418,7 +418,7 @@ class _MenuPageState extends State<MenuPage> {
                       ),
                     ),
 
-                    // ✅ TAMBAHIN HEADER (copy dari bawah tapi simplified)
+                    //  TAMBAHIN HEADER (copy dari bawah tapi simplified)
                     _buildErrorHeader(cardColor, iconColor, textColor),
                   ],
                 )

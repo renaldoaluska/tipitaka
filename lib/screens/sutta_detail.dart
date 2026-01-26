@@ -1093,7 +1093,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
         // MASUKIN KE LIST TAMPILAN
         _tafsirAvailableSections.add(label);
 
-        // 🔥 ISI LIST TARGET (Ini kuncinya: simpan 'i' apa adanya)
+        //  ISI LIST TARGET (Ini kuncinya: simpan 'i' apa adanya)
         // Walaupun labelnya '1' lagi, kita simpan 'i' yang baru (misal index 500)
         _tafsirSectionTargetIndices.add(i);
 
@@ -1180,7 +1180,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
       _currentMatchIndex = safeIndex;
     });
 
-    // ✅ CEK NULL SEBELUM AKSES
+    //  CEK NULL SEBELUM AKSES
     if (_allMatches.isEmpty || safeIndex >= _allMatches.length) {
       return; // ← TAMBAHKAN INI
     }
@@ -2067,7 +2067,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
           ),
         );
 
-        // 🔥 JALUR KERAS: Paksa tutup manual setelah 5 detik lewat Timer
+        //  JALUR KERAS: Paksa tutup manual setelah 5 detik lewat Timer
         Timer(const Duration(seconds: 5), () {
           if (mounted) ScaffoldMessenger.of(context).removeCurrentSnackBar();
         });
@@ -3367,7 +3367,7 @@ class _SuttaDetailState extends State<SuttaDetail> {
     Map<String, String> translationSegs,
     Map<String, String> commentarySegs,
   ) {
-    // ✅ VALIDASI AWAL
+    //  VALIDASI AWAL
     if (key.isEmpty) return const SizedBox.shrink();
 
     final config = _getHeaderConfig(key, isPaliOnly: _isRootOnly);

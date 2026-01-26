@@ -12,7 +12,7 @@ class SegmentedSutta {
   factory SegmentedSutta.fromJson(Map<String, dynamic> json) {
     Map<String, String> segs = {};
 
-    // ✅ Service sudah flatten ke "segments"
+    //  Service sudah flatten ke "segments"
     if (json.containsKey("segments") && json["segments"] is Map) {
       segs = Map<String, String>.from(
         json["segments"] as Map<String, dynamic>,
@@ -29,7 +29,7 @@ class SegmentedSutta {
   /// Gabung semua segmen jadi teks rapi
   String get fullText => segments.values.join("\n\n");
 
-  /// ✅ Helper: cek apakah data valid
+  ///  Helper: cek apakah data valid
   bool get isValid => uid.isNotEmpty && segments.isNotEmpty;
 }
 
@@ -52,6 +52,6 @@ class NonSegmentedSutta {
     );
   }
 
-  /// ✅ Helper: cek apakah data valid
+  ///  Helper: cek apakah data valid
   bool get isValid => uid.isNotEmpty && text.isNotEmpty;
 }

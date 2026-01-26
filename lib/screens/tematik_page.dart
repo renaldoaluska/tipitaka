@@ -88,7 +88,7 @@ class _TematikPageState extends State<TematikPage> {
         left: 16,
         right: 16,
         top: 16,
-        bottom: 24, // 🔥 TAMBAH INI
+        bottom: 24, //  TAMBAH INI
       ),
       itemCount: TematikData.mainMenu.length,
       itemBuilder: (context, index) => _buildChapterCard(index),

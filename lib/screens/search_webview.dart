@@ -50,7 +50,7 @@ class _SearchWebViewState extends State<SearchWebView> {
               _hasError = true;
             });
           },
-          // ✅ Handle klik link suttacentral
+          //  Handle klik link suttacentral
           onNavigationRequest: (NavigationRequest request) {
             final url = request.url;
 

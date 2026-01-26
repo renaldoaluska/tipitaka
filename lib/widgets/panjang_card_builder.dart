@@ -19,7 +19,7 @@ class PanjangCardBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Ambil dari Theme, bukan parameter
+    //  Ambil dari Theme, bukan parameter
     final cardColor = Theme.of(context).colorScheme.surface;
     final textColor = Theme.of(context).colorScheme.onSurface;
     final subtextColor = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -31,7 +31,7 @@ class PanjangCardBuilder extends StatelessWidget {
     final bgColor = Color.fromARGB(26, red, green, blue);
 
     return Card(
-      color: cardColor, // ✅ Dari Theme
+      color: cardColor, //  Dari Theme
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -59,14 +59,14 @@ class PanjangCardBuilder extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: textColor, // ✅ Dari Theme
+                        color: textColor, //  Dari Theme
                       ),
                     ),
                     Text(
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: subtextColor, // ✅ Dari Theme
+                        color: subtextColor, //  Dari Theme
                       ),
                     ),
                   ],

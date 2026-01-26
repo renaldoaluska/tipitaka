@@ -6,10 +6,10 @@ import 'package:html_unescape/html_unescape.dart';
 // Berisi logic Regex, HTML Decoding, dan Highlight Search
 // ============================================================
 class SuttaTextHelper {
-  // 🔥 ALAT DECODE ABADI (Hemat Memori)
+  //  ALAT DECODE ABADI (Hemat Memori)
   static final HtmlUnescape unescape = HtmlUnescape();
 
-  // 🔥 CACHE REGEX
+  //  CACHE REGEX
   static final RegExp htmlTagRegex = RegExp(r'<[^>]*>');
   static final RegExp vaggaUidRegex = RegExp(
     r'^([a-z]+(?:-[a-z]+)?)(\d+)(?:\.(\d+))?',
@@ -19,7 +19,7 @@ class SuttaTextHelper {
   // 1. FUZZY PALI SEARCH REGEX CREATOR
   // ============================================================
   static RegExp createPaliRegex(String query) {
-    // ✅ VALIDASI: Kalau query kosong, return regex yang gak match apa-apa
+    //  VALIDASI: Kalau query kosong, return regex yang gak match apa-apa
     if (query.trim().isEmpty) {
       return RegExp(r'(?!)'); // Negative lookahead (never matches)
     }
@@ -27,7 +27,7 @@ class SuttaTextHelper {
     // Hapus simbol < dan > biar user gak bisa search tag HTML
     final cleanQuery = query.replaceAll(RegExp(r'[<>]'), '');
 
-    // ✅ VALIDASI: Setelah dibersihkan masih ada isi?
+    //  VALIDASI: Setelah dibersihkan masih ada isi?
     if (cleanQuery.isEmpty) {
       return RegExp(r'(?!)');
     }
@@ -69,7 +69,7 @@ class SuttaTextHelper {
     try {
       return RegExp(buffer.toString(), caseSensitive: false);
     } catch (e) {
-      // ✅ SAFETY: Kalau regex invalid, return yang aman
+      //  SAFETY: Kalau regex invalid, return yang aman
       debugPrint("⚠️ Invalid regex pattern: $e");
       return RegExp(r'(?!)');
     }
@@ -87,14 +87,14 @@ class SuttaTextHelper {
     List<SearchMatch> allMatches,
     int currentMatchIndex,
   ) {
-    // ✅ VALIDASI: Cek semua input
+    //  VALIDASI: Cek semua input
     if (searchRegex == null || content.trim().isEmpty) return content;
 
     try {
       // 1. Decode HTML entities (&nbsp; → spasi, &amp; → &, dll)
       final decoded = unescape.convert(content);
 
-      // ✅ VALIDASI: Hasil decode bisa kosong
+      //  VALIDASI: Hasil decode bisa kosong
       if (decoded.isEmpty) return content;
 
       // 2. Strip tags untuk matching (Biar search gak kena tag HTML)
@@ -143,11 +143,11 @@ class SuttaTextHelper {
           }
         }
 
-        // ✅ SAFE: Map dengan default fallback
+        //  SAFE: Map dengan default fallback
         final origStart = cleanToOriginal[match.start] ?? 0;
         final origEnd = cleanToOriginal[match.end] ?? decoded.length;
 
-        // ✅ VALIDASI: Pastikan range valid
+        //  VALIDASI: Pastikan range valid
         if (origStart >= result.length ||
             origEnd > result.length ||
             origStart >= origEnd) {
@@ -194,7 +194,7 @@ class SuttaTextHelper {
     List<SearchMatch> allMatches,
     int currentMatchIndex,
   ) {
-    // ✅ VALIDASI: Input kosong
+    //  VALIDASI: Input kosong
     if (htmlText.trim().isEmpty) return [];
 
     try {
@@ -228,7 +228,7 @@ class SuttaTextHelper {
           if (plainText.isNotEmpty) {
             final decodedText = unescape.convert(plainText);
 
-            // 🔥 MAGIC: Build Highlighted Spans
+            //  MAGIC: Build Highlighted Spans
             final highlightedSpans = _buildHighlightedSpans(
               decodedText,
               styleStack.last,
@@ -249,7 +249,7 @@ class SuttaTextHelper {
         final isClosing = match.group(1) == '/';
         final tagName = match.group(2)?.toLowerCase();
 
-        // ✅ VALIDASI: tagName bisa null
+        //  VALIDASI: tagName bisa null
         if (tagName == null) {
           lastIndex = match.end;
           continue;
@@ -292,7 +292,7 @@ class SuttaTextHelper {
         spans.addAll(highlightedSpans.spans);
       }
 
-      // ✅ SAFETY: Jangan return list kosong, minimal kasih TextSpan kosong
+      //  SAFETY: Jangan return list kosong, minimal kasih TextSpan kosong
       if (spans.isEmpty) {
         return [TextSpan(text: '', style: baseStyle)];
       }
@@ -319,7 +319,7 @@ class SuttaTextHelper {
     List<SearchMatch> allMatches,
     int currentMatchIndex,
   ) {
-    // ✅ VALIDASI: Text kosong
+    //  VALIDASI: Text kosong
     if (text.isEmpty) {
       return HighlightResult([], startCounter);
     }
@@ -344,7 +344,7 @@ class SuttaTextHelper {
       int currentCounter = startCounter;
 
       for (final match in matches) {
-        // ✅ VALIDASI: Range bisa invalid
+        //  VALIDASI: Range bisa invalid
         if (match.start < 0 ||
             match.end > text.length ||
             match.start >= match.end) {
@@ -422,7 +422,7 @@ class HighlightResult {
 class SearchMatch {
   final int listIndex; // Index baris/paragraf ke berapa
   final int localIndex; // Urutan kata ke berapa di dalam baris itu
-  final bool isPali; // 🔥 PENANDA: Apakah ini teks Pali atau Terjemahan?
+  final bool isPali; //  PENANDA: Apakah ini teks Pali atau Terjemahan?
 
   SearchMatch(this.listIndex, this.localIndex, this.isPali);
 }

@@ -611,8 +611,12 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
           ),
         ),
         const SizedBox(height: 8),
+
+        //  UPDATE 1: TAMBAH ONCHANGED DI SINI
         TextField(
           controller: _apiKeyControllers[_currentProvider],
+          onChanged: (_) =>
+              setState(() {}), // Biar tombol Simpan 'bangun' pas ngetik
           decoration: InputDecoration(
             hintText: 'Paste API key di sini...',
             filled: true,
@@ -623,6 +627,7 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
           ),
           obscureText: true,
         ),
+
         const SizedBox(height: 16),
         Text(
           'Model',
@@ -633,8 +638,12 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
           ),
         ),
         const SizedBox(height: 8),
+
+        //  UPDATE 2: TAMBAH ONCHANGED DI SINI JUGA
         TextField(
           controller: _modelControllers[_currentProvider],
+          onChanged: (_) =>
+              setState(() {}), // Biar tombol Simpan 'bangun' pas ngetik
           decoration: InputDecoration(
             hintText: AITranslationService.getModelPlaceholder(
               _currentProvider!,
@@ -646,15 +655,16 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
+
         const SizedBox(height: 24),
+
+        //  TOMBOL SIMPAN (LOGIKA WARNA & STATE)
         FilledButton.icon(
           onPressed: _canSave() ? _saveSettings : null,
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            // Kalau Tersimpan = Hijau, Kalau Normal = Default Theme
             backgroundColor: _isSaved ? Colors.green : null,
             foregroundColor: _isSaved ? Colors.white : null,
-            // Animasi transisi warna biar halus
             animationDuration: const Duration(milliseconds: 300),
           ),
           icon: Icon(_isSaved ? Icons.check_circle : Icons.save, size: 20),
@@ -680,7 +690,7 @@ class _AITranslationSheetState extends State<AITranslationSheet> {
       _apiKeyControllers[_currentProvider]!.text.trim().isNotEmpty &&
       _modelControllers[_currentProvider]!.text.trim().isNotEmpty;
 
-  // ✅ UPDATE: VISUAL FEEDBACK DI TOMBOL (NO SNACKBAR)
+  //  UPDATE: VISUAL FEEDBACK DI TOMBOL (NO SNACKBAR)
   Future<void> _saveSettings() async {
     // 1. Tutup Keyboard dulu biar tombol kelihatan jelas
     FocusManager.instance.primaryFocus?.unfocus();

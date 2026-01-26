@@ -30,7 +30,7 @@ class DanaEverydayService {
     'Fangshen': '15',
   };
 
-  // ✅ FETCH SEMUA KATEGORI SEKALI JALAN (PARALLEL)
+  //  FETCH SEMUA KATEGORI SEKALI JALAN (PARALLEL)
   Future<FetchResult> fetchAllCampaigns({bool forceRefresh = false}) async {
     try {
       // 1. Cek cache dulu
@@ -56,13 +56,13 @@ class DanaEverydayService {
           if (response.statusCode == 200) {
             final decoded = json.decode(response.body);
 
-            // ✅ CEK ERROR MESSAGE DARI API
+            //  CEK ERROR MESSAGE DARI API
             if (decoded is Map && decoded.containsKey('error')) {
               debugPrint('⚠️ ${entry.key}: ${decoded['error']}');
               return <Campaign>[]; // Return list kosong
             }
 
-            // ✅ HANDLE LIST
+            //  HANDLE LIST
             List<dynamic> jsonList = [];
             if (decoded is List) {
               jsonList = decoded;
@@ -82,7 +82,7 @@ class DanaEverydayService {
               }
             }
 
-            // ✅ PARSE CAMPAIGNS
+            //  PARSE CAMPAIGNS
             final campaigns = jsonList
                 .map((json) {
                   try {
@@ -103,7 +103,7 @@ class DanaEverydayService {
                 )
                 .toList();
 
-            debugPrint('✅ ${entry.key}: ${campaigns.length} campaigns');
+            debugPrint(' ${entry.key}: ${campaigns.length} campaigns');
             return campaigns;
           } else {
             debugPrint('❌ ${entry.key}: HTTP ${response.statusCode}');
@@ -144,7 +144,7 @@ class DanaEverydayService {
     }
   }
 
-  // ✅ Group campaigns by category name
+  //  Group campaigns by category name
   Map<String, List<Campaign>> _groupByCategory(List<Campaign> campaigns) {
     final Map<String, List<Campaign>> result = {};
 
@@ -161,16 +161,16 @@ class DanaEverydayService {
     return result;
   }
 
-  // ✅ Get top N campaigns (dari semua kategori)
+  //  Get top N campaigns (dari semua kategori)
   List<Campaign> getTopCampaigns(FetchResult result, {int limit = 12}) {
     final allCampaigns = List<Campaign>.from(
       result.allCampaigns,
-    ); // ✅ Bikin copy dulu
+    ); //  Bikin copy dulu
     allCampaigns.sort((a, b) => b.percent.compareTo(a.percent));
     return allCampaigns.take(limit).toList();
   }
 
-  // ✅ Get campaigns untuk 1 kategori spesifik
+  //  Get campaigns untuk 1 kategori spesifik
   List<Campaign> getCampaignsByCategory(
     FetchResult result,
     String categoryName, {
@@ -246,7 +246,7 @@ class DanaEverydayService {
     debugPrint('🗑️ Cache cleared');
   }
 
-  // ✅ Helper buat ngecek apakah data fresh dari server
+  //  Helper buat ngecek apakah data fresh dari server
   Future<String?> getLastUpdateTime() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('last_campaign_update_time');

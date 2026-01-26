@@ -83,7 +83,7 @@ class _SplashGateState extends State<_SplashGate> {
 
     if (!mounted) return;
 
-    // 🔥 TRIGGER SYSTEM UI UPDATE DI SINI (SETELAH THEME MANAGER LOAD)
+    //  TRIGGER SYSTEM UI UPDATE DI SINI (SETELAH THEME MANAGER LOAD)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final themeManager = Provider.of<ThemeManager>(context, listen: false);
       final isDark =
@@ -179,7 +179,7 @@ class _RootPageState extends State<RootPage>
     });
   }
 
-  // 🔥 TAMBAH INI - Detect theme changes
+  //  TAMBAH INI - Detect theme changes
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -187,7 +187,7 @@ class _RootPageState extends State<RootPage>
     _updateSystemUI();
   }
 
-  // 🔥 EXTRACT JADI FUNGSI BIAR GA DUPLIKAT
+  //  EXTRACT JADI FUNGSI BIAR GA DUPLIKAT
   void _updateSystemUI() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     SystemChrome.setSystemUIOverlayStyle(
@@ -812,7 +812,7 @@ class _RootPageState extends State<RootPage>
   Widget _buildFabSearch() {
     return Stack(
       children: [
-        // ✅ Barrier dengan blur
+        //  Barrier dengan blur
         if (_isFabExpanded)
           Positioned(
             top: 0,
@@ -822,10 +822,10 @@ class _RootPageState extends State<RootPage>
             child: GestureDetector(
               onTap: _toggleFab,
               child: BackdropFilter(
-                // ✅ Blur effect
+                //  Blur effect
                 filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
                 child: Container(
-                  color: Colors.black.withValues(alpha: 0.1), // ✅ Sedikit gelap
+                  color: Colors.black.withValues(alpha: 0.1), //  Sedikit gelap
                 ),
               ),
             ),
@@ -871,7 +871,7 @@ class _RootPageState extends State<RootPage>
                 backgroundColor: Colors.deepOrange,
                 elevation: 2,
                 child: RotationTransition(
-                  turns: _fabAnimation, // ✅ Langsung pake _fabAnimation
+                  turns: _fabAnimation, //  Langsung pake _fabAnimation
                   child: Icon(
                     _isFabExpanded ? Icons.close : Icons.search,
                     size: 24,
@@ -900,10 +900,10 @@ class _RootPageState extends State<RootPage>
           borderRadius: BorderRadius.circular(20),
           elevation: 2,
           child: InkWell(
-            // ✅ Ganti ke InkWell biar ada ripple
+            //  Ganti ke InkWell biar ada ripple
             onTap: onTap,
-            borderRadius: BorderRadius.circular(20), // ✅ Ripple ikut border
-            splashColor: color.withValues(alpha: 0.2), // ✅ Warna ripple
+            borderRadius: BorderRadius.circular(20), //  Ripple ikut border
+            splashColor: color.withValues(alpha: 0.2), //  Warna ripple
             highlightColor: color.withValues(alpha: 0.1),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -930,11 +930,11 @@ class _RootPageState extends State<RootPage>
     );
   }
 
-  // 🔥 FUNGSI BARU: Input Kode Sutta
+  //  FUNGSI BARU: Input Kode Sutta
   void _showCodeInput() {
     _toggleFab();
 
-    // ✅ SIMPAN CONTEXT & THEME DI AWAL (SEBELUM showDialog)
+    //  SIMPAN CONTEXT & THEME DI AWAL (SEBELUM showDialog)
     final navigatorContext = context;
     final cardColor = Theme.of(context).colorScheme.surface;
     final textColor = Theme.of(context).colorScheme.onSurface;
@@ -1001,7 +1001,7 @@ class _RootPageState extends State<RootPage>
     final surfaceColor = Theme.of(context).colorScheme.surface;
     final navigatorContext = context;
 
-    // ✅ Normalisasi: lowercase, hapus semua spasi dan dash
+    //  Normalisasi: lowercase, hapus semua spasi dan dash
     String code = input.toLowerCase().trim().replaceAll(
       RegExp(r'\s+'),
       '',
@@ -1009,7 +1009,7 @@ class _RootPageState extends State<RootPage>
 
     String? uid;
 
-    // ✅ Mapping khusus untuk format vinaya/abhidhamma
+    //  Mapping khusus untuk format vinaya/abhidhamma
     final specialPrefixes = {
       'bipj': 'pli-tv-bi-vb-pj',
       'biss': 'pli-tv-bi-vb-ss',
@@ -1067,10 +1067,10 @@ class _RootPageState extends State<RootPage>
       return;
     }
 
-    // 🔥 Debug log
+    //  Debug log
     //print('📖 Input: "$input" → Code: "$code" → UID: "$uid"');
 
-    // 🔥 BUKA SUTTAPLEX
+    //  BUKA SUTTAPLEX
     showModalBottomSheet(
       context: navigatorContext,
       isScrollControlled: true,
@@ -1201,7 +1201,7 @@ class _RootPageState extends State<RootPage>
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             child: Container(
               height:
-                  MediaQuery.of(context).size.height * 0.85, // 🔥 Fixed height
+                  MediaQuery.of(context).size.height * 0.85, //  Fixed height
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
               ),

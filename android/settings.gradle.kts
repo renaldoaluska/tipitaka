@@ -21,7 +21,7 @@ plugins {
     // Loader Plugin Flutter
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
 
-    // ✅ VERSI DIKUNCI DI SINI (Source of Truth)
+    //  VERSI DIKUNCI DI SINI (Source of Truth)
     id("com.android.application") version "8.13.2" apply false
     id("com.android.library") version "8.13.2" apply false
     id("org.jetbrains.kotlin.android") version "2.3.0" apply false

@@ -66,7 +66,7 @@ class HistoryService {
     if (index >= 0) {
       bookmarks.removeAt(index);
     } else {
-      // 🔥 TAMBAH: Default note kosong kalau gak ada
+      //  TAMBAH: Default note kosong kalau gak ada
       if (!item.containsKey('note')) {
         item['note'] = '';
       }
@@ -76,7 +76,7 @@ class HistoryService {
     await prefs.setStringList(_keyBookmarks, bookmarks);
   }
 
-  // 🔥 FUNGSI BARU: Update note bookmark
+  //  FUNGSI BARU: Update note bookmark
   static Future<void> updateBookmarkNote(String uid, String note) async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> bookmarks = prefs.getStringList(_keyBookmarks) ?? [];
@@ -94,7 +94,7 @@ class HistoryService {
     }
   }
 
-  // 🔥 FUNGSI BARU: Delete multiple bookmarks
+  //  FUNGSI BARU: Delete multiple bookmarks
   static Future<void> deleteBookmarks(List<String> uids) async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> bookmarks = prefs.getStringList(_keyBookmarks) ?? [];
